@@ -1,0 +1,33 @@
+{
+  "name": "data-type-validator",
+  "version": "1.3.0",
+  "description": "A robust TypeScript class for type checking and validation",
+  "main": "Typer.js",
+  "types": "Typer.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lavv425/Typer.git"
+  },
+  "keywords": [
+    "typer",
+    "type_validator",
+    "typescript",
+    "type-checking",
+    "validation",
+    "utility"
+  ],
+  "author": "Michael Lavigna",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/lavv425/Typer/issues"
+  },
+  "homepage": "https://github.com/lavv425/Typer",
+  "dependencies": {
+    "data_type_validator": "^1.3.0"
+  }
+}
