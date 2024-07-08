@@ -11,7 +11,7 @@ The `Typer` class provides a comprehensive type checking and validation utility 
 Install the package via NPM:
 
 ```bash
-npm install typer-checker
+npm i data-type-validator
 
 
 Methods
