@@ -1,0 +1,10 @@
+{
+    "entryPoints": ["src/Typer.ts", "src/Types/Typer/index.ts"],
+    "out": "docs",
+    "includeVersion": true,
+    "excludePrivate": true,
+    "excludeProtected": true,
+    "hideGenerator": true,
+    "excludeExternals": false,
+    "theme": "default"
+  }

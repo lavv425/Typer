@@ -5,14 +5,15 @@ import { StructureValidationReturn, TyperExpectTypes, TyperReturn } from "./Type
 
 /**
  * Class representing a type checker.
+ * Version: 2.4.1
  * @author Michael Lavigna
- * @version 2.4.1
+ * @since 2.4.1
  */
-class Typer {
+export class Typer {
     /**
      * @private
-     * @type {object} 
-     * stores types mapping
+     * @type {Record<string, Function>} 
+     * Stores the type validation functions
      */
     private typesMap: Record<string, Function>;
 
@@ -84,6 +85,11 @@ class Typer {
      * @param {(value: any) => any} validator - The function to validate the type.
      * @param {boolean} override - Whether to override the original configuration
      * @throws {Error} If the type name is already registered.
+     * @example
+     * Typer.registerType("positive", (value) => {
+     *    if (typeof value !== "number" || value <= 0) throw new TypeError("Must be positive");
+     *    return value;
+     * });
      */
     public registerType(name: string, validator: (value: any) => any, override = false): void {
         const typeKey = name.toLowerCase().trim();
@@ -97,6 +103,8 @@ class Typer {
      * Unregister a type from the typesMap.
      * @param {string} name - The name of the type to remove.
      * @throws {Error} If the type does not exist.
+     * @example
+     * Typer.unregisterType("positive");
      */
     public unregisterType(name: string): void {
         const typeKey = name.toLowerCase().trim();
@@ -109,6 +117,8 @@ class Typer {
     /**
      * Get all registered types.
      * @returns {string[]} An array of registered type names.
+     * @example
+     * console.log(Typer.listTypes()); // ["array", "number", "string", "boolean"]
      */
     public listTypes(): string[] {
         return Object.keys(this.typesMap);
@@ -117,6 +127,8 @@ class Typer {
     /**
      * Exports all registered types as a JSON string.
      * @returns {string} The serialized types.
+     * @example
+     * console.log(Typer.exportTypes()); // '["array","number","string","boolean"]'
      */
     public exportTypes(): string {
         return JSON.stringify(Object.keys(this.typesMap));
@@ -125,6 +137,8 @@ class Typer {
     /**
      * Imports types from a JSON string.
      * @param {string} json - The JSON string containing type names.
+     * @example
+     * Typer.importTypes('["customType"]');
      */
     public importTypes(json: string): void {
         const types = JSON.parse(json);
@@ -421,6 +435,9 @@ class Typer {
      * @param {*} p - The parameter to check.
      * @returns {Array|void}
      * @throws {TypeError} Throws if the parameter is not an array of the specified type.
+     * @example
+     * console.log(Typer.isArrayOf("number", [1, 2, 3])); // true
+     * console.log(Typer.isArrayOf("string", [1, 2, "hello"])); // false
      */
     public isArrayOf(elementType: string, p: any): TyperReturn<any[]> {
         const arr = this.isType('array', p);
@@ -434,6 +451,9 @@ class Typer {
      * @param {*} p - The parameter to check.
      * @returns {string|void}
      * @throws {TypeError} Throws if the parameter is not a valid email address.
+     * @example
+     * console.log(Typer.isEmail("test@example.com")); // true
+     * console.log(Typer.isEmail("invalid-email")); // false 
      */
     public isEmail(p: any): TyperReturn<string> {
         const str = this.isType('string', p);
@@ -452,6 +472,9 @@ class Typer {
      * @param {*} p - The parameter to check.
      * @returns {number|void}
      * @throws {TypeError} Throws if the parameter is not a number within the specified range.
+     * @example
+     * console.log(Typer.isInRange(1, 10, 5)); // true
+     * console.log(Typer.isInRange(1, 10, 20)); // false
      */
     public isInRange(min: number, max: number, p: any): TyperReturn<number> {
         const num = this.isType('number', p);
@@ -467,6 +490,9 @@ class Typer {
      * @param {*} p - The parameter to check.
      * @returns {Number|Void}
      * @throws {TypeError} Throws if the parameter is not an integer.
+     * @example
+     * console.log(Typer.isInteger(42)); // true
+     * console.log(Typer.isInteger(42.5)); // false 
      */
     public isInteger(p: any) {
         const num = this.isType('number', p);
@@ -482,6 +508,9 @@ class Typer {
      * @param {*} p - The parameter to check.
      * @returns {Array|Void}
      * @throws {TypeError} Throws if the parameter is not a non-empty array.
+     * @example
+     * console.log(Typer.isNonEmptyArray([1, 2, 3])); // true
+     * console.log(Typer.isNonEmptyArray([])); // Throws TypeError
      */
     public isNonEmptyArray(p: any) {
         const arr = this.isType('array', p);
@@ -497,6 +526,9 @@ class Typer {
      * @param {*} p - The parameter to check.
      * @returns {String|Void}
      * @throws {TypeError} Throws if the parameter is not a non-empty string.
+     * @example
+     * console.log(Typer.isNonEmptyString("Hello")); // true
+     * console.log(Typer.isNonEmptyString("")); // Throws TypeError
      */
     public isNonEmptyString(p: any) {
         const str = this.isType('string', p);
@@ -513,6 +545,9 @@ class Typer {
      * @param {*} p - The parameter to check.
      * @returns {*}
      * @throws {TypeError} Throws if the parameter is not one of the specified values.
+     * @example
+     * console.log(Typer.isOneOf(["red", "blue"], "blue")); // true
+     * console.log(Typer.isOneOf(["red", "blue"], "green")); // false
      */
     public isOneOf(values: any[], p: any) {
         if (!values.includes(p)) {
@@ -527,6 +562,9 @@ class Typer {
      * @param {*} p - The parameter to check.
      * @returns {String|Void}
      * @throws {TypeError} Throws if the parameter is not a valid phone number.
+     * @example
+     * console.log(Typer.isPhoneNumber("+1234567890")); // true
+     * console.log(Typer.isPhoneNumber("abc123")); // Throws TypeError
      */
     public isPhoneNumber(p: any) {
         const str = this.isType('string', p);
@@ -543,6 +581,9 @@ class Typer {
      * @param {*} p - The parameter to check.
      * @returns {Number|Void}
      * @throws {TypeError} Throws if the parameter is not a positive number.
+     * @example
+     * console.log(Typer.isPositiveNumber(10)); // true
+     * console.log(Typer.isPositiveNumber(-5)); // Throws TypeError
      */
     public isPositiveNumber(p: any) {
         const num = this.isType('number', p);
@@ -558,6 +599,9 @@ class Typer {
      * @param {*} p - The parameter to check.
      * @returns {Number|Void}
      * @throws {TypeError} Throws if the parameter is not a positive integer.
+     * @example
+     * console.log(Typer.isPositiveInteger(42)); // true
+     * console.log(Typer.isPositiveInteger(-10)); // Throws TypeError
      */
     public isPositiveInteger(p: any) {
         const num = this.isInteger(p);
@@ -573,6 +617,9 @@ class Typer {
      * @param {*} p - The parameter to check.
      * @returns {Number|Void}
      * @throws {TypeError} Throws if the parameter is not a positive number.
+     * @example
+     * console.log(Typer.isNegativeNumber(-10)); // true
+     * console.log(Typer.isNegativeNumber(5)); // Throws TypeError
      */
     public isNegativeNumber(p: any) {
         const num = this.isType('number', p);
@@ -588,6 +635,9 @@ class Typer {
      * @param {*} p - The parameter to check.
      * @returns {Number|Void}
      * @throws {TypeError} Throws if the parameter is not a positive integer.
+     * @example
+     * console.log(Typer.isNegativeInteger(-42)); // true
+     * console.log(Typer.isNegativeInteger(10)); // Throws TypeError
      */
     public isNegativeInteger(p: any) {
         const num = this.isInteger(p);
@@ -603,6 +653,9 @@ class Typer {
      * @param {*} p - The parameter to check.
      * @returns {String|Void}
      * @throws {TypeError} Throws if the parameter is not a valid URL.
+     * @example
+     * console.log(Typer.isURL("https://example.com")); // true
+     * console.log(Typer.isURL("invalid-url")); // false
      */
     public isURL(p: any) {
         const str = this.isType('string', p);
@@ -620,6 +673,10 @@ class Typer {
      * @param {*} p - The parameter to check.
      * @returns {*}
      * @throws {TypeError} Throws if the parameter does not match any of the specified types.
+     * @example
+     * console.log(Typer.isType("string", "Hello")); // true
+     * console.log(Typer.isType(["number", "boolean"], 42)); // true
+     * console.log(Typer.isType(["number", "boolean"], "text")); // Throws TypeError
      */
     public isType(types: string | string[], p: any) {
         //if types is not an array is converted to a "single" array
@@ -654,6 +711,10 @@ class Typer {
      * @param {*} value - The value to check.
      * @param {string | string[]} types - One or more types to check against.
      * @returns {boolean} Returns true if the value matches any type, false otherwise.
+     * @example
+     * console.log(Typer.is(42, "number")); // true
+     * console.log(Typer.is("hello", ["string", "number"])); // true
+     * console.log(Typer.is([], "string")); // false
      */
     public is(value: any, types: string | string[]): boolean {
         const typeList = Array.isArray(types) ? types : [types];
@@ -679,6 +740,13 @@ class Typer {
      * @param {Record<string, any>} schema - The expected structure.
      * @param {Record<string, any>} obj - The object to validate.
      * @returns {StructureValidationReturn} - List of errors, or an empty array if valid.
+     * @example
+     * const schema = {
+     *    name: "string",
+     *    age: "number",
+     * };
+     * const obj = { name: "John", age: 25 };
+     * console.log(Typer.checkStructure(schema, obj)); // { isValid: true, errors: [] }
      */
     public checkStructure(schema: Record<string, any>, obj: Record<string, any>, path = ''): StructureValidationReturn {
         const errors: string[] = [];
@@ -711,6 +779,10 @@ class Typer {
      * @param {Record<string, string | string[]>} schema - The expected types for each key.
      * @param {Record<string, any>} obj - The object to validate.
      * @returns {string[]} - An array of validation errors, or an empty array if valid.
+     * @example
+     * const schema = { name: "string", age: "number" };
+     * const obj = { name: "John", age: "25" };
+     * console.log(Typer.validate(schema, obj)); // ["Expected 'age' to be of type number, got string"]
      */
     public validate(schema: Record<string, string | string[]>, obj: Record<string, any>): string[] {
         const errors: string[] = [];
@@ -731,6 +803,9 @@ class Typer {
      * Assert that a value is of a specific type. Logs a warning if incorrect.
      * @param {any} value - The value to check.
      * @param {string | string[]} expectedType - The expected type(s).
+     * @example
+     * Typer.assert(42, "number"); // No output
+     * Typer.assert("hello", "number"); // Warning in console
      */
     public assert(value: any, expectedType: string | string[]): void {
         if (!this.is(value, expectedType)) {
@@ -743,11 +818,17 @@ class Typer {
      * 
      * @param {Function} funct - The function to type-check.
      * @param {Object} types - The expected types for the function's parameters and return value.
-     * @param {Array<string>} types.paramType - The expected type of the main argument.
+     * @param {Array<string>} types.paramTypes - The expected type of the main argument.
      * @param {Array<string>} types.returnType - The expected return type of the function.
      * @returns {Function} A new function that type-checks its arguments and return value.
      * @throws {Error} If the types object does not contain exactly 3 keys or the required type properties.
      * @throws {TypeError} If the function or types object does not conform to the expected types.
+     * @example
+     * const typedFunction = Typer.expect(
+     *    (x: number) => x * 2, 
+     *    { paramTypes: ["number"], returnType: ["number"] }
+     * );
+     * console.log(typedFunction(3)); // 6
      */
     public expect(funct: Function, types: TyperExpectTypes) {
         if (Object.keys(types).length !== 2) {
@@ -830,5 +911,3 @@ class Typer {
         }
     }
 }
-
-export default new Typer();

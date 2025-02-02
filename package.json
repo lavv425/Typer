@@ -1,6 +1,6 @@
 {
     "name": "@illavv/run_typer",
-    "version": "1.0.0",
+    "version": "2.4.1",
     "description": "A robust TypeScript class for type checking and validation",
     "main": "dist/Typer.js",
     "types": "dist/Typer.d.ts",
@@ -9,7 +9,8 @@
     ],
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "build": "rollup -c"
+        "build": "rollup -c",
+        "build:docs": "rollup -c && npx typedoc"
     },
     "repository": {
         "type": "git",
@@ -35,6 +36,7 @@
         "@rollup/plugin-typescript": "^12.1.2",
         "rollup": "^2.79.2",
         "rollup-plugin-terser": "^7.0.2",
+        "typedoc": "^0.27.6",
         "typescript": "^5.7.3"
     },
     "dependencies": {

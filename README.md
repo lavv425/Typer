@@ -1,40 +1,42 @@
-# Typer
+# Typer - Type Checking & Validation Library
 
 Typer is a powerful TypeScript utility library for type checking and validation. It provides a structured and flexible way to verify data types, enforce constraints, and enhance runtime safety in JavaScript and TypeScript applications.
 
-## Features
+## 🚀 Features
 
-- **Comprehensive Type Checking**: Supports checking for primitive types, complex types, and custom-defined types.
-- **Extensible Type System**: Allows users to register and unregister custom types.
-- **Validation Helpers**: Provides additional methods for structure validation, type coercion, and constraint enforcement.
+- **Comprehensive Type Checking**: Supports checking for primitive types, complex types, and user-defined custom types.
+- **Extensible Type System**: Register and unregister your own validation functions.
+- **Schema-Based Validation**: Easily validate object structures.
 - **Strict Mode Compatibility**: Works seamlessly with TypeScript's strict mode.
+- **Asynchronous & Synchronous Support**: Ensures correct function return types, even for Promises.
 
-## Installation
+## 📦 Installation
 
-To install Typer, use npm or yarn:
+Install Typer via npm:
 
 ```sh
 npm install @illavv/run_typer
 ```
 
-## Usage
+---
 
-### Basic Type Checking
+## 🔧 Usage Examples
+
+### ✅ Basic Type Checking
 
 ```ts
 import Typer from '@illavv/run_typer';
 
-const isString = Typer.is("Hello", "string");
-console.log(isString); // true
-
-const isNumber = Typer.is(123, "number");
-console.log(isNumber); // true
-
-const isBoolean = Typer.is("true", "boolean");
-console.log(isBoolean); // false
+console.log(Typer.is("Hello", "string")); // true
+console.log(Typer.is(123, "number")); // true
+console.log(Typer.is(true, "boolean")); // true
+console.log(Typer.is([], "array")); // true
+console.log(Typer.is({}, "object")); // true
 ```
 
-### Validating Object Structure
+### 🏗 Validating Object Structures
+
+You can define an expected schema and validate an object against it:
 
 ```ts
 const schema = {
@@ -46,7 +48,7 @@ const schema = {
     }
 };
 
-const data = {
+const validData = {
     name: "John",
     age: 30,
     address: {
@@ -55,12 +57,20 @@ const data = {
     }
 };
 
-const result = Typer.checkStructure(schema, data);
-console.log(result.isValid); // true
-console.log(result.errors); // []
+const invalidData = {
+    name: "John",
+    age: "thirty",
+    address: {
+        city: "New York",
+        zip: "not-a-number"
+    }
+};
+
+console.log(Typer.checkStructure(schema, validData).isValid); // true
+console.log(Typer.checkStructure(schema, invalidData).errors); // Errors in age and zip
 ```
 
-### Registering Custom Types
+### 🛠 Registering Custom Types
 
 ```ts
 Typer.registerType("positive", (value) => {
@@ -74,19 +84,33 @@ console.log(Typer.is(10, "positive")); // true
 console.log(Typer.is(-5, "positive")); // false
 ```
 
-### Unregistering a Type
+### 🔥 Unregistering a Type
 
 ```ts
 Typer.unregisterType("positive");
 ```
 
-### Listing Registered Types
+### 📜 Listing All Registered Types
 
 ```ts
 console.log(Typer.listTypes());
 ```
 
-## API Reference
+### 🔍 Type Checking for Functions (Ensuring Input & Output Types)
+
+```ts
+const safeFunction = Typer.expect((x: number) => x * 2, {
+    paramTypes: "number",
+    returnType: "number"
+});
+
+console.log(safeFunction(4)); // 8
+console.log(safeFunction("hello")); // Throws TypeError
+```
+
+---
+
+## 📖 API Reference
 
 ### `Typer.is(value: any, type: string | string[]): boolean`
 Checks if a value matches a specified type.
@@ -109,19 +133,26 @@ Validates the structure of an object against a defined schema.
 ### `Typer.expect(funct: Function, types: TyperExpectTypes): Function`
 Wraps a function and ensures its parameters and return value conform to the expected types.
 
-## License
+---
+
+## 📝 License
 
 MIT License
 
-## Contributing
+---
 
-Contributions are welcome! Please submit a pull request or open an issue if you find a bug or have a feature request.
+## 🤝 Contributing
 
-## Author
+Contributions are welcome! Feel free to submit a pull request or open an issue if you find a bug or have a feature request.
+
+---
+
+## 👤 Author
 
 **Michael Lavigna**
 
-## Repository
+---
+
+## 📂 Repository
 
 [GitHub Repository](https://github.com/lavv425/Typer)
-
