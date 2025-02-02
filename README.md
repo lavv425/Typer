@@ -11,19 +11,18 @@ Typer is a powerful TypeScript utility library for type checking and validation.
 
 ## Installation
 
-To install Typer, use npm:
+To install Typer, use npm or yarn:
 
 ```sh
-npm install typer-validator
+npm install @illavv/run_typer
 ```
-
 
 ## Usage
 
 ### Basic Type Checking
 
 ```ts
-import Typer from 'typer-validator';
+import Typer from '@illavv/run_typer';
 
 const isString = Typer.is("Hello", "string");
 console.log(isString); // true
@@ -125,3 +124,4 @@ Contributions are welcome! Please submit a pull request or open an issue if you 
 ## Repository
 
 [GitHub Repository](https://github.com/lavv425/Typer)
+
