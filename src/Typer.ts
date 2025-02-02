@@ -392,7 +392,7 @@ class Typer {
      * @returns {TypedArray|void}
      * @throws {TypeError} Throws if the parameter is not a TypedArray.
      */
-    private tTypedArray(p: any): TyperReturn<ArrayBufferView<ArrayBufferLike>> {
+    private tTypedArray(p: any): TyperReturn<ArrayBufferView> {
         if (!ArrayBuffer.isView(p) || p instanceof DataView) {
             throw new TypeError(`${p} must be a TypedArray.`);
         }

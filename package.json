@@ -1,47 +1,15 @@
 {
-<<<<<<< HEAD
-  "name": "data-type-validator",
-  "version": "1.3.0",
-  "description": "A robust TypeScript class for type checking and validation",
-  "main": "Typer.js",
-  "types": "Typer.d.ts",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc",
-    "prepare": "npm run build"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/lavv425/Typer.git"
-  },
-  "keywords": [
-    "typer",
-    "type_validator",
-    "typescript",
-    "type-checking",
-    "validation",
-    "utility"
-  ],
-  "author": "Michael Lavigna",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/lavv425/Typer/issues"
-  },
-  "homepage": "https://github.com/lavv425/Typer",
-  "dependencies": {
-    "data_type_validator": "^1.3.0"
-  }
-}
-=======
     "name": "@illavv/run_typer",
     "version": "1.0.0",
     "description": "A robust TypeScript class for type checking and validation",
-    "main": "Typer.js",
-    "types": "Typer.d.ts",
+    "main": "dist/Typer.js",
+    "types": "dist/Typer.d.ts",
+    "files": [
+        "dist"
+    ],
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "build": "npm run prepare && tsc",
-        "prepare": "npm run build"
+        "build": "rollup -c"
     },
     "repository": {
         "type": "git",
@@ -60,6 +28,16 @@
     "bugs": {
         "url": "https://github.com/lavv425/Typer/issues"
     },
-    "homepage": "https://github.com/lavv425/Typer"
+    "homepage": "https://github.com/lavv425/Typer",
+    "devDependencies": {
+        "@rollup/plugin-commonjs": "^28.0.2",
+        "@rollup/plugin-node-resolve": "^16.0.0",
+        "@rollup/plugin-typescript": "^12.1.2",
+        "rollup": "^2.79.2",
+        "rollup-plugin-terser": "^7.0.2",
+        "typescript": "^5.7.3"
+    },
+    "dependencies": {
+        "tslib": "^2.8.1"
+    }
 }
->>>>>>> d2bc03e (new version)
