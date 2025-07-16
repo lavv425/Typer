@@ -428,6 +428,16 @@ export class Typer {
         return p;
     }
 
+    private getType(value: any): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "array";
+  if (value instanceof Date) return "date";
+  if (value instanceof RegExp) return "regexp";
+  if (value instanceof Map) return "map";
+  if (value instanceof Set) return "set";
+  return typeof value;
+}
+
     /**
      * Checks if the provided parameter is an array of a specified type.
      * 
@@ -735,6 +745,25 @@ export class Typer {
         return false;
     }
 
+private is(value: any, type: string): boolean {
+  const actual = this.getType(value);
+  switch (type) {
+    case "string": return typeof value === "string";
+    case "number": return typeof value === "number" && !isNaN(value);
+    case "boolean": return typeof value === "boolean";
+    case "array": return Array.isArray(value);
+    case "object": return actual === "object";
+    case "null": return value === null;
+    case "date": return value instanceof Date && !isNaN(value.getTime());
+    case "regexp": return value instanceof RegExp;
+    case "map": return value instanceof Map;
+    case "set": return value instanceof Set;
+    case "function": return typeof value === "function";
+    case "undefined": return typeof value === "undefined";
+    default: return actual === type;
+  }
+}
+
     /**
      * Recursively validates an object against a nested schema.
      * @param {Record<string, any>} schema - The expected structure.
@@ -748,31 +777,73 @@ export class Typer {
      * const obj = { name: "John", age: 25 };
      * console.log(Typer.checkStructure(schema, obj)); // { isValid: true, errors: [] }
      */
-    public checkStructure(schema: Record<string, any>, obj: Record<string, any>, path = ''): StructureValidationReturn {
-        const errors: string[] = [];
+    public checkStructure(
+  schema: Record<string, any>,
+  obj: Record<string, any>,
+  path = '',
+  strictMode = false
+): StructureValidationReturn {
+  const errors: string[] = [];
 
-        Object.keys(schema).forEach(key => {
-            const expectedType = schema[key];
-            const value = obj[key];
-            const fullPath = path ? `${path}.${key}` : key;
+  for (const key of Object.keys(schema)) {
+    const expected = schema[key];
+    const value = obj[key];
+    const fullPath = path ? `${path}.${key}` : key;
 
-            if (typeof expectedType === "string" || Array.isArray(expectedType)) {
-                if (!this.is(value, expectedType)) {
-                    errors.push(`Expected "${fullPath}" to be ${expectedType}, got ${typeof value}`);
-                }
-            } else if (typeof expectedType === "object" && value !== undefined) {
-                const nestedValidation = this.checkStructure(expectedType, value, fullPath);
-                errors.push(...nestedValidation.errors);
-            }
-        });
+    const isOptional = typeof expected === "string" && expected.endsWith("?");
+    const baseExpected = isOptional && typeof expected === "string" ? expected.slice(0, -1) : expected;
 
-        const returnVal = {
-            isValid: !(errors.length > 0),
-            errors
-        };
-
-        return returnVal;
+    if (value === undefined) {
+      if (!isOptional) {
+        errors.push(`Missing key "${fullPath}"`);
+      }
+      continue;
     }
+
+    // Handle primitive types or union
+    if (typeof baseExpected === "string") {
+      const types = baseExpected.split("|");
+      const valid = types.some((t) => this.is(value, t));
+      if (!valid) {
+        errors.push(`Expected "${fullPath}" to be ${baseExpected}, got ${this.getType(value)}`);
+      }
+    }
+    // Handle array type: ["string"] or ["string|number"]
+    else if (Array.isArray(baseExpected)) {
+      if (!Array.isArray(value)) {
+        errors.push(`Expected "${fullPath}" to be an array, got ${this.getType(value)}`);
+      } else {
+        value.forEach((item, i) => {
+          const types = baseExpected[0].split("|");
+          const valid = types.some((t) => this.is(item, t));
+          if (!valid) {
+            errors.push(`Expected "${fullPath}[${i}]" to be ${baseExpected[0]}, got ${this.getType(item)}`);
+          }
+        });
+      }
+    }
+    // Nested object
+    else if (typeof baseExpected === "object" && baseExpected !== null) {
+      const nested = this.checkStructure(baseExpected, value, fullPath, strictMode);
+      errors.push(...nested.errors);
+    } else {
+      errors.push(`Invalid schema definition at "${fullPath}"`);
+    }
+  }
+
+  if (strictMode) {
+    const extraKeys = Object.keys(obj).filter(k => !schema.hasOwnProperty(k));
+    for (const key of extraKeys) {
+      const fullPath = path ? `${path}.${key}` : key;
+      errors.push(`Unexpected key "${fullPath}"`);
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
 
     /**
      * Validates an object against a schema.
