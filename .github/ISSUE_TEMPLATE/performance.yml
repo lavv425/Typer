@@ -1,0 +1,140 @@
+name: 🔧 Performance Issue
+description: Report a performance problem with Typer
+title: "[PERFORMANCE] "
+labels: ["performance", "needs-investigation"]
+assignees: ["lavv425"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report a performance issue with Typer ⚡
+        
+        Performance is important to us. Help us understand and improve slow operations.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      description: Please confirm the following before submitting
+      options:
+        - label: I have searched existing issues to ensure this hasn't been reported
+          required: true
+        - label: I have tested with the latest version of Typer
+          required: true
+        - label: I have isolated the performance issue to Typer specifically
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Typer Version
+      description: What version of Typer are you using?
+      placeholder: "e.g., 3.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: What environment are you running in?
+      options:
+        - Node.js
+        - Browser
+        - TypeScript
+        - JavaScript
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js/Browser Version
+      description: What version of Node.js or browser are you using?
+      placeholder: "e.g., Node.js 18.17.0 or Chrome 118"
+
+  - type: textarea
+    id: performance-issue
+    attributes:
+      label: Performance Issue Description
+      description: Describe the performance problem you're experiencing
+      placeholder: "The operation is slow when..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected-operations
+    attributes:
+      label: Affected Operations
+      description: Which Typer operations are performing slowly?
+      placeholder: |
+        - typer.isType() with large objects
+        - typer.checkStructure() with deep nesting
+        - Custom validators
+    validations:
+      required: true
+
+  - type: textarea
+    id: performance-data
+    attributes:
+      label: Performance Data
+      description: Provide specific performance measurements if available
+      placeholder: |
+        - Operation takes: X milliseconds
+        - Expected time: Y milliseconds
+        - Dataset size: Z items
+        - Memory usage: A MB
+
+  - type: textarea
+    id: reproduction-code
+    attributes:
+      label: Reproduction Code
+      description: Provide code that demonstrates the performance issue
+      render: typescript
+      placeholder: |
+        import { Typer } from '@illavv/run_typer';
+        
+        const typer = new Typer();
+        
+        // Code that demonstrates the slow operation
+        console.time('slow-operation');
+        // Your slow code here
+        console.timeEnd('slow-operation');
+    validations:
+      required: true
+
+  - type: textarea
+    id: test-data
+    attributes:
+      label: Test Data
+      description: Describe the data you're testing with (size, complexity, etc.)
+      placeholder: |
+        - Data size: 10,000 objects
+        - Nesting depth: 5 levels
+        - Schema complexity: 20 properties
+
+  - type: textarea
+    id: expected-performance
+    attributes:
+      label: Expected Performance
+      description: What performance would you expect for this operation?
+      placeholder: "I expected this operation to complete in..."
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other context about the performance issue
+      placeholder: "Additional information..."
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Are you willing to help investigate or fix this performance issue?
+      options:
+        - label: I can help with performance testing
+        - label: I am willing to submit a pull request to fix this issue
+        - label: I can provide more detailed benchmarks

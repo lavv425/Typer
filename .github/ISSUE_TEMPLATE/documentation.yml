@@ -1,0 +1,107 @@
+name: 📚 Documentation Issue
+description: Report an issue with documentation or suggest improvements
+title: "[DOCS] "
+labels: ["documentation", "needs-triage"]
+assignees: ["lavv425"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve our documentation! 📚
+        
+        Clear documentation is essential for a great developer experience.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      description: Please confirm the following before submitting
+      options:
+        - label: I have searched existing issues to ensure this hasn't been reported
+          required: true
+        - label: I have checked the latest version of the documentation
+          required: true
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Documentation Type
+      description: What type of documentation issue is this?
+      options:
+        - README
+        - API Reference
+        - Code Examples
+        - TypeDoc Comments
+        - GitHub Pages Documentation
+        - Package.json Description
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      description: What kind of documentation issue is this?
+      options:
+        - Missing information
+        - Incorrect information
+        - Unclear explanation
+        - Broken link
+        - Typo/Grammar
+        - Outdated content
+        - Missing example
+        - Improvement suggestion
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: Where in the documentation is the issue? (URL, file path, or section name)
+      placeholder: "e.g., README.md section 'Basic Usage' or https://example.com/docs"
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-content
+    attributes:
+      label: Current Content
+      description: What does the documentation currently say? (copy the problematic text if applicable)
+      placeholder: "Current documentation text..."
+
+  - type: textarea
+    id: issue-description
+    attributes:
+      label: Issue Description
+      description: Describe the problem with the current documentation
+      placeholder: "The issue is..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested-content
+    attributes:
+      label: Suggested Improvement
+      description: How should the documentation be improved?
+      placeholder: "The documentation should..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any additional context that would help improve the documentation
+      placeholder: "Additional information..."
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Are you willing to help fix this documentation issue?
+      options:
+        - label: I am willing to submit a pull request to fix this documentation issue
+        - label: I can help review documentation changes

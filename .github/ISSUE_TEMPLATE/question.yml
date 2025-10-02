@@ -1,0 +1,100 @@
+name: ❓ Question
+description: Ask a question about using Typer
+title: "[QUESTION] "
+labels: ["question", "needs-response"]
+assignees: ["lavv425"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question about using Typer? 🤔
+        
+        We're here to help! Please provide as much context as possible.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      description: Please confirm you've done the following before asking
+      options:
+        - label: I have read the README and documentation
+          required: true
+        - label: I have searched existing issues for similar questions
+          required: true
+        - label: I have tried to solve this myself
+          required: true
+
+  - type: dropdown
+    id: question-type
+    attributes:
+      label: Question Type
+      description: What type of question is this?
+      options:
+        - How to use a specific feature
+        - Best practices
+        - TypeScript integration
+        - Performance question
+        - Comparison with other libraries
+        - Troubleshooting
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know?
+      placeholder: "I want to know how to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What are you trying to accomplish? What's your use case?
+      placeholder: "I'm working on a project where..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-approach
+    attributes:
+      label: What You've Tried
+      description: What have you already tried? Include any code if relevant.
+      render: typescript
+      placeholder: |
+        import { Typer } from '@illavv/run_typer';
+        
+        const typer = new Typer();
+        // What you've tried so far...
+
+  - type: input
+    id: version
+    attributes:
+      label: Typer Version
+      description: What version of Typer are you using?
+      placeholder: "e.g., 3.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: What environment are you working in?
+      options:
+        - Node.js
+        - Browser
+        - TypeScript
+        - JavaScript
+        - Other
+
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: Additional Information
+      description: Any other relevant information that might help us answer your question
+      placeholder: "Additional context..."

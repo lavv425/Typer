@@ -1,0 +1,130 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement for Typer
+title: "[FEATURE] "
+labels: ["enhancement", "needs-discussion"]
+assignees: ["lavv425"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a new feature! ✨
+        
+        Please describe your idea in detail to help us understand your needs.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      description: Please confirm the following before submitting
+      options:
+        - label: I have searched existing issues to ensure this feature hasn't been requested
+          required: true
+        - label: I have checked the documentation to see if this feature already exists
+          required: true
+        - label: This feature request is related to Typer's core functionality
+          required: true
+
+  - type: dropdown
+    id: feature-type
+    attributes:
+      label: Feature Type
+      description: What type of feature are you requesting?
+      options:
+        - New validation method
+        - New type support
+        - API enhancement
+        - Performance improvement
+        - Developer experience improvement
+        - Documentation improvement
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? Is your feature request related to a problem?
+      placeholder: "I'm always frustrated when..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see implemented
+      placeholder: "I would like to see..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: api-design
+    attributes:
+      label: Proposed API Design
+      description: If applicable, show how you envision the API would look
+      render: typescript
+      placeholder: |
+        // Example of how the new feature would be used
+        const typer = new Typer();
+        
+        // Your proposed API usage
+        typer.newMethod('example');
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or features you've considered
+      placeholder: "Alternative approaches I considered..."
+
+  - type: textarea
+    id: use-cases
+    attributes:
+      label: Use Cases
+      description: Describe specific use cases where this feature would be helpful
+      placeholder: |
+        1. Use case 1: When validating...
+        2. Use case 2: When working with...
+        3. Use case 3: When handling...
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Critical (blocking my work)
+        - High (would significantly improve my workflow)
+        - Medium (nice to have)
+        - Low (minor improvement)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: breaking-changes
+    attributes:
+      label: Breaking Changes
+      description: Consider the impact of this feature
+      options:
+        - label: This feature could be implemented without breaking existing APIs
+        - label: This feature might require breaking changes (major version bump)
+        - label: I understand that breaking changes require careful consideration
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, links, or examples about the feature request
+      placeholder: "Additional information..."
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Are you willing to help implement this feature?
+      options:
+        - label: I am willing to submit a pull request to implement this feature
+        - label: I can help with testing the implementation
+        - label: I can help with documentation for this feature
