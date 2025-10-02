@@ -81,22 +81,32 @@ export class Typer {
 
     /**
      * Register a new type in the typesMap.
+     * @template T - The input type that the validator expects
+     * @template R - The return type that the validator produces
      * @param {string} name - The name of the new type.
-     * @param {(value: unknown) => unknown} validator - The function to validate the type.
+     * @param {(value: T) => R} validator - The function to validate the type.
      * @param {boolean} override - Whether to override the original configuration
      * @throws {Error} If the type name is already registered.
      * @example
-     * Typer.registerType("positive", (value) => {
+     * // Register a positive number validator
+     * typer.registerType<unknown, number>("positive", (value) => {
      *    if (typeof value !== "number" || value <= 0) throw new TypeError("Must be positive");
      *    return value;
      * });
+     * 
+     * // Register a string length validator
+     * typer.registerType<unknown, string>("longString", (value) => {
+     *    if (typeof value !== "string" || value.length < 10) throw new TypeError("Must be long string");
+     *    return value;
+     * });
      */
-    public registerType(name: string, validator: (value: unknown) => unknown, override = false): void {
+    public registerType<T = unknown, R = T>(name: string, validator: (value: T) => R, override = false): void {
         const typeKey = name.toLowerCase().trim();
         if (this.typesMap[typeKey] && !override) {
             throw new Error(`Type "${name}" is already registered.`);
         }
-        this.typesMap[typeKey] = validator;
+        // Type assertion needed to store generic validator in the map
+        this.typesMap[typeKey] = validator as (value: unknown) => unknown;
     }
 
     /**
