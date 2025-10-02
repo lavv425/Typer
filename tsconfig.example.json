@@ -8,14 +8,13 @@
     ],
     "strict": true,
     "baseUrl": "./",
-    "declarationDir": "dist",
     "moduleResolution": "node16",
-    "declaration": true,
-    "declarationMap": true,
     "esModuleInterop": true,
-    "sourceMap": true,
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
-    "importHelpers": true,
-  }
+    "skipLibCheck": true
+  },
+  "include": [
+    "example-generics.ts",
+    "src/**/*"
+  ]
 }
