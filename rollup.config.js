@@ -32,7 +32,8 @@ export default {
         typescript({
             tsconfig: './tsconfig.json',
             declaration: true,
-            declarationDir: 'dist'
+            declarationDir: 'dist',
+            rootDir: 'src'
         })
     ],
     external: []

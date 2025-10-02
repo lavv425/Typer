@@ -7,6 +7,8 @@
       "DOM"
     ],
     "strict": true,
+    "outDir": "dist",
+    "rootDir": "src",
     "declarationDir": "dist",
     "moduleResolution": "node16",
     "declaration": true,
@@ -16,5 +18,13 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "importHelpers": true,
-  }
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "tests/**/*",
+    "dist/**/*",
+    "node_modules/**/*"
+  ]
 }
