@@ -7,7 +7,6 @@
       "DOM"
     ],
     "strict": true,
-    "baseUrl": "./",
     "declarationDir": "dist",
     "moduleResolution": "node16",
     "declaration": true,
