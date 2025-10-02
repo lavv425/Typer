@@ -575,37 +575,37 @@ export class Typer {
      */
     public isPhoneNumber(p: unknown): string {
         const str = this.isType<string>('string', p);
-        
+
         // Remove all non-digit characters except + for counting
         const digitsOnly = str.replace(/[^\d+]/g, '');
-        
+
         // Check if empty after cleaning
         if (digitsOnly.length === 0) {
             throw new TypeError(`${p} must be a valid phone number.`);
         }
-        
+
         // More restrictive regex for phone number validation
         // Allows: +country code, parentheses, spaces, hyphens, and periods
         // Requires at least 7 digits, max 15 (international standard)
         const phoneRegex = /^(\+?[1-9]\d{0,3})?[\s\-\.]?(\(?\d{1,4}\)?[\s\-\.]?)?[\d\s\-\.\(\)]{6,}$/;
-        
+
         if (!phoneRegex.test(str)) {
             throw new TypeError(`${p} must be a valid phone number.`);
         }
-        
+
         // Count actual digits (excluding + sign)
         const digitCount = digitsOnly.replace(/^\+/, '').length;
-        
+
         // Validate digit count (7-15 digits for international numbers)
         if (digitCount < 7 || digitCount > 15) {
             throw new TypeError(`${p} must be a valid phone number with 7-15 digits.`);
         }
-        
+
         // Check for invalid patterns
         if (str.includes('..') || str.includes('--') || str.includes('  ')) {
             throw new TypeError(`${p} must be a valid phone number.`);
         }
-        
+
         return str;
     }
 
@@ -984,13 +984,7 @@ export class Typer {
      * @param {boolean} strictMode - Whether strict mode is enabled
      * @param {string[]} errors - Array to collect errors
      */
-    private validateSchemaValue(
-        expected: unknown,
-        value: unknown,
-        fullPath: string,
-        strictMode: boolean,
-        errors: string[]
-    ): void {
+    private validateSchemaValue(expected: unknown, value: unknown, fullPath: string, strictMode: boolean, errors: string[]): void {
         // Handle primitive types or union types (e.g., "string", "number|string")
         if (typeof expected === "string") {
             if (expected.trim() === "") {
