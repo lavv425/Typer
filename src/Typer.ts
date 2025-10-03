@@ -1131,23 +1131,6 @@ export class Typer {
      * );
      * console.log(typedFunction(3)); // 6
      */
-    /**
-     * Expects a function to conform to specified input and output types.
-     * 
-     * @param {Function} funct - The function to type-check.
-     * @param {Object} types - The expected types for the function's parameters and return value.
-     * @param {Array<string>} types.paramTypes - The expected type of the main argument.
-     * @param {Array<string>} types.returnType - The expected return type of the function.
-     * @returns {Function} A new function that type-checks its arguments and return value.
-     * @throws {Error} If the types object does not contain exactly 3 keys or the required type properties.
-     * @throws {TypeError} If the function or types object does not conform to the expected types.
-     * @example
-     * const typedFunction = Typer.expect(
-     *    (x: number) => x * 2, 
-     *    { paramTypes: ["number"], returnType: ["number"] }
-     * );
-     * console.log(typedFunction(3)); // 6
-     */
     public expect(funct: Function, types: TyperExpectTypes) {
         if (Object.keys(types).length !== 2) {
             throw new Error(`Expected 2 types (paramTypes and returnTypes), got ${Object.keys(types).length}`);
