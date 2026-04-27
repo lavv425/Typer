@@ -5,9 +5,9 @@ import type { Infer, ParseResult, Schema, StructureValidationReturn, TypeKey, Ty
 
 /**
  * Class representing a type checker.
- * Version: 3.2.0
+ * Version: 3.2.1
  * @author Michael Lavigna - <https://michaellavigna.com> - <michael.lavigna@hotmail.it>
- * @since 3.2.0
+ * @since 3.2.1
  */
 export class Typer {
     /**
@@ -1012,20 +1012,314 @@ export class Typer {
     private schemaCheckerCache = new WeakMap<object, (value: unknown) => StructureValidationReturn>();
 
     /**
-     * Returns a cached checker function for the given schema (compiled lazily).
-     * Reusing the same schema literal across calls avoids re-walking the
-     * schema definition. The returned function reuses `checkStructure`'s
-     * runtime behavior — currently a thin wrapper, designed so future
-     * iterations can swap in a fully closure-compiled checker without
-     * changing the public API.
+     * Returns a cached, **closure-compiled** checker for the given schema.
+     *
+     * Compilation walks the schema **once** and produces a flat array of
+     * pre-built closures, with all string parsing (split/trim/lowercase),
+     * optional/nullable detection, and `typesMap` lookups resolved at
+     * compile time. The hot path is then a tight `for` loop over closures
+     * that touch only the input value — no per-call allocations, no
+     * `bind(this)`, no `checkStructure` recursion.
+     *
+     * Error messages are kept byte-for-byte identical to `checkStructure`
+     * so behavior is fully preserved.
      */
     private getCompiledChecker(schema: Record<string, unknown>): (value: unknown) => StructureValidationReturn {
         const cached = this.schemaCheckerCache.get(schema);
         if (cached) return cached;
-        const checker = (value: unknown): StructureValidationReturn =>
-            this.checkStructure(schema, value as Record<string, unknown>, "", false);
-        this.schemaCheckerCache.set(schema, checker);
-        return checker;
+        const compiled = this.compileSchema(schema);
+        const wrapper = (value: unknown): StructureValidationReturn => {
+            const errors: string[] = [];
+            if (value === null || typeof value !== "object" || Array.isArray(value)) {
+                errors.push(`Invalid object: must be a non-null object, got ${this.getType(value)}`);
+                return { isValid: false, errors };
+            }
+            compiled(value as Record<string, unknown>, errors, "");
+            return { isValid: errors.length === 0, errors };
+        };
+        this.schemaCheckerCache.set(schema, wrapper);
+        return wrapper;
+    }
+
+    /**
+     * Compiles a full schema object into a single closure that, given an
+     * already-validated parent object, runs every field check in order.
+     * Nested schemas are compiled recursively (their compiled checkers are
+     * captured by reference).
+     */
+    private compileSchema(
+        schema: Record<string, unknown>,
+    ): (obj: Record<string, unknown>, errors: string[], parentPath: string) => void {
+        const fields: Array<(obj: Record<string, unknown>, errors: string[], parentPath: string) => void> = [];
+        for (const key of Object.keys(schema)) {
+            fields.push(this.compileField(key, schema[key]));
+        }
+        return (obj, errors, parentPath) => {
+            for (let i = 0; i < fields.length; i++) {
+                fields[i](obj, errors, parentPath);
+            }
+        };
+    }
+
+    /**
+     * Compiles a single key+value pair from a schema into a closure that
+     * checks the field in its parent object and pushes any errors found.
+     */
+    private compileField(
+        key: string,
+        expected: unknown,
+    ): (obj: Record<string, unknown>, errors: string[], parentPath: string) => void {
+        const buildPath = (parentPath: string) => parentPath ? `${parentPath}.${key}` : key;
+
+        // Validator function entry — defers all decisions (incl. optional) to the validator itself.
+        if (typeof expected === "function") {
+            const validator = expected as Validator<unknown>;
+            return (obj, errors, parentPath) => {
+                try {
+                    validator(obj[key]);
+                } catch (e) {
+                    const msg = e instanceof Error ? e.message : String(e);
+                    errors.push(`Validation failed at "${buildPath(parentPath)}": ${msg}`);
+                }
+            };
+        }
+
+        // Type-string entry, possibly optional and/or a `a|b|c` union.
+        if (typeof expected === "string") {
+            return this.compileStringField(key, expected, buildPath);
+        }
+
+        // Array entry: ["string"], [validator], [{nested}].
+        if (Array.isArray(expected)) {
+            return this.compileArrayField(key, expected as unknown[], buildPath);
+        }
+
+        // Nested schema entry.
+        if (expected !== null && typeof expected === "object") {
+            return this.compileNestedField(key, expected as Record<string, unknown>, buildPath);
+        }
+
+        // Anything else (number, boolean, null, …) — invalid schema definition.
+        const expectedType = expected === null ? "null" : typeof expected;
+        return (_obj, errors, parentPath) => {
+            errors.push(
+                `Invalid schema definition at "${buildPath(parentPath)}": expected string, array, or object, got ${expectedType}`,
+            );
+        };
+    }
+
+    /**
+     * Compiles a string-typed schema entry (e.g. `"string"`, `"string?"`,
+     * `"a|b"`, `"a|b?"`). All string parsing is done here, once.
+     */
+    private compileStringField(
+        key: string,
+        expected: string,
+        buildPath: (parentPath: string) => string,
+    ): (obj: Record<string, unknown>, errors: string[], parentPath: string) => void {
+        if (expected.trim() === "") {
+            return (_obj, errors, parentPath) => {
+                errors.push(`Empty type definition at "${buildPath(parentPath)}"`);
+            };
+        }
+
+        const isOptional = expected.endsWith("?");
+        const baseExpected = isOptional ? expected.slice(0, -1) : expected;
+        const types = baseExpected.split("|").map(t => t.trim()).filter(t => t.length > 0);
+
+        if (types.length === 0) {
+            return (_obj, errors, parentPath) => {
+                errors.push(`Invalid type definition "${expected}" at "${buildPath(parentPath)}"`);
+            };
+        }
+
+        // Pre-resolve checkers; null entries flag unknown type names (reported only
+        // when the field is actually evaluated, matching legacy behavior).
+        const checkers = types.map((t) => this.typesMap[t.toLowerCase().trim()] ?? null);
+        const expectedDescription = types.length === 1 ? types[0] : `one of [${types.join(", ")}]`;
+
+        return (obj, errors, parentPath) => {
+            const v = obj[key];
+            const fullPath = buildPath(parentPath);
+
+            if (v === undefined) {
+                if (!isOptional) errors.push(`Missing required key "${fullPath}"`);
+                return;
+            }
+            if (v === null && isOptional) return;
+
+            for (let i = 0; i < checkers.length; i++) {
+                const c = checkers[i];
+                if (c !== null) {
+                    try {
+                        c.call(this, v);
+                        return; // matched
+                    } catch {
+                        continue;
+                    }
+                }
+                // unknown type — surface the existing error then bail
+                errors.push(`Unknown type: ${types[i]}`);
+                return;
+            }
+
+            errors.push(`Expected "${fullPath}" to be ${expectedDescription}, got ${this.getType(v)}`);
+        };
+    }
+
+    /**
+     * Compiles an array-typed schema entry (`tags: ['string']` etc).
+     */
+    private compileArrayField(
+        key: string,
+        expected: unknown[],
+        buildPath: (parentPath: string) => string,
+    ): (obj: Record<string, unknown>, errors: string[], parentPath: string) => void {
+        if (expected.length === 0) {
+            return (_obj, errors, parentPath) => {
+                errors.push(`Empty array schema definition at "${buildPath(parentPath)}"`);
+            };
+        }
+        if (expected.length > 1) {
+            return (_obj, errors, parentPath) => {
+                errors.push(`Array schema must have exactly one element type definition at "${buildPath(parentPath)}"`);
+            };
+        }
+
+        const elementDef = expected[0];
+        const elementIsValid =
+            typeof elementDef === "string"
+            || typeof elementDef === "function"
+            || (typeof elementDef === "object" && elementDef !== null && !Array.isArray(elementDef));
+
+        if (!elementIsValid) {
+            return (_obj, errors, parentPath) => {
+                errors.push(`Array element type must be a string at "${buildPath(parentPath)}"`);
+            };
+        }
+
+        const elementCheck = this.compileValue(elementDef);
+
+        return (obj, errors, parentPath) => {
+            const v = obj[key];
+            const fullPath = buildPath(parentPath);
+
+            if (v === undefined) {
+                errors.push(`Missing required key "${fullPath}"`);
+                return;
+            }
+            if (!Array.isArray(v)) {
+                errors.push(`Expected "${fullPath}" to be an array, got ${this.getType(v)}`);
+                return;
+            }
+
+            for (let i = 0; i < v.length; i++) {
+                elementCheck(v[i], errors, `${fullPath}[${i}]`);
+            }
+        };
+    }
+
+    /**
+     * Compiles a nested-object schema entry. The nested schema is compiled
+     * once and reused for every parent object.
+     */
+    private compileNestedField(
+        key: string,
+        expected: Record<string, unknown>,
+        buildPath: (parentPath: string) => string,
+    ): (obj: Record<string, unknown>, errors: string[], parentPath: string) => void {
+        const compiledNested = this.compileSchema(expected);
+
+        return (obj, errors, parentPath) => {
+            const v = obj[key];
+            const fullPath = buildPath(parentPath);
+
+            if (v === undefined) {
+                errors.push(`Missing required key "${fullPath}"`);
+                return;
+            }
+            if (v === null || typeof v !== "object" || Array.isArray(v)) {
+                errors.push(`Expected "${fullPath}" to be an object, got ${this.getType(v)}`);
+                return;
+            }
+
+            compiledNested(v as Record<string, unknown>, errors, fullPath);
+        };
+    }
+
+    /**
+     * Compiles a "value-position" schema fragment (the element type inside
+     * an array, or any anonymous value check). Returns a closure that takes
+     * the value directly and writes errors with the given path.
+     */
+    private compileValue(
+        expected: unknown,
+    ): (value: unknown, errors: string[], path: string) => void {
+        if (typeof expected === "function") {
+            const validator = expected as Validator<unknown>;
+            return (value, errors, path) => {
+                try {
+                    validator(value);
+                } catch (e) {
+                    const msg = e instanceof Error ? e.message : String(e);
+                    errors.push(`Validation failed at "${path}": ${msg}`);
+                }
+            };
+        }
+
+        if (typeof expected === "string") {
+            if (expected.trim() === "") {
+                return (_v, errors, path) => {
+                    errors.push(`Empty type definition at "${path}"`);
+                };
+            }
+            const isOptional = expected.endsWith("?");
+            const baseExpected = isOptional ? expected.slice(0, -1) : expected;
+            const types = baseExpected.split("|").map(t => t.trim()).filter(t => t.length > 0);
+            if (types.length === 0) {
+                return (_v, errors, path) => {
+                    errors.push(`Invalid type definition "${expected}" at "${path}"`);
+                };
+            }
+            const checkers = types.map((t) => this.typesMap[t.toLowerCase().trim()] ?? null);
+            const expectedDescription = types.length === 1 ? types[0] : `one of [${types.join(", ")}]`;
+            return (value, errors, path) => {
+                if (value === undefined && isOptional) return;
+                if (value === null && isOptional) return;
+                for (let i = 0; i < checkers.length; i++) {
+                    const c = checkers[i];
+                    if (c !== null) {
+                        try { c.call(this, value); return; } catch { continue; }
+                    }
+                    errors.push(`Unknown type: ${types[i]}`);
+                    return;
+                }
+                errors.push(`Expected "${path}" to be ${expectedDescription}, got ${this.getType(value)}`);
+            };
+        }
+
+        if (Array.isArray(expected)) {
+            // Array-of-array isn't supported as a schema; mirror checkStructure error wording.
+            return (_v, errors, path) => {
+                errors.push(`Array element type must be a string at "${path}"`);
+            };
+        }
+
+        if (expected !== null && typeof expected === "object") {
+            const compiledNested = this.compileSchema(expected as Record<string, unknown>);
+            return (value, errors, path) => {
+                if (value === null || typeof value !== "object" || Array.isArray(value)) {
+                    errors.push(`Expected "${path}" to be an object, got ${this.getType(value)}`);
+                    return;
+                }
+                compiledNested(value as Record<string, unknown>, errors, path);
+            };
+        }
+
+        const expectedType = expected === null ? "null" : typeof expected;
+        return (_v, errors, path) => {
+            errors.push(`Invalid schema definition at "${path}": expected string, array, or object, got ${expectedType}`);
+        };
     }
 
     /**
