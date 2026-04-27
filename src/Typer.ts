@@ -1,13 +1,13 @@
 "use strict";
 
-import { Error } from "./Types/Globals";
-import { StructureValidationReturn, TyperExpectTypes, TyperReturn } from "./Types/Typer";
+import type { Error } from "./Types/Globals";
+import type { StructureValidationReturn, TyperExpectTypes, TyperReturn } from "./Types/Typer";
 
 /**
  * Class representing a type checker.
- * Version: 2.4.1
- * @author Michael Lavigna
- * @since 2.4.1
+ * Version: 3.0.6
+ * @author Michael Lavigna - <https://michaellavigna.com> - <michael.lavigna@hotmail.it>
+ * @since 3.0.6
  */
 export class Typer {
     /**

@@ -11,6 +11,7 @@
     "rootDir": "src",
     "declarationDir": "dist",
     "moduleResolution": "node16",
+    "isolatedModules": true,
     "declaration": true,
     "declarationMap": true,
     "esModuleInterop": true,

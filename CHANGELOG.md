@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.6] - 2026-04-28
+
+### 🔧 Fixed
+- **TypeScript 6.0 compatibility**: tests no longer fail to compile with `ts-jest 29` + TypeScript 6 due to the new hybrid-module-kind requirement.
+  - Enabled `isolatedModules: true` in `tsconfig.json` (warned about explicitly by `ts-jest`).
+  - Switched the type-only imports in `src/Typer.ts` to `import type { … }` so the runtime no longer reaches into a type-only module for a non-existent value (which produced `Globals_1.Error is not a constructor`).
+
 ## [3.0.1] - 2025-10-02
 
 ### 🔧 Fixed
