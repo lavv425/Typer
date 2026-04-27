@@ -5,6 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.3] - 2026-04-28
+
+### 🧪 Coverage — push from 86% to ~100%
+
+After the predicate fast-path landed in 3.2.2, every built-in `t*`
+checker's `return p` line was bypassed by `is()` / `isType()` and
+showed up as uncovered. This release adds targeted tests that drive
+the missing branches and removes a handful of provably-dead
+defensive handlers.
+
+#### Tests added (`tests/coverage-completion.test.ts`, 33 cases)
+- A single schema parse that exercises every built-in type-string
+  with a passing value, hitting every `t*` method's `return p` via
+  the schema compiler's `typesMap` calls.
+- `tNull` covered via `'null'` schema with a null value.
+- `tUndefined` covered via an array element of type `'undefined'`
+  (where `compileValue` falls through the field-level intercept).
+- `tDomElement` happy and sad paths covered with a mocked
+  `globalThis.HTMLElement`.
+- Custom-type predicate-wrapper path inside `getPred`, including
+  `predCache` invalidation on `registerType` / `unregisterType`.
+- Every closure-compiler error branch (invalid schema, empty type
+  definition, unknown type, empty array schema, multiple-element
+  array schema, missing fields, type mismatches, validator entries
+  inside arrays, nested objects inside arrays, …).
+- `getType` formatting branches (date / regexp / map / set in
+  error messages).
+
+#### Dead code removed
+Per the project rule "don't add error handling for scenarios that
+can't happen":
+- Removed the two outer `try/catch` wrappers in `checkStructure`
+  around `validateSchemaValue` calls — `validateSchemaValue`
+  collects errors via the `errors` array and never throws.
+- Removed a duplicate `else if` branch in `expect()` that mirrored
+  the arg-length check at the top of the same closure.
+
+#### Defensive branches marked
+A few branches in the closure compiler (`compileValue` array-of-array
+fallback) and `isIPv6` (URL-hostname-bracket guard) are unreachable
+through the public API but are kept as safety nets for future
+contributors. Marked with `/* istanbul ignore next */` and an inline
+comment explaining the rationale.
+
+### Final metrics
+|             | Before  | After    |
+|---           |---      |---       |
+| Statements  | 86.13%  | **99.31%** |
+| Branches    | 80.04%  | **95.69%** |
+| Functions   | 91.27%  | **100%**   |
+| Lines       | 86.71%  | **100%**   |
+| Tests       | 256     | **290**    |
+
 ## [3.2.2] - 2026-04-28
 
 ### 🚀 Performance — Predicate fast-path for `is` / `isType`

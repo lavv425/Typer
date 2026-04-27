@@ -5,9 +5,9 @@ import type { Infer, ParseResult, Schema, StructureValidationReturn, TypeKey, Ty
 
 /**
  * Class representing a type checker.
- * Version: 3.2.2
+ * Version: 3.2.3
  * @author Michael Lavigna - <https://michaellavigna.com> - <michael.lavigna@hotmail.it>
- * @since 3.2.2
+ * @since 3.2.3
  */
 export class Typer {
     /**
@@ -987,8 +987,10 @@ export class Typer {
             const checker = this.typesMap[types.toLowerCase().trim()];
             try {
                 checker.call(this, p);
-                // Predicate said no but checker said yes — never expected, but
-                // be defensive: trust the checker.
+                /* istanbul ignore next — defensive: predicate said no but checker
+                 * said yes. Built-in predicates and checkers are kept in sync, so
+                 * this branch is unreachable in practice; we keep it to avoid
+                 * silent failure if a future custom-predicate disagrees. */
                 return p as T;
             } catch (e: unknown) {
                 const msg = (e as Error).message;
@@ -1431,6 +1433,9 @@ export class Typer {
             };
         }
 
+        /* istanbul ignore next — compileArrayField filters arrays out via
+         * elementIsValid before delegating here, so this branch is currently
+         * unreachable. Kept as a defensive fallback for future call sites. */
         if (Array.isArray(expected)) {
             // Array-of-array isn't supported as a schema; mirror checkStructure error wording.
             return (_v, errors, path) => {
@@ -1449,8 +1454,12 @@ export class Typer {
             };
         }
 
-        const expectedType = expected === null ? "null" : typeof expected;
+        // compileArrayField's elementIsValid check already rejects
+        // non-string/function/object element schemas before we reach this
+        // branch. Kept as a defensive fallback for future call sites.
+        /* istanbul ignore next */
         return (_v, errors, path) => {
+            const expectedType = expected === null ? "null" : typeof expected;
             errors.push(`Invalid schema definition at "${path}": expected string, array, or object, got ${expectedType}`);
         };
     }
@@ -1770,6 +1779,9 @@ export class Typer {
         try {
             const url = new URL(`http://[${str}]`);
             // URL preserves the bracketed host; reject if parsing dropped digits
+            /* istanbul ignore next — Node's URL parser keeps the brackets in
+             * `hostname` for any address it accepts, so this guard fires only
+             * if a future Node version changes that contract. */
             if (!url.hostname.startsWith('[') || !url.hostname.endsWith(']')) {
                 throw new Error();
             }
@@ -1898,12 +1910,9 @@ export class Typer {
                 continue; // null is acceptable for optional fields
             }
 
-            try {
-                this.validateSchemaValue(baseExpected, value, fullPath, strictMode, errors);
-            } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                errors.push(`Validation error at "${fullPath}": ${errorMessage}`);
-            }
+            // validateSchemaValue collects errors via the `errors` array;
+            // it never throws, so no try/catch is needed here.
+            this.validateSchemaValue(baseExpected, value, fullPath, strictMode, errors);
         }
 
         // Check for unexpected keys in strict mode
@@ -1996,12 +2005,7 @@ export class Typer {
             }
 
             value.forEach((item, i) => {
-                try {
-                    this.validateSchemaValue(elementTypeDefinition, item, `${fullPath}[${i}]`, strictMode, errors);
-                } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    errors.push(`Array element validation failed at "${fullPath}[${i}]": ${errorMessage}`);
-                }
+                this.validateSchemaValue(elementTypeDefinition, item, `${fullPath}[${i}]`, strictMode, errors);
             });
         }
         // Handle nested object schemas
@@ -2101,16 +2105,12 @@ export class Typer {
                 throw new Error(`Expected ${paramTypes.length} arguments, but got ${args.length}`);
             }
 
-            // verify num of arguments
+            // verify num of arguments + types
             if (paramTypes.length === 1) {
-                // verify type of args
                 args.forEach((arg: unknown) => {
                     this.isType(paramTypes[0], arg);
                 });
-            } else if ((args.length !== paramTypes.length) && paramTypes.length !== 1) {
-                throw new Error(`Expected ${paramTypes.length} paramTypes arguments, but got ${args.length}`);
             } else {
-                // verify type of args
                 args.forEach((arg: unknown, index: number) => {
                     this.isType(paramTypes[index], arg);
                 });

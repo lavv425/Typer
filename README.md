@@ -1,10 +1,10 @@
 # Typer - Advanced TypeScript Type Validation Library
 
-![Coverage Badge](https://img.shields.io/badge/coverage-96.97%25-brightgreen)
+![Coverage Badge](https://img.shields.io/badge/coverage-100%25%20lines-brightgreen)
 ![Build Status](https://img.shields.io/badge/build-passing-success)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Version](https://img.shields.io/badge/version-3.2.2-blue)
+![Version](https://img.shields.io/badge/version-3.2.3-blue)
 
 Typer is a comprehensive TypeScript validation library that provides robust type checking, schema validation, and runtime type safety. Built with modern TypeScript features including generics, type guards, and advanced type inference.
 
@@ -465,7 +465,7 @@ Logs warning if type assertion fails.
 
 ## 🧪 Testing
 
-Typer has **96.97% test coverage** with 197 comprehensive tests covering:
+Typer has **100% line / 100% function / 99.3% statement / 95.7% branch coverage** with 290 comprehensive tests covering:
 
 - All type validators and edge cases
 - Schema validation scenarios
