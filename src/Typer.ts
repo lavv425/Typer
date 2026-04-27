@@ -5,9 +5,9 @@ import type { StructureValidationReturn, TyperExpectTypes, TyperReturn } from ".
 
 /**
  * Class representing a type checker.
- * Version: 3.0.6
+ * Version: 3.0.7
  * @author Michael Lavigna - <https://michaellavigna.com> - <michael.lavigna@hotmail.it>
- * @since 3.0.6
+ * @since 3.0.7
  */
 export class Typer {
     /**
@@ -197,11 +197,10 @@ export class Typer {
      * @throws {TypeError} Throws if the parameter is not a bigint.
      */
     private tBigint(p: unknown): TyperReturn<bigint> {
-        const type = typeof p;
-        if (type !== "bigint") {
-            throw new TypeError(`${p} must be a bigint, is ${type}`);
+        if (typeof p !== "bigint") {
+            throw new TypeError(`${p} must be a bigint, is ${typeof p}`);
         }
-        return p as bigint;
+        return p;
     }
 
     /**
@@ -212,11 +211,10 @@ export class Typer {
      * @throws {TypeError} Throws if the parameter is not a boolean.
      */
     private tBoolean(p: unknown): TyperReturn<boolean> {
-        const type = typeof p;
-        if (type !== "boolean") {
-            throw new TypeError(`${p} must be a boolean, is ${type}`);
+        if (typeof p !== "boolean") {
+            throw new TypeError(`${p} must be a boolean, is ${typeof p}`);
         }
-        return p as boolean;
+        return p;
     }
 
     /**
@@ -269,9 +267,8 @@ export class Typer {
      * @throws {TypeError} Throws if the parameter is not a function.
      */
     private tFunction(p: unknown): TyperReturn<Function> {
-        const type = typeof p;
-        if (type !== "function") {
-            throw new TypeError(`${p} must be a function, is ${type}`);
+        if (typeof p !== "function") {
+            throw new TypeError(`${p} must be a function, is ${typeof p}`);
         }
         return p as Function;
     }
@@ -315,11 +312,10 @@ export class Typer {
      * @throws {TypeError} Throws if the parameter is not a number.
      */
     private tNumber(p: unknown): TyperReturn<number> {
-        const type = typeof p;
         if (typeof p !== "number") {
             throw new TypeError(`${p} must be a number, is ${typeof p}`);
         }
-        return p as number;
+        return p;
     }
 
     /**
@@ -387,11 +383,10 @@ export class Typer {
      * @throws {TypeError} Throws if the parameter is not a string.
      */
     private tString(p: unknown): TyperReturn<string> {
-        const type = typeof p;
-        if (type !== "string") {
-            throw new TypeError(`${p} must be a string, is ${type}`);
+        if (typeof p !== "string") {
+            throw new TypeError(`${p} must be a string, is ${typeof p}`);
         }
-        return p as string;
+        return p;
     }
 
     /**
@@ -402,11 +397,10 @@ export class Typer {
      * @throws {TypeError} Throws if the parameter is not a symbol.
      */
     private tSymbol(p: unknown): TyperReturn<symbol> {
-        const type = typeof p;
-        if (type !== "symbol") {
-            throw new TypeError(`${p} must be a symbol, is ${type}`);
+        if (typeof p !== "symbol") {
+            throw new TypeError(`${p} must be a symbol, is ${typeof p}`);
         }
-        return p as symbol;
+        return p;
     }
 
     /**
@@ -431,11 +425,10 @@ export class Typer {
      * @throws {TypeError} Throws if the parameter is not undefined.
      */
     private tUndefined(p: unknown): TyperReturn<undefined> {
-        const type = typeof p;
-        if (type !== "undefined") {
+        if (typeof p !== "undefined") {
             throw new TypeError(`${p} must be undefined, is ${typeof p}`);
         }
-        return p as undefined;
+        return p;
     }
 
     private getType(value: unknown): string {
@@ -1153,14 +1146,14 @@ export class Typer {
             // verify num of arguments
             if (paramTypes.length === 1) {
                 // verify type of args
-                args.forEach((arg: any) => {
+                args.forEach((arg: unknown) => {
                     this.isType(paramTypes[0], arg);
                 });
             } else if ((args.length !== paramTypes.length) && paramTypes.length !== 1) {
                 throw new Error(`Expected ${paramTypes.length} paramTypes arguments, but got ${args.length}`);
             } else {
                 // verify type of args
-                args.forEach((arg: any, index: number) => {
+                args.forEach((arg: unknown, index: number) => {
                     this.isType(paramTypes[index], arg);
                 });
             }
