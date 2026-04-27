@@ -1,13 +1,13 @@
 "use strict";
 
 import type { Error } from "./Types/Globals";
-import type { ParseResult, StructureValidationReturn, TypeKey, TypeMap, TyperExpectTypes, TyperReturn, Validator } from "./Types/Typer";
+import type { Infer, ParseResult, Schema, StructureValidationReturn, TypeKey, TypeMap, TyperExpectTypes, TyperReturn, Validator } from "./Types/Typer";
 
 /**
  * Class representing a type checker.
- * Version: 3.1.0
+ * Version: 3.2.0
  * @author Michael Lavigna - <https://michaellavigna.com> - <michael.lavigna@hotmail.it>
- * @since 3.1.0
+ * @since 3.2.0
  */
 export class Typer {
     /**
@@ -913,33 +913,119 @@ export class Typer {
     }
 
     /**
-     * Validates `value` against the given type(s) without throwing.
-     * Returns a discriminated union: `{ success: true, data }` on success,
-     * `{ success: false, error }` on failure. Useful for functional flows
-     * where exceptions are undesirable.
+     * Identity helper that preserves literal types of a schema declared as
+     * a variable. Use it when you want to declare the schema once, derive
+     * `Infer<typeof schema>`, and then call `parse(schema, value)` with
+     * full type inference — without sprinkling `as const`.
      *
-     * @template K - Built-in type alias inferred when provided as a literal
-     * @param {string | string[]} types - The type(s) to check against
-     * @param {unknown} value - The value to validate
-     * @returns {ParseResult} A success/failure result containing the typed value or the TypeError
      * @example
-     * const result = typer.safeParse("number", input);
+     * const userSchema = typer.schema({
+     *   id: 'number',
+     *   name: 'string',
+     *   email: 'string?',
+     * });
+     * type User = Infer<typeof userSchema>;
+     * const user = typer.parse(userSchema, payload); // typed
+     */
+    public schema<const S extends Schema>(definition: S): S {
+        return definition;
+    }
+
+    /**
+     * Universal "parse" entry point. Validates `value` against either:
+     *  - a built-in type alias (`"string"`, `"number"`, ...),
+     *  - an array of aliases (`["string", "number"]` → union),
+     *  - a `Validator<T>` function,
+     *  - or a {@link Schema} object.
+     *
+     * Returns the value typed correctly. Throws a `TypeError` on failure.
+     *
+     * No `as const` is needed when calling with a literal schema thanks to
+     * the `<const S>` parameter — the inferred type matches the schema.
+     *
+     * @example
+     * const user = typer.parse(
+     *   { id: 'number', name: 'string', email: 'string?' },
+     *   payload,
+     * );
+     * // user is typed as { id: number; name: string; email?: string | null }
+     */
+    public parse<K extends TypeKey>(types: K | readonly K[], value: unknown): TypeMap[K];
+    public parse<T>(validator: Validator<T>, value: unknown): T;
+    public parse<const S extends Schema>(schema: S, value: unknown): Infer<S>;
+    public parse<T>(types: string | readonly string[], value: unknown): T;
+    public parse(typesOrSchemaOrValidator: unknown, value: unknown): unknown {
+        if (typeof typesOrSchemaOrValidator === "function") {
+            return (typesOrSchemaOrValidator as Validator<unknown>)(value);
+        }
+        if (typeof typesOrSchemaOrValidator === "string") {
+            return this.isType(typesOrSchemaOrValidator, value);
+        }
+        if (Array.isArray(typesOrSchemaOrValidator)) {
+            return this.isType(typesOrSchemaOrValidator as string[], value);
+        }
+        if (typesOrSchemaOrValidator !== null && typeof typesOrSchemaOrValidator === "object") {
+            const checker = this.getCompiledChecker(typesOrSchemaOrValidator as Record<string, unknown>);
+            const result = checker(value);
+            if (!result.isValid) {
+                throw new TypeError(`Validation failed:\n  - ${result.errors.join("\n  - ")}`);
+            }
+            return value;
+        }
+        throw new TypeError(`Invalid first argument to parse(): expected type alias, validator, or schema.`);
+    }
+
+    /**
+     * Validates `value` without throwing. Same input shapes as {@link parse}.
+     * Returns a discriminated union: `{ success: true, data }` or
+     * `{ success: false, error }`.
+     *
+     * @example
+     * const result = typer.safeParse(
+     *   { id: 'number', name: 'string' },
+     *   payload,
+     * );
      * if (result.success) {
-     *   // result.data is number
+     *   // result.data is { id: number; name: string }
      * } else {
      *   console.error(result.error.message);
      * }
      */
     public safeParse<K extends TypeKey>(types: K | readonly K[], value: unknown): ParseResult<TypeMap[K]>;
+    public safeParse<T>(validator: Validator<T>, value: unknown): ParseResult<T>;
+    public safeParse<const S extends Schema>(schema: S, value: unknown): ParseResult<Infer<S>>;
     public safeParse<T>(types: string | readonly string[], value: unknown): ParseResult<T>;
-    public safeParse<T>(types: string | readonly string[], value: unknown): ParseResult<T> {
+    public safeParse(typesOrSchemaOrValidator: unknown, value: unknown): ParseResult<unknown> {
         try {
-            const data = this.isType<T>(types, value);
+            const data = this.parse(typesOrSchemaOrValidator as never, value);
             return { success: true, data };
         } catch (e: unknown) {
             const error = e instanceof TypeError ? e : new TypeError(e instanceof Error ? e.message : String(e));
             return { success: false, error };
         }
+    }
+
+    /**
+     * Cache of compiled schema checkers, keyed by schema object identity.
+     * Re-using the same schema literal across calls hits the cache.
+     */
+    private schemaCheckerCache = new WeakMap<object, (value: unknown) => StructureValidationReturn>();
+
+    /**
+     * Returns a cached checker function for the given schema (compiled lazily).
+     * Reusing the same schema literal across calls avoids re-walking the
+     * schema definition. The returned function reuses `checkStructure`'s
+     * runtime behavior — currently a thin wrapper, designed so future
+     * iterations can swap in a fully closure-compiled checker without
+     * changing the public API.
+     */
+    private getCompiledChecker(schema: Record<string, unknown>): (value: unknown) => StructureValidationReturn {
+        const cached = this.schemaCheckerCache.get(schema);
+        if (cached) return cached;
+        const checker = (value: unknown): StructureValidationReturn =>
+            this.checkStructure(schema, value as Record<string, unknown>, "", false);
+        this.schemaCheckerCache.set(schema, checker);
+        return checker;
     }
 
     /**
@@ -1370,16 +1456,17 @@ export class Typer {
             // Parse optional field syntax (ending with ?)
             const isOptional = typeof expected === "string" && expected.endsWith("?");
             const baseExpected = isOptional && typeof expected === "string" ? expected.slice(0, -1) : expected;
+            const isValidator = typeof expected === "function";
 
-            // Handle missing values
-            if (value === undefined) {
+            // Handle missing values — validator entries decide for themselves
+            if (value === undefined && !isValidator) {
                 if (!isOptional) {
                     errors.push(`Missing required key "${fullPath}"`);
                 }
                 continue;
             }
 
-            // Handle null values for optional fields
+            // Handle null values for optional string-fields
             if (value === null && isOptional) {
                 continue; // null is acceptable for optional fields
             }
@@ -1417,6 +1504,17 @@ export class Typer {
      * @param {string[]} errors - Array to collect errors
      */
     private validateSchemaValue(expected: unknown, value: unknown, fullPath: string, strictMode: boolean, errors: string[]): void {
+        // Validator function entries (e.g. typer.optional(asString) inside a schema)
+        if (typeof expected === "function") {
+            try {
+                (expected as Validator<unknown>)(value);
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                errors.push(`Validation failed at "${fullPath}": ${errorMessage}`);
+            }
+            return;
+        }
+
         // Handle primitive types or union types (e.g., "string", "number|string")
         if (typeof expected === "string") {
             if (expected.trim() === "") {
@@ -1461,7 +1559,11 @@ export class Typer {
             }
 
             const elementTypeDefinition = expected[0];
-            if (typeof elementTypeDefinition !== "string") {
+            const elementIsValid =
+                typeof elementTypeDefinition === "string"
+                || typeof elementTypeDefinition === "function"
+                || (typeof elementTypeDefinition === "object" && elementTypeDefinition !== null && !Array.isArray(elementTypeDefinition));
+            if (!elementIsValid) {
                 errors.push(`Array element type must be a string at "${fullPath}"`);
                 return;
             }

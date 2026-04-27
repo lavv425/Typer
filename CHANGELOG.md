@@ -5,6 +5,69 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-04-28
+
+### ✨ Added — Typed schema parsing (the "Zod-style" win)
+
+A schema literal alone now drives both runtime validation and the
+TypeScript type — no separate `interface User { … }` to keep in sync.
+
+```ts
+const user = typer.parse(
+  { id: 'number', name: 'string', email: 'string?' },
+  payload,
+);
+// user is typed: { id: number; name: string; email?: string | null }
+```
+
+#### New methods
+- **`parse<S>(schemaOrTypeOrValidator, value)`** — universal entry point.
+  Accepts a type alias, an array of aliases, a `Validator<T>` function, or
+  a `Schema` object. Throws on failure, returns the inferred typed value
+  on success. Uses `<const S>` so no `as const` is needed for inline schema
+  literals.
+- **`safeParse<S>(schemaOrTypeOrValidator, value)`** — non-throwing variant
+  that returns `{ success: true, data: Infer<S> } | { success: false, error }`.
+- **`schema<const S>(definition)`** — identity helper that preserves literal
+  types when you want to declare a schema in a variable and derive
+  `Infer<typeof schema>` from it.
+
+#### New exported types
+- **`Infer<S>`** — derives the TypeScript type from a runtime schema literal.
+  Handles `?`-suffix optionals, `|`-unions, array elements, nested objects,
+  and embedded `Validator<T>` functions.
+- **`Schema`**, **`SchemaArrayElement`**, **`ResolveTypeString`**,
+  **`ResolveSchemaValue`** — supporting types for the inference machinery.
+
+#### Schema entries can now be validator functions
+Schemas accept `Validator<T>` functions in any slot, mixing string aliases
+and custom checks:
+
+```ts
+const schema = typer.schema({
+  id: typer.isPositiveInteger,
+  name: typer.isNonEmptyString,
+  color: (v) => typer.isHexColor(v),
+  email: 'string?',
+  role: 'admin|user|guest',
+});
+```
+
+When a function is supplied, missing-key handling defers to the validator
+itself (so `typer.optional(asString)` correctly accepts `undefined`).
+
+### 🚀 Performance
+Added an internal `WeakMap` schema-checker cache so repeated `parse()`
+calls on the same schema literal skip re-walking the definition. The
+implementation is intentionally a thin wrapper today — designed so a
+real closure-based compiler can be slotted in later without changing the
+public API.
+
+### 🧪 Tests
+Added `tests/parse-schema.test.ts` with 20 cases including 5 compile-time
+type assertions (`expectType<AssertEqual<…>>()`) that fail in compile if
+the inference machinery breaks. Total: **252/252 passing**.
+
 ## [3.1.0] - 2026-04-28
 
 ### ✨ Added

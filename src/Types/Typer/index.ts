@@ -102,3 +102,94 @@ export type ParseResult<T> =
  * @template T - The narrowed value type on success
  */
 export type Validator<T> = (value: unknown) => T;
+
+// ---------------------------------------------------------------------------
+//  Schema inference — derive a TypeScript type from a runtime schema literal
+// ---------------------------------------------------------------------------
+
+/** Removes leading/trailing whitespace at the type level. */
+type Trim<S extends string> =
+    S extends ` ${infer R}` ? Trim<R>
+    : S extends `${infer R} ` ? Trim<R>
+    : S;
+
+/**
+ * Resolves a single type-name string (possibly a `a|b|c` union) to its
+ * runtime TypeScript type. Falls back to `unknown` for unknown aliases.
+ */
+export type ResolveTypeString<S extends string> =
+    S extends `${infer A}|${infer B}`
+    ? ResolveTypeString<Trim<A>> | ResolveTypeString<Trim<B>>
+    : Trim<S> extends keyof TypeMap
+    ? TypeMap[Trim<S>]
+    : unknown;
+
+/**
+ * Resolves a single schema entry value to its TypeScript type.
+ *  - `'string'`    → `string`
+ *  - `'string?'`   → `string | null`  (key becomes optional in `Infer`)
+ *  - `'a|b'`       → `a | b`
+ *  - `['string']`  → `string[]`
+ *  - nested object → recursive `Infer`
+ *  - validator fn  → its return type
+ */
+export type ResolveSchemaValue<V> =
+    V extends Validator<infer T> ? T
+    : V extends string
+    ? V extends `${infer Base}?` ? ResolveTypeString<Base> | null : ResolveTypeString<V>
+    : V extends readonly (infer E)[]
+    ? E extends string ? ResolveTypeString<E>[] : ResolveSchemaValue<E>[]
+    : V extends Record<string, unknown>
+    ? Infer<V>
+    : unknown;
+
+/** Keys of `S` whose value is *not* marked optional (`'foo?'`). */
+type RequiredKeys<S> = {
+    [K in keyof S]: S[K] extends `${string}?` ? never : K
+}[keyof S];
+
+/** Keys of `S` whose value *is* marked optional (`'foo?'`). */
+type OptionalKeys<S> = {
+    [K in keyof S]: S[K] extends `${string}?` ? K : never
+}[keyof S];
+
+/**
+ * Flatten an intersection so editor hover shows a single object type rather
+ * than `A & B`. Pure type-level transform, no runtime cost.
+ */
+type Prettify<T> = { [K in keyof T]: T[K] } & {};
+
+/**
+ * Derives the TypeScript type of an object that satisfies the given schema.
+ * Use directly on a schema literal — no `as const` required when calling
+ * `parse`/`safeParse`, thanks to the `<const S>` parameter.
+ *
+ * @example
+ * const userSchema = { id: 'number', name: 'string', email: 'string?' };
+ * type User = Infer<typeof userSchema>;
+ * // → { id: number; name: string; email?: string | null }
+ */
+export type Infer<S> = Prettify<
+    & { [K in RequiredKeys<S>]: ResolveSchemaValue<S[K]> }
+    & { [K in OptionalKeys<S>]?: ResolveSchemaValue<S[K]> }
+>;
+
+/**
+ * Element types allowed inside an array-schema slot, e.g. `tags: ['string']`
+ * or `users: [userSchema]` or `ids: [validator]`.
+ */
+export type SchemaArrayElement = string | Schema | Validator<unknown>;
+
+/**
+ * Recursive schema definition accepted by `parse`/`safeParse`/`checkStructure`.
+ * Each key can be a type-name string (with optional `?` suffix and `|` unions),
+ * an array describing element type, a nested schema, or a `Validator<T>` function.
+ *
+ * Note: the array slot accepts any-length arrays at the type level so that
+ * schemas declared as plain `const` variables (without `as const`) still
+ * satisfy the constraint. The runtime requires exactly one element and will
+ * surface a clear error message otherwise.
+ */
+export type Schema = {
+    readonly [key: string]: string | readonly SchemaArrayElement[] | Schema | Validator<unknown>;
+};

@@ -4,7 +4,7 @@
 ![Build Status](https://img.shields.io/badge/build-passing-success)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Version](https://img.shields.io/badge/version-3.1.0-blue)
+![Version](https://img.shields.io/badge/version-3.2.0-blue)
 
 Typer is a comprehensive TypeScript validation library that provides robust type checking, schema validation, and runtime type safety. Built with modern TypeScript features including generics, type guards, and advanced type inference.
 
@@ -47,6 +47,46 @@ const result = typer.safeParse('number', userInput);
 if (result.success) {
     // result.data: number
 }
+```
+
+### 🪄 Typed schema parsing — write the schema once, get the type for free *(3.2+)*
+
+```typescript
+import { Typer, type Infer } from '@illavv/run_typer';
+
+const typer = new Typer();
+
+// One literal drives both runtime validation and the static type
+const user = typer.parse(
+    { id: 'number', name: 'string', email: 'string?' },
+    payload,
+);
+// user is typed: { id: number; name: string; email?: string | null }
+
+// Reusable schemas with derived types — no `as const` needed
+const userSchema = typer.schema({
+    id: 'number',
+    name: 'string',
+    email: 'string?',
+    tags: ['string'],
+    address: { city: 'string', zip: 'string?' },
+});
+type User = Infer<typeof userSchema>;
+
+const u  = typer.parse(userSchema, payload);     // throws + typed as User
+const r  = typer.safeParse(userSchema, payload); // { success, data: User } | { error }
+```
+
+Mix-and-match validator functions inside a schema (any slot accepts a
+`Validator<T>` from a built-in helper or your own):
+
+```typescript
+const strict = typer.schema({
+    id:    typer.isPositiveInteger,
+    name:  typer.isNonEmptyString,
+    color: (v) => typer.isHexColor(v),
+    role:  'admin|user|guest',
+});
 ```
 
 ## 📖 Usage Examples
@@ -361,8 +401,29 @@ of throwing.
 
 ### Schema Validation
 
+#### `parse<S>(schemaOrTypeOrValidator, value): T` *(3.2+)*
+Universal entry point. Accepts a type alias, an array of aliases, a
+`Validator<T>` function, or a `Schema` object. Throws `TypeError` on
+failure; on success returns the value typed via `Infer<S>` (for
+schemas) or `TypeMap[K]` (for type aliases).
+
+#### `safeParse<S>(schemaOrTypeOrValidator, value): ParseResult<T>` *(3.2+ for schema overload)*
+Non-throwing variant. Returns
+`{ success: true, data } | { success: false, error: TypeError }`.
+
+#### `schema<const S>(definition: S): S` *(3.2+)*
+Identity helper that preserves literal types of a schema declared in a
+variable. Use it to derive `Infer<typeof schema>` without `as const`.
+
+#### `Infer<S>` *(3.2+, type-only export)*
+Derives a TypeScript type from a runtime schema literal — handles
+`?`-suffix optionals, `|`-unions, array elements, nested objects, and
+embedded `Validator<T>` functions.
+
 #### `checkStructure(schema: Record<string, unknown>, obj: Record<string, unknown>, path?: string, strictMode?: boolean): StructureValidationReturn`
 Validates object structure against schema. Returns `{isValid: boolean, errors: string[]}`.
+Lower-level than `parse` — kept for backward compatibility and for the
+strict-mode entry point.
 
 ### Type Management
 

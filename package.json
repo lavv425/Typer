@@ -1,6 +1,6 @@
 {
     "name": "@illavv/run_typer",
-    "version": "3.1.0",
+    "version": "3.2.0",
     "description": "A robust TypeScript class for type checking and validation",
     "main": "dist/Typer.cjs.min.js",
     "module": "dist/Typer.esm.min.js",
