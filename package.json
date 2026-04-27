@@ -1,6 +1,6 @@
 {
     "name": "@illavv/run_typer",
-    "version": "3.0.4",
+    "version": "3.0.5",
     "description": "A robust TypeScript class for type checking and validation",
     "main": "dist/Typer.cjs.min.js",
     "module": "dist/Typer.esm.min.js",
@@ -43,16 +43,16 @@
     },
     "homepage": "https://github.com/lavv425/Typer",
     "devDependencies": {
-        "@rollup/plugin-commonjs": "^28.0.6",
-        "@rollup/plugin-node-resolve": "^16.0.1",
-        "@rollup/plugin-terser": "^0.4.4",
-        "@rollup/plugin-typescript": "^12.1.4",
+        "@rollup/plugin-commonjs": "^29.0.2",
+        "@rollup/plugin-node-resolve": "^16.0.3",
+        "@rollup/plugin-terser": "^1.0.0",
+        "@rollup/plugin-typescript": "^12.3.0",
         "@types/jest": "^30.0.0",
-        "jest": "^30.2.0",
-        "rollup": "^4.52.3",
-        "ts-jest": "^29.4.4",
-        "typedoc": "0.28.13",
-        "typescript": "^5.9.3"
+        "jest": "^30.3.0",
+        "rollup": "^4.60.2",
+        "ts-jest": "^29.4.9",
+        "typedoc": "0.28.19",
+        "typescript": "^6.0.3"
     },
     "dependencies": {
         "tslib": "^2.8.1"
