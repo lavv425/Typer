@@ -4,7 +4,7 @@
 ![Build Status](https://img.shields.io/badge/build-passing-success)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Version](https://img.shields.io/badge/version-3.2.1-blue)
+![Version](https://img.shields.io/badge/version-3.2.2-blue)
 
 Typer is a comprehensive TypeScript validation library that provides robust type checking, schema validation, and runtime type safety. Built with modern TypeScript features including generics, type guards, and advanced type inference.
 
@@ -14,7 +14,7 @@ Typer is a comprehensive TypeScript validation library that provides robust type
 - **🎯 Generic Type Safety**: Full TypeScript generic support with type inference; `Infer<typeof schema>` derives the static type from the runtime schema *(3.2+)*
 - **📋 Schema Validation**: Complex nested object structure validation with strict mode
 - **🔧 Extensible Architecture**: Register custom types and validators
-- **⚡ High Performance**: Closure-compiled schema cache — 3–10× faster than walking the schema each call; ≥3M cached `parse()` ops/sec on small schemas *(3.2.1+)*
+- **⚡ High Performance**: Closure-compiled schema cache (3–10× faster than walking the schema each call) and a predicate fast-path for `is`/`isType` — ~70M `is()` ops/sec and ~74M `isType()` ops/sec on hot literals *(3.2.2+)*
 - **🛡️ Runtime Safety**: Catch type errors at runtime with detailed error messages
 - **📱 Phone Number Validation**: International phone number validation (ITU-T E.164 standard)
 - **📧 Advanced Validations**: Email, URL, and other common format validations

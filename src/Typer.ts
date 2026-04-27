@@ -5,17 +5,36 @@ import type { Infer, ParseResult, Schema, StructureValidationReturn, TypeKey, Ty
 
 /**
  * Class representing a type checker.
- * Version: 3.2.1
+ * Version: 3.2.2
  * @author Michael Lavigna - <https://michaellavigna.com> - <michael.lavigna@hotmail.it>
- * @since 3.2.1
+ * @since 3.2.2
  */
 export class Typer {
     /**
      * @private
-     * @type {Record<string, (value: unknown) => unknown>} 
+     * @type {Record<string, (value: unknown) => unknown>}
      * Stores the type validation functions
      */
     private typesMap: Record<string, (value: unknown) => unknown>;
+
+    /**
+     * @private
+     * Fast boolean predicates for built-in type aliases. Used by `is()` and
+     * `isType()` to avoid throw/catch on the happy path and to skip the
+     * `typesMap` lookup entirely. Custom types registered via `registerType`
+     * have no predicate here and fall back to a wrapped checker via
+     * `predCache`.
+     */
+    private builtinPredicates!: Record<string, (value: unknown) => boolean>;
+
+    /**
+     * @private
+     * Cache of resolved predicates keyed by the *raw* input string the user
+     * passed (preserving case/whitespace). Subsequent calls with the same
+     * literal skip normalization (`toLowerCase().trim()`) and lookup.
+     * `null` marks a known-unknown type so we throw fast.
+     */
+    private predCache: Map<string, ((value: unknown) => boolean) | null> = new Map();
 
     /**
      * creates the types mapping
@@ -77,6 +96,114 @@ export class Typer {
             'undefined': this.tUndefined,
             'void': this.tUndefined,
         };
+
+        this.builtinPredicates = this.buildBuiltinPredicates();
+    }
+
+    /**
+     * Builds the fast-path boolean predicate map for built-in aliases.
+     * Each predicate is a small closure with no throw on the happy or miss
+     * path — `is()` and `isType()` use these to skip the throw/catch dance
+     * required by the legacy checker functions in `typesMap`.
+     */
+    private buildBuiltinPredicates(): Record<string, (value: unknown) => boolean> {
+        const map: Record<string, (value: unknown) => boolean> = Object.create(null);
+
+        const isString = (v: unknown): boolean => typeof v === 'string';
+        for (const k of ['s', 'str', 'string']) map[k] = isString;
+
+        const isNumber = (v: unknown): boolean => typeof v === 'number';
+        for (const k of ['n', 'num', 'number']) map[k] = isNumber;
+
+        const isBoolean = (v: unknown): boolean => typeof v === 'boolean';
+        for (const k of ['b', 'bool', 'boolean']) map[k] = isBoolean;
+
+        const isBigint = (v: unknown): boolean => typeof v === 'bigint';
+        for (const k of ['bi', 'bint', 'bigint']) map[k] = isBigint;
+
+        const isSymbol = (v: unknown): boolean => typeof v === 'symbol';
+        for (const k of ['sym', 'symbol']) map[k] = isSymbol;
+
+        const isUndefined = (v: unknown): boolean => typeof v === 'undefined';
+        for (const k of ['u', 'undef', 'undefined', 'void']) map[k] = isUndefined;
+
+        const isFunction = (v: unknown): boolean => typeof v === 'function';
+        for (const k of ['f', 'funct', 'function']) map[k] = isFunction;
+
+        map['null'] = (v: unknown): boolean => v === null;
+
+        const isArrayPred: (v: unknown) => boolean = Array.isArray;
+        for (const k of ['a', 'arr', 'array']) map[k] = isArrayPred;
+
+        // Matches tObject: typeof === 'object' && !Array.isArray (null passes,
+        // matching legacy behavior documented in the test suite).
+        const isObjectPred = (v: unknown): boolean => typeof v === 'object' && !Array.isArray(v);
+        for (const k of ['o', 'obj', 'object']) map[k] = isObjectPred;
+
+        const isDate = (v: unknown): boolean => v instanceof Date && !Number.isNaN(v.getTime());
+        for (const k of ['dt', 'date']) map[k] = isDate;
+
+        const isRegex = (v: unknown): boolean => v instanceof RegExp;
+        for (const k of ['reg', 'regex', 'regexp']) map[k] = isRegex;
+
+        map['map'] = (v: unknown): boolean => v instanceof Map;
+        map['set'] = (v: unknown): boolean => v instanceof Set;
+
+        const isAB = (v: unknown): boolean => v instanceof ArrayBuffer;
+        for (const k of ['ab', 'arr_buff', 'array_buffer']) map[k] = isAB;
+
+        const isDV = (v: unknown): boolean => v instanceof DataView;
+        for (const k of ['dv', 'dt_v', 'data_view']) map[k] = isDV;
+
+        const isTA = (v: unknown): boolean => ArrayBuffer.isView(v) && !(v instanceof DataView);
+        for (const k of ['ta', 'typ_arr', 'typed_array']) map[k] = isTA;
+
+        // DOM predicate guards typeof to avoid ReferenceError in Node. On miss
+        // in `isType()`, the legacy throwing checker is still used to surface
+        // the original "HTMLElement is not defined" message (see test suite).
+        const isDom = (v: unknown): boolean =>
+            typeof HTMLElement !== 'undefined' && v instanceof HTMLElement;
+        for (const k of ['dom', 'domel', 'domelement']) map[k] = isDom;
+
+        const isJSON = (v: unknown): boolean => {
+            if (typeof v !== 'string') return false;
+            try { JSON.parse(v); return true; } catch { return false; }
+        };
+        for (const k of ['j', 'json']) map[k] = isJSON;
+
+        return map;
+    }
+
+    /**
+     * Resolves and caches a predicate for the given raw type string.
+     * Returns a fast predicate from `builtinPredicates` when available, or a
+     * wrapper around the registered checker (with try/catch absorbed once)
+     * for custom types. Throws once on unknown types and caches the negative
+     * result so subsequent calls fail fast.
+     */
+    private getPred(rawType: string): (value: unknown) => boolean {
+        const cached = this.predCache.get(rawType);
+        if (cached !== undefined) {
+            if (cached === null) throw new Error(`Unknown type: ${rawType}`);
+            return cached;
+        }
+        const norm = rawType.toLowerCase().trim();
+        const pred = this.builtinPredicates[norm];
+        if (pred) {
+            this.predCache.set(rawType, pred);
+            return pred;
+        }
+        const checker = this.typesMap[norm];
+        if (!checker) {
+            this.predCache.set(rawType, null);
+            throw new Error(`Unknown type: ${rawType}`);
+        }
+        // Custom type — wrap the throwing checker into a boolean predicate.
+        const wrapped = (v: unknown): boolean => {
+            try { checker.call(this, v); return true; } catch { return false; }
+        };
+        this.predCache.set(rawType, wrapped);
+        return wrapped;
     }
 
     /**
@@ -107,6 +234,9 @@ export class Typer {
         }
         // Type assertion needed to store generic validator in the map
         this.typesMap[typeKey] = validator as (value: unknown) => unknown;
+        // Invalidate the predicate cache: prior negative ("unknown") entries
+        // and prior overrides must not leak.
+        this.predCache.clear();
     }
 
     /**
@@ -122,6 +252,7 @@ export class Typer {
             throw new Error(`Type "${name}" is not registered.`);
         }
         delete this.typesMap[typeKey];
+        this.predCache.clear();
     }
 
     /**
@@ -846,26 +977,35 @@ export class Typer {
     public isType<K extends TypeKey>(types: K | readonly K[], p: unknown): TypeMap[K];
     public isType<T = unknown>(types: string | readonly string[], p: unknown): T;
     public isType<T = unknown>(types: string | readonly string[], p: unknown): T {
-        const typeList: readonly string[] = Array.isArray(types) ? types : [types as string];
-
-        // creating typeCheckers mapping types
-        const typeCheckers = typeList.map((type: string) => {
-            const checker = this.typesMap[type.toLowerCase().trim()];
-            if (!checker) {
-                throw new Error(`Unknown type: ${type}`);
-            }
-            return checker.bind(this);
-        });
-
-        const errors: string[] = [];
-        for (const check of typeCheckers) {
+        // Fast path: single-string input — no array allocation, no .map(),
+        // no .bind(this), no try/catch unless validation actually fails.
+        if (typeof types === 'string') {
+            const pred = this.getPred(types);
+            if (pred(p)) return p as T;
+            // Slow path (only on miss): use the throwing checker for the
+            // original error message, byte-for-byte compatible with legacy.
+            const checker = this.typesMap[types.toLowerCase().trim()];
             try {
-                check(p);
+                checker.call(this, p);
+                // Predicate said no but checker said yes — never expected, but
+                // be defensive: trust the checker.
                 return p as T;
             } catch (e: unknown) {
-                const catchedError = e as Error;
-                errors.push(catchedError.message);
+                const msg = (e as Error).message;
+                throw new TypeError(`None of the types matched for ${p}: ${msg}`);
             }
+        }
+
+        // Multi-type input: try each predicate in order; only collect error
+        // messages once we know all of them missed.
+        for (let i = 0; i < types.length; i++) {
+            if (this.getPred(types[i])(p)) return p as T;
+        }
+        const errors: string[] = [];
+        for (let i = 0; i < types.length; i++) {
+            const checker = this.typesMap[types[i].toLowerCase().trim()];
+            try { checker.call(this, p); return p as T; }
+            catch (e: unknown) { errors.push((e as Error).message); }
         }
         throw new TypeError(`None of the types matched for ${p}: ${errors.join(', ')}`);
     }
@@ -894,21 +1034,14 @@ export class Typer {
     public is<K extends TypeKey>(value: unknown, types: K | readonly K[]): value is TypeMap[K];
     public is<T = unknown>(value: unknown, types: string | readonly string[]): value is T;
     public is<T = unknown>(value: unknown, types: string | readonly string[]): value is T {
-        const typeList: readonly string[] = Array.isArray(types) ? types : [types as string];
-
-        for (const type of typeList) {
-            const checker = this.typesMap[type.toLowerCase().trim()];
-            if (!checker) {
-                throw new Error(`Unknown type: ${type}`);
-            }
-            try {
-                checker(value);
-                return true;
-            } catch {
-                continue;
-            }
+        // Fast path: single string — one predicate call, no allocation.
+        if (typeof types === 'string') {
+            return this.getPred(types)(value);
         }
-
+        // Multi-type: short-circuit on the first match.
+        for (let i = 0; i < types.length; i++) {
+            if (this.getPred(types[i])(value)) return true;
+        }
         return false;
     }
 

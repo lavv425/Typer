@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.2] - 2026-04-28
+
+### 🚀 Performance — Predicate fast-path for `is` / `isType`
+
+`is()` and `isType()` were the next bottleneck after the schema
+compiler: each call allocated a one-element array, mapped a
+`bind(this)` per type, and went through a try/catch even on the happy
+path. This release routes both methods through a parallel boolean
+predicate map for built-in aliases, plus a per-raw-string cache.
+
+#### Measured impact (100k iterations, hot literal)
+- `is(value, "string")`: **~70M ops/sec**
+- `isType("number", value)`: **~74M ops/sec**
+- `is(value, ["array","object","string","number"])`: **~23M ops/sec**
+
+#### How
+- New `builtinPredicates` map mirrors `typesMap` with direct boolean
+  checks (`typeof v === 'string'`, `Array.isArray`, `v instanceof Date`,
+  …). Built once in the constructor.
+- New `predCache: Map<string, Pred|null>` memoizes the resolved
+  predicate **per raw input string** so `toLowerCase().trim()` and the
+  `typesMap` lookup happen once per literal.
+- `getPred(rawType)` resolves + caches. For built-ins it returns the
+  fast predicate. For custom types it wraps the throwing checker once,
+  absorbing try/catch into the wrapper. Unknown types are cached as
+  `null` and throw fast on subsequent calls.
+- `is()` becomes a one-line predicate call on the single-string fast
+  path.
+- `isType()` predicate-checks first; only on miss does it fall back to
+  the original throwing checker to reconstruct the byte-for-byte
+  identical error message.
+- `registerType` / `unregisterType` clear `predCache` to avoid leaks.
+
+### 🧪 Tests
+Extended `tests/parse-perf.test.ts` with two new benchmarks for
+`is()` / `isType()` and a 4-type-union short-circuit check. Total:
+**256/256 passing**. No behavioral regressions (every error message is
+preserved).
+
 ## [3.2.1] - 2026-04-28
 
 ### 🚀 Performance — Closure-compiled schema cache
