@@ -1,13 +1,13 @@
 "use strict";
 
 import type { Error } from "./Types/Globals";
-import type { StructureValidationReturn, TyperExpectTypes, TyperReturn } from "./Types/Typer";
+import type { ParseResult, StructureValidationReturn, TypeKey, TypeMap, TyperExpectTypes, TyperReturn, Validator } from "./Types/Typer";
 
 /**
  * Class representing a type checker.
- * Version: 3.0.7
+ * Version: 3.1.0
  * @author Michael Lavigna - <https://michaellavigna.com> - <michael.lavigna@hotmail.it>
- * @since 3.0.7
+ * @since 3.1.0
  */
 export class Typer {
     /**
@@ -826,25 +826,30 @@ export class Typer {
 
     /**
      * Check if the parameter matches one of the specified types.
+     *
+     * Overloads:
+     * - When called with a known built-in type alias (or array of aliases),
+     *   the return type is inferred from {@link TypeMap} (e.g. `"string"` → `string`).
+     * - Otherwise the caller can supply an explicit generic `T`, which falls
+     *   back to `unknown`.
+     *
      * @template T - The expected type for better TypeScript inference
      * @param {Array|String} types - The types to check against.
      * @param {unknown} p - The parameter to check.
      * @returns {T} Returns the value cast to the expected type
      * @throws {TypeError} Throws if the parameter does not match any of the specified types.
      * @example
-     * const value = typer.isType<string>("string", "Hello"); // value is typed as string
-     * console.log(Typer.isType("string", "Hello")); // "Hello"
-     * console.log(Typer.isType(["number", "boolean"], 42)); // 42
-     * console.log(Typer.isType(["number", "boolean"], "text")); // Throws TypeError
+     * const value = typer.isType("string", "Hello"); // value is typed as string (no generic needed)
+     * const arr = typer.isType(["number", "boolean"], 42); // typed as number | boolean
+     * typer.isType<MyShape>("my_custom_type", payload); // explicit generic for custom types
      */
-    public isType<T = unknown>(types: string | string[], p: unknown): T {
-        //if types is not an array is converted to a "single" array
-        if (!Array.isArray(types)) {
-            types = [types];
-        }
+    public isType<K extends TypeKey>(types: K | readonly K[], p: unknown): TypeMap[K];
+    public isType<T = unknown>(types: string | readonly string[], p: unknown): T;
+    public isType<T = unknown>(types: string | readonly string[], p: unknown): T {
+        const typeList: readonly string[] = Array.isArray(types) ? types : [types as string];
 
         // creating typeCheckers mapping types
-        const typeCheckers = types.map((type: string) => {
+        const typeCheckers = typeList.map((type: string) => {
             const checker = this.typesMap[type.toLowerCase().trim()];
             if (!checker) {
                 throw new Error(`Unknown type: ${type}`);
@@ -867,21 +872,29 @@ export class Typer {
 
     /**
      * Checks if the provided value matches one or more specified types.
+     *
+     * Overloads:
+     * - When called with a known built-in alias, the type guard is automatically
+     *   inferred from {@link TypeMap} (e.g. `"number"` narrows to `number`).
+     * - For custom registered types, an explicit generic `T` may be supplied.
+     *
      * @template T - The expected type for better TypeScript inference
      * @param {unknown} value - The value to check.
      * @param {string | string[]} types - One or more types to check against.
      * @returns {value is T} Returns true if the value matches any type, false otherwise.
      * @example
-     * if (typer.is<string>("hello", "string")) {
-     *   // value is now typed as string
+     * if (typer.is(value, "string")) {
+     *   // value is now narrowed to string by the type guard
      *   console.log(value.toUpperCase());
      * }
-     * console.log(Typer.is(42, "number")); // true
-     * console.log(Typer.is("hello", ["string", "number"])); // true
-     * console.log(Typer.is([], "string")); // false
+     * typer.is(42, "number"); // true
+     * typer.is("hello", ["string", "number"]); // true
+     * typer.is<MyShape>(payload, "my_custom_type"); // explicit generic for custom types
      */
-    public is<T = unknown>(value: unknown, types: string | string[]): value is T {
-        const typeList = Array.isArray(types) ? types : [types];
+    public is<K extends TypeKey>(value: unknown, types: K | readonly K[]): value is TypeMap[K];
+    public is<T = unknown>(value: unknown, types: string | readonly string[]): value is T;
+    public is<T = unknown>(value: unknown, types: string | readonly string[]): value is T {
+        const typeList: readonly string[] = Array.isArray(types) ? types : [types as string];
 
         for (const type of typeList) {
             const checker = this.typesMap[type.toLowerCase().trim()];
@@ -897,6 +910,422 @@ export class Typer {
         }
 
         return false;
+    }
+
+    /**
+     * Validates `value` against the given type(s) without throwing.
+     * Returns a discriminated union: `{ success: true, data }` on success,
+     * `{ success: false, error }` on failure. Useful for functional flows
+     * where exceptions are undesirable.
+     *
+     * @template K - Built-in type alias inferred when provided as a literal
+     * @param {string | string[]} types - The type(s) to check against
+     * @param {unknown} value - The value to validate
+     * @returns {ParseResult} A success/failure result containing the typed value or the TypeError
+     * @example
+     * const result = typer.safeParse("number", input);
+     * if (result.success) {
+     *   // result.data is number
+     * } else {
+     *   console.error(result.error.message);
+     * }
+     */
+    public safeParse<K extends TypeKey>(types: K | readonly K[], value: unknown): ParseResult<TypeMap[K]>;
+    public safeParse<T>(types: string | readonly string[], value: unknown): ParseResult<T>;
+    public safeParse<T>(types: string | readonly string[], value: unknown): ParseResult<T> {
+        try {
+            const data = this.isType<T>(types, value);
+            return { success: true, data };
+        } catch (e: unknown) {
+            const error = e instanceof TypeError ? e : new TypeError(e instanceof Error ? e.message : String(e));
+            return { success: false, error };
+        }
+    }
+
+    /**
+     * Wraps an existing validator so that `null` is also accepted and returned as-is.
+     * Useful as a building block for nullable schema fields.
+     *
+     * @template T - The type produced by the underlying validator on success
+     * @param {Validator} validator - The validator to make nullable
+     * @returns {Validator} A new validator that accepts `T` or `null`
+     * @example
+     * const maybeStr = typer.nullable(v => typer.asString(v));
+     * maybeStr(null); // null
+     * maybeStr("hi"); // "hi"
+     */
+    public nullable<T>(validator: Validator<T>): Validator<T | null> {
+        return (value: unknown): T | null => {
+            if (value === null) return null;
+            return validator(value);
+        };
+    }
+
+    /**
+     * Wraps an existing validator so that `undefined` is also accepted.
+     * Useful for optional schema fields.
+     *
+     * @template T - The type produced by the underlying validator on success
+     * @param {Validator} validator - The validator to make optional
+     * @returns {Validator} A new validator that accepts `T` or `undefined`
+     * @example
+     * const maybeNum = typer.optional(v => typer.asNumber(v));
+     * maybeNum(undefined); // undefined
+     * maybeNum(42); // 42
+     */
+    public optional<T>(validator: Validator<T>): Validator<T | undefined> {
+        return (value: unknown): T | undefined => {
+            if (value === undefined) return undefined;
+            return validator(value);
+        };
+    }
+
+    /**
+     * Combines multiple validators into one that succeeds if any of them succeeds.
+     * The first matching validator's result is returned.
+     *
+     * @template T - Tuple of types produced by each validator
+     * @param {Validator[]} validators - Validators to try in order
+     * @returns {Validator} A new validator that returns the first matching result
+     * @throws {TypeError} If none of the validators accepts the value
+     * @example
+     * const stringOrNumber = typer.union(
+     *   v => typer.asString(v),
+     *   v => typer.asNumber(v),
+     * );
+     * stringOrNumber(42); // 42
+     * stringOrNumber("hi"); // "hi"
+     */
+    public union<T extends readonly unknown[]>(
+        ...validators: { [K in keyof T]: Validator<T[K]> }
+    ): Validator<T[number]> {
+        return (value: unknown): T[number] => {
+            const errors: string[] = [];
+            for (const validator of validators) {
+                try {
+                    return validator(value) as T[number];
+                } catch (e: unknown) {
+                    errors.push(e instanceof Error ? e.message : String(e));
+                }
+            }
+            throw new TypeError(`Value did not match any union variant: ${errors.join(', ')}`);
+        };
+    }
+
+    /**
+     * Checks that the parameter is a finite number (rejects `NaN` and `Infinity`).
+     * Stricter than `isType("number", x)`, which accepts `NaN` for compatibility
+     * with `typeof x === "number"`.
+     *
+     * @param {unknown} p - The parameter to check
+     * @returns {number} The validated finite number
+     * @throws {TypeError} If `p` is not a finite number
+     */
+    public isFiniteNumber(p: unknown): number {
+        const num = this.isType<number>('number', p);
+        if (!Number.isFinite(num)) {
+            throw new TypeError(`${p} must be a finite number.`);
+        }
+        return num;
+    }
+
+    /**
+     * Checks that the parameter is a safe integer (within `Number.MIN_SAFE_INTEGER`
+     * and `Number.MAX_SAFE_INTEGER`).
+     *
+     * @param {unknown} p - The parameter to check
+     * @returns {number} The validated safe integer
+     * @throws {TypeError} If `p` is not a safe integer
+     */
+    public isSafeInteger(p: unknown): number {
+        const num = this.isType<number>('number', p);
+        if (!Number.isSafeInteger(num)) {
+            throw new TypeError(`${p} must be a safe integer.`);
+        }
+        return num;
+    }
+
+    /**
+     * Checks that the parameter is a plain object (object literal or
+     * `Object.create(null)`). Rejects class instances, arrays, dates, maps, etc.
+     *
+     * @template T - The expected plain object shape
+     * @param {unknown} p - The parameter to check
+     * @returns {T} The validated plain object
+     * @throws {TypeError} If `p` is not a plain object
+     */
+    public isPlainObject<T extends Record<string, unknown> = Record<string, unknown>>(p: unknown): T {
+        if (p === null || typeof p !== 'object') {
+            throw new TypeError(`${p} must be a plain object, is ${p === null ? 'null' : typeof p}`);
+        }
+        const proto = Object.getPrototypeOf(p);
+        if (proto !== null && proto !== Object.prototype) {
+            throw new TypeError(`${p} must be a plain object (no class instances).`);
+        }
+        return p as T;
+    }
+
+    /**
+     * Checks that the parameter is a Promise (or a thenable).
+     *
+     * @template T - The resolved promise type (caller-supplied)
+     * @param {unknown} p - The parameter to check
+     * @returns {Promise<T>} The validated promise
+     * @throws {TypeError} If `p` is not a Promise/thenable
+     */
+    public isPromise<T = unknown>(p: unknown): Promise<T> {
+        if (p === null || (typeof p !== 'object' && typeof p !== 'function')) {
+            throw new TypeError(`${p} must be a Promise.`);
+        }
+        const then = (p as { then?: unknown }).then;
+        if (typeof then !== 'function') {
+            throw new TypeError(`${p} must be a Promise.`);
+        }
+        return p as Promise<T>;
+    }
+
+    /**
+     * Checks that the parameter is an instance of the given constructor.
+     * Type-safe alternative to writing `value instanceof MyClass` everywhere.
+     *
+     * @template T - The instance type produced by the constructor
+     * @param {Function} ctor - The constructor to check against
+     * @param {unknown} p - The parameter to check
+     * @returns {T} The validated instance
+     * @throws {TypeError} If `p` is not an instance of `ctor`
+     */
+    public isInstanceOf<T>(ctor: new (...args: never[]) => T, p: unknown): T {
+        if (!(p instanceof ctor)) {
+            throw new TypeError(`${p} must be an instance of ${ctor.name || 'the given constructor'}.`);
+        }
+        return p;
+    }
+
+    /**
+     * Checks that the parameter is a string matching the given regular expression.
+     *
+     * @param {RegExp} regex - The pattern to match against
+     * @param {unknown} p - The parameter to check
+     * @returns {string} The validated string
+     * @throws {TypeError} If `p` is not a string or does not match
+     */
+    public matches(regex: RegExp, p: unknown): string {
+        const str = this.isType<string>('string', p);
+        if (!regex.test(str)) {
+            throw new TypeError(`${p} must match ${regex}.`);
+        }
+        return str;
+    }
+
+    /**
+     * Checks that the length of a string or array falls within the given bounds.
+     *
+     * @template T - Either `string` or an array type
+     * @param {{ min?: number, max?: number }} bounds - Inclusive length bounds
+     * @param {unknown} p - The parameter to check (string or array)
+     * @returns {T} The validated value
+     * @throws {TypeError} If `p` is not a string/array or its length is out of range
+     */
+    public isLength<T extends string | readonly unknown[]>(
+        bounds: { min?: number; max?: number },
+        p: unknown,
+    ): T {
+        if (typeof p !== 'string' && !Array.isArray(p)) {
+            throw new TypeError(`${p} must be a string or array, is ${this.getType(p)}`);
+        }
+        const length = (p as string | unknown[]).length;
+        const { min, max } = bounds;
+        if (min !== undefined && length < min) {
+            throw new TypeError(`length must be >= ${min}, is ${length}`);
+        }
+        if (max !== undefined && length > max) {
+            throw new TypeError(`length must be <= ${max}, is ${length}`);
+        }
+        return p as T;
+    }
+
+    /**
+     * Checks that the parameter is "empty": empty string (after trim), empty
+     * array, empty Map/Set, or object with no own enumerable keys.
+     *
+     * @param {unknown} p - The parameter to check
+     * @returns {unknown} The validated empty value
+     * @throws {TypeError} If `p` is not empty or not a supported container
+     */
+    public isEmpty(p: unknown): unknown {
+        if (typeof p === 'string') {
+            if (p.trim().length !== 0) throw new TypeError(`string must be empty.`);
+            return p;
+        }
+        if (Array.isArray(p)) {
+            if (p.length !== 0) throw new TypeError(`array must be empty.`);
+            return p;
+        }
+        if (p instanceof Map || p instanceof Set) {
+            if (p.size !== 0) throw new TypeError(`${p.constructor.name} must be empty.`);
+            return p;
+        }
+        if (p !== null && typeof p === 'object') {
+            if (Object.keys(p).length !== 0) throw new TypeError(`object must have no own keys.`);
+            return p;
+        }
+        throw new TypeError(`${p} is not a container that can be checked for emptiness.`);
+    }
+
+    /**
+     * Inverse of `isEmpty`: checks the parameter is a non-empty string, array,
+     * Map, Set, or object.
+     *
+     * @template T - Caller-supplied container type for narrower inference
+     * @param {unknown} p - The parameter to check
+     * @returns {T} The validated non-empty value
+     * @throws {TypeError} If `p` is empty or not a supported container
+     */
+    public isNonEmpty<T = unknown>(p: unknown): T {
+        if (typeof p === 'string') {
+            if (p.trim().length === 0) throw new TypeError(`string must be non-empty.`);
+            return p as T;
+        }
+        if (Array.isArray(p)) {
+            if (p.length === 0) throw new TypeError(`array must be non-empty.`);
+            return p as T;
+        }
+        if (p instanceof Map || p instanceof Set) {
+            if (p.size === 0) throw new TypeError(`${p.constructor.name} must be non-empty.`);
+            return p as T;
+        }
+        if (p !== null && typeof p === 'object') {
+            if (Object.keys(p).length === 0) throw new TypeError(`object must have at least one own key.`);
+            return p as T;
+        }
+        throw new TypeError(`${p} is not a container that can be checked for non-emptiness.`);
+    }
+
+    /**
+     * Checks that the parameter is a valid UUID (versions 1-5, RFC 4122).
+     *
+     * @param {unknown} p - The parameter to check
+     * @returns {string} The validated UUID
+     * @throws {TypeError} If `p` is not a valid UUID
+     */
+    public isUUID(p: unknown): string {
+        const str = this.isType<string>('string', p);
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(str)) {
+            throw new TypeError(`${p} must be a valid UUID.`);
+        }
+        return str;
+    }
+
+    /**
+     * Checks that the parameter is a valid IPv4 address (dotted-quad notation).
+     *
+     * @param {unknown} p - The parameter to check
+     * @returns {string} The validated IPv4 address
+     * @throws {TypeError} If `p` is not a valid IPv4 address
+     */
+    public isIPv4(p: unknown): string {
+        const str = this.isType<string>('string', p);
+        const parts = str.split('.');
+        if (parts.length !== 4) {
+            throw new TypeError(`${p} must be a valid IPv4 address.`);
+        }
+        for (const part of parts) {
+            if (!/^\d+$/.test(part)) {
+                throw new TypeError(`${p} must be a valid IPv4 address.`);
+            }
+            const n = Number(part);
+            // reject leading zeros (except the single "0") and out-of-range octets
+            if (n < 0 || n > 255 || (part.length > 1 && part.startsWith('0'))) {
+                throw new TypeError(`${p} must be a valid IPv4 address.`);
+            }
+        }
+        return str;
+    }
+
+    /**
+     * Checks that the parameter is a valid IPv6 address.
+     * Uses the `URL` constructor as a permissive parser: any string accepted as
+     * the host portion of `http://[<addr>]/` is considered valid.
+     *
+     * @param {unknown} p - The parameter to check
+     * @returns {string} The validated IPv6 address
+     * @throws {TypeError} If `p` is not a valid IPv6 address
+     */
+    public isIPv6(p: unknown): string {
+        const str = this.isType<string>('string', p);
+        try {
+            const url = new URL(`http://[${str}]`);
+            // URL preserves the bracketed host; reject if parsing dropped digits
+            if (!url.hostname.startsWith('[') || !url.hostname.endsWith(']')) {
+                throw new Error();
+            }
+        } catch {
+            throw new TypeError(`${p} must be a valid IPv6 address.`);
+        }
+        return str;
+    }
+
+    /**
+     * Checks that the parameter is a valid CSS hex color (`#RGB`, `#RGBA`,
+     * `#RRGGBB`, or `#RRGGBBAA`).
+     *
+     * @param {unknown} p - The parameter to check
+     * @returns {string} The validated hex color
+     * @throws {TypeError} If `p` is not a valid hex color
+     */
+    public isHexColor(p: unknown): string {
+        const str = this.isType<string>('string', p);
+        if (!/^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(str)) {
+            throw new TypeError(`${p} must be a valid hex color.`);
+        }
+        return str;
+    }
+
+    /**
+     * Checks that the parameter is a valid ISO 8601 date string and returns
+     * the parsed `Date`. Accepts the formats produced by `Date#toISOString`
+     * plus reasonable variants (e.g. with timezone offsets).
+     *
+     * @param {unknown} p - The parameter to check
+     * @returns {Date} The parsed date (always valid)
+     * @throws {TypeError} If `p` is not a valid ISO 8601 date string
+     */
+    public isISODate(p: unknown): Date {
+        const str = this.isType<string>('string', p);
+        // Require at least YYYY-MM-DD; allow time and timezone parts.
+        const isoRegex = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
+        if (!isoRegex.test(str)) {
+            throw new TypeError(`${p} must be a valid ISO 8601 date string.`);
+        }
+        const date = new Date(str);
+        if (Number.isNaN(date.getTime())) {
+            throw new TypeError(`${p} must be a valid ISO 8601 date string.`);
+        }
+        return date;
+    }
+
+    /**
+     * Checks that the parameter is a syntactically valid Base64 string.
+     * Supports both standard and URL-safe variants. Padding is required when
+     * `requirePadding` is true (default).
+     *
+     * @param {unknown} p - The parameter to check
+     * @param {{ urlSafe?: boolean, requirePadding?: boolean }} [opts] - Options
+     * @returns {string} The validated Base64 string
+     * @throws {TypeError} If `p` is not a valid Base64 string
+     */
+    public isBase64(p: unknown, opts: { urlSafe?: boolean; requirePadding?: boolean } = {}): string {
+        const { urlSafe = false, requirePadding = true } = opts;
+        const str = this.isType<string>('string', p);
+        const charClass = urlSafe ? '[A-Za-z0-9_-]' : '[A-Za-z0-9+/]';
+        const padded = requirePadding
+            ? new RegExp(`^(?:${charClass}{4})*(?:${charClass}{2}==|${charClass}{3}=|${charClass}{4})$`)
+            : new RegExp(`^(?:${charClass}{4})*(?:${charClass}{2,4}={0,2})?$`);
+        if (str.length === 0 || !padded.test(str)) {
+            throw new TypeError(`${p} must be a valid Base64 string.`);
+        }
+        return str;
     }
 
     /**

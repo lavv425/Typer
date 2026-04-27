@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-04-28
+
+### ✨ Added
+
+#### Strongly-typed `isType` / `is` (no more `<string>` boilerplate)
+Both methods now have a built-in overload keyed off the new `TypeMap` type.
+A literal alias is enough — no manual generic argument needed:
+
+```ts
+const s = typer.isType("string", x);  // s: string
+if (typer.is(v, "number")) v.toFixed(2);  // narrows automatically
+```
+
+#### `safeParse(types, value)` — non-throwing variant
+Returns `{ success: true, data } | { success: false, error }` for callers
+who prefer functional flows over try/catch.
+
+#### Combinators (composable validators)
+- `nullable(validator)` — accepts `null` plus the underlying type.
+- `optional(validator)` — accepts `undefined` plus the underlying type.
+- `union(v1, v2, …)` — first-match wins, returns the matching variant.
+
+#### New format / shape validators
+- `isUUID` (RFC 4122 v1–v5)
+- `isIPv4`, `isIPv6`
+- `isHexColor` (`#RGB` / `#RGBA` / `#RRGGBB` / `#RRGGBBAA`)
+- `isISODate` — returns the parsed `Date`
+- `isBase64` (with `urlSafe` and `requirePadding` options)
+- `isFiniteNumber` (rejects `NaN` / `Infinity`)
+- `isSafeInteger`
+- `isPlainObject` (rejects class instances)
+- `isPromise`
+- `isInstanceOf(ctor, value)`
+- `matches(regex, value)`
+- `isLength({min, max}, value)` for strings and arrays
+- `isEmpty` / `isNonEmpty` (polymorphic over string, array, Map, Set, object)
+
+### 🧪 Tests
+Added `tests/extended-validators.test.ts` (~35 cases) covering every new
+method plus the new overload behavior. Total: **232/232 passing**.
+
+### 📚 Types
+Added new exported types in `src/Types/Typer/index.ts`: `TypeMap`,
+`TypeKey`, `ParseResult<T>`, `Validator<T>`.
+
 ## [3.0.7] - 2026-04-28
 
 ### 🧹 Changed

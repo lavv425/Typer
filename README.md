@@ -2,9 +2,9 @@
 
 ![Coverage Badge](https://img.shields.io/badge/coverage-96.97%25-brightgreen)
 ![Build Status](https://img.shields.io/badge/build-passing-success)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-blue)
+![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Version](https://img.shields.io/badge/version-3.0.0-blue)
+![Version](https://img.shields.io/badge/version-3.1.0-blue)
 
 Typer is a comprehensive TypeScript validation library that provides robust type checking, schema validation, and runtime type safety. Built with modern TypeScript features including generics, type guards, and advanced type inference.
 
@@ -32,14 +32,20 @@ import { Typer } from '@illavv/run_typer';
 
 const typer = new Typer();
 
-// Basic type checking with generics
-const message = typer.isType<string>('string', 'Hello World');
-const count = typer.isType<number>('number', 42);
+// 3.1+: pass a literal alias and the return type is inferred — no <generic> needed
+const message = typer.isType('string', 'Hello World');  // message: string
+const count = typer.isType('number', 42);                // count: number
 
-// Type guards
-if (typer.is<string>(userInput, 'string')) {
+// Type guards narrow automatically from the literal alias
+if (typer.is(userInput, 'string')) {
     // userInput is now typed as string
     console.log(userInput.toUpperCase());
+}
+
+// Non-throwing variant
+const result = typer.safeParse('number', userInput);
+if (result.success) {
+    // result.data: number
 }
 ```
 
@@ -295,6 +301,63 @@ Validates negative numbers.
 
 #### `isNegativeInteger(value: unknown): number`
 Validates negative integers.
+
+#### `isFiniteNumber(value: unknown): number`
+Stricter than `isType('number', x)`: rejects `NaN` and `Infinity`. *(3.1+)*
+
+#### `isSafeInteger(value: unknown): number`
+Validates integers within `Number.MIN/MAX_SAFE_INTEGER`. *(3.1+)*
+
+#### `isUUID(value: unknown): string`
+Validates UUID strings (RFC 4122, versions 1–5). *(3.1+)*
+
+#### `isIPv4(value: unknown): string` / `isIPv6(value: unknown): string`
+Validates IPv4 / IPv6 addresses. *(3.1+)*
+
+#### `isHexColor(value: unknown): string`
+Validates CSS hex colors (`#RGB`, `#RGBA`, `#RRGGBB`, `#RRGGBBAA`). *(3.1+)*
+
+#### `isISODate(value: unknown): Date`
+Validates an ISO 8601 string and returns the parsed `Date`. *(3.1+)*
+
+#### `isBase64(value: unknown, opts?: { urlSafe?: boolean, requirePadding?: boolean }): string`
+Validates Base64 strings. *(3.1+)*
+
+#### `isPlainObject<T>(value: unknown): T`
+Validates a plain object literal (rejects class instances, arrays, `Map`, `Set`). *(3.1+)*
+
+#### `isPromise<T>(value: unknown): Promise<T>`
+Validates a Promise / thenable. *(3.1+)*
+
+#### `isInstanceOf<T>(ctor: new (...args: never[]) => T, value: unknown): T`
+Type-safe `instanceof` check. *(3.1+)*
+
+#### `matches(regex: RegExp, value: unknown): string`
+Validates a string matches the given regex. *(3.1+)*
+
+#### `isLength<T>(bounds: { min?: number; max?: number }, value: unknown): T`
+Validates the length of a string or array. *(3.1+)*
+
+#### `isEmpty(value: unknown): unknown` / `isNonEmpty<T>(value: unknown): T`
+Polymorphic emptiness check across string, array, `Map`, `Set`, object. *(3.1+)*
+
+### Combinators *(3.1+)*
+
+#### `nullable<T>(validator: Validator<T>): Validator<T | null>`
+Wraps a validator so `null` is also accepted.
+
+#### `optional<T>(validator: Validator<T>): Validator<T | undefined>`
+Wraps a validator so `undefined` is also accepted.
+
+#### `union<T extends readonly unknown[]>(...validators): Validator<T[number]>`
+Tries each validator in order; succeeds on the first match.
+
+### Non-throwing API *(3.1+)*
+
+#### `safeParse<K>(types, value): ParseResult<TypeMap[K]>`
+Same input as `isType`, returns a discriminated union
+`{ success: true, data } | { success: false, error: TypeError }` instead
+of throwing.
 
 ### Schema Validation
 
