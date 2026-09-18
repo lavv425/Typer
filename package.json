@@ -3,15 +3,15 @@
     "version": "3.2.3",
     "description": "A robust TypeScript class for type checking and validation",
     "main": "dist/Typer.cjs.min.js",
-    "module": "dist/Typer.esm.min.js",
+    "module": "dist/Typer.esm.mjs",
     "browser": "dist/Typer.min.js",
     "types": "dist/Typer.d.ts",
     "exports": {
         ".": {
-            "import": "./dist/Typer.esm.min.js",
-            "require": "./dist/Typer.cjs.min.js",
+            "types": "./dist/Typer.d.ts",
             "browser": "./dist/Typer.min.js",
-            "types": "./dist/Typer.d.ts"
+            "import": "./dist/Typer.esm.mjs",
+            "require": "./dist/Typer.cjs.min.js"
         }
     },
     "files": [

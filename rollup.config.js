@@ -14,7 +14,9 @@ export default {
             plugins: [terser()]
         },
         {
-            file: 'dist/Typer.esm.min.js',
+            // .mjs, not .js: the package is CommonJS by default, so Node would
+            // otherwise have to sniff a .js file for module syntax and reparse it.
+            file: 'dist/Typer.esm.mjs',
             format: 'es',
             sourcemap: true,
             plugins: [terser()]
@@ -31,6 +33,12 @@ export default {
         commonjs(),
         typescript({
             tsconfig: './tsconfig.json',
+            // The project tsconfig targets Node16 modules, which makes tsc emit
+            // CommonJS `require()` calls that Rollup cannot follow — it would
+            // leave every internal module as an unresolved external. Rollup
+            // needs ES modules as input and produces the CJS/UMD outputs itself.
+            module: 'ESNext',
+            moduleResolution: 'bundler',
             declaration: true,
             declarationDir: 'dist',
             rootDir: 'src'
