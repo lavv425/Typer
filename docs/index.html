@@ -1,20 +1,32 @@
-<!DOCTYPE html><html class="default" lang="en" data-base="./"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>@illavv/run_typer - v3.2.3</title><meta name="description" content="Documentation for @illavv/run_typer"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="index.html" class="title">@illavv/run_typer - v3.2.3</a><div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><h1>@illavv/run_typer - v3.2.3</h1></div><div class="tsd-panel tsd-typography"><h1 id="typer-advanced-typescript-type-validation-library" class="tsd-anchor-link">Typer - Advanced TypeScript Type Validation Library<a href="#typer-advanced-typescript-type-validation-library" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<p><img src="https://img.shields.io/badge/coverage-100%25%20lines-brightgreen" alt="Coverage Badge">
+<!DOCTYPE html><html class="default" lang="en" data-base="./"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>@illavv/run_typer - v3.2.3</title><meta name="description" content="Documentation for @illavv/run_typer"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
+<div class="tsd-toolbar-contents container"><a href="index.html" class="title">@illavv/run_typer - v3.2.3</a>
+<div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/>
+<ul role="listbox" id="tsd-search-results"></ul>
+<div id="tsd-search-status" aria-live="polite" aria-atomic="true">
+<div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></header>
+<div class="container container-main">
+<div class="col-content">
+<div class="tsd-page-title">
+<h1>@illavv/run_typer - v3.2.3</h1></div>
+<div class="tsd-panel tsd-typography"><h1 id="typer-advanced-typescript-type-validation-library" class="tsd-anchor-link">Typer - Advanced TypeScript Type Validation Library<a href="#typer-advanced-typescript-type-validation-library" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
+<p><img src="https://img.shields.io/badge/coverage-97%25%20lines-brightgreen" alt="Coverage Badge">
 <img src="https://img.shields.io/badge/build-passing-success" alt="Build Status">
 <img src="https://img.shields.io/badge/TypeScript-6.0-blue" alt="TypeScript">
 <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-<img src="https://img.shields.io/badge/version-3.2.3-blue" alt="Version"></p>
+<img src="https://img.shields.io/badge/version-4.0.0-blue" alt="Version"></p>
 <p>Typer is a comprehensive TypeScript validation library that provides robust type checking, schema validation, and runtime type safety. Built with modern TypeScript features including generics, type guards, and advanced type inference.</p>
 <h2 id="✨-key-features" class="tsd-anchor-link">✨ Key Features<a href="#✨-key-features" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <ul>
 <li><strong>🔍 Comprehensive Type System</strong>: Support for all JavaScript types including advanced types (BigInt, TypedArrays, etc.)</li>
-<li><strong>🎯 Generic Type Safety</strong>: Full TypeScript generic support with type inference; <code>Infer&lt;typeof schema&gt;</code> derives the static type from the runtime schema <em>(3.2+)</em></li>
+<li><strong>🎯 Type-checked schemas</strong>: <code>Infer&lt;typeof schema&gt;</code> derives the static type from the runtime schema, and a typo like <code>'nubmer'</code> is a <strong>compile error</strong>, not a runtime surprise <em>(4.0+)</em></li>
+<li><strong>🧩 Composable validators</strong>: <code>literal</code>, <code>arrayOf</code>, <code>record</code>, <code>tuple</code>, <code>refine</code>, <code>transform</code>, <code>withDefault</code>, <code>lazy</code>, <code>objectOf</code> — all nest freely <em>(4.0+)</em></li>
+<li><strong>🔎 Structured errors</strong>: every failure carries <code>code</code>, <code>path</code>, <code>expected</code> and <code>received</code>, so you branch on data instead of parsing strings <em>(4.0+)</em></li>
 <li><strong>📋 Schema Validation</strong>: Complex nested object structure validation with strict mode</li>
-<li><strong>🔧 Extensible Architecture</strong>: Register custom types and validators</li>
-<li><strong>⚡ High Performance</strong>: Closure-compiled schema cache (3–10× faster than walking the schema each call) and a predicate fast-path for <code>is</code>/<code>isType</code> — ~70M <code>is()</code> ops/sec and ~74M <code>isType()</code> ops/sec on hot literals <em>(3.2.2+)</em></li>
+<li><strong>🔧 Extensible Architecture</strong>: Register custom types with <code>extend()</code> and keep full type inference</li>
+<li><strong>⚡ High Performance</strong>: Closure-compiled, cached schemas with a predicate fast-path — see <a href="#-performance">Performance</a></li>
 <li><strong>🛡️ Runtime Safety</strong>: Catch type errors at runtime with detailed error messages</li>
 <li><strong>📱 Phone Number Validation</strong>: International phone number validation (ITU-T E.164 standard)</li>
-<li><strong>📧 Advanced Validations</strong>: Email, URL, and other common format validations</li>
+<li><strong>📧 Advanced Validations</strong>: Email, URL, UUID, IP, semver, slug, JWT, MAC and more</li>
 </ul>
 <h2 id="📦-installation" class="tsd-anchor-link">📦 Installation<a href="#📦-installation" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">@illavv/run_typer</span>
@@ -28,11 +40,74 @@
 <pre><code class="typescript"><span class="hl-3">import</span><span class="hl-1"> { </span><span class="hl-4">Typer</span><span class="hl-1">, </span><span class="hl-3">type</span><span class="hl-1"> </span><span class="hl-4">Infer</span><span class="hl-1"> } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@illavv/run_typer&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">typer</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">Typer</span><span class="hl-1">();</span><br/><br/><span class="hl-7">// One literal drives both runtime validation and the static type</span><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">user</span><span class="hl-1"> = </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">parse</span><span class="hl-1">(</span><br/><span class="hl-1">    { </span><span class="hl-4">id:</span><span class="hl-1"> </span><span class="hl-2">&#39;number&#39;</span><span class="hl-1">, </span><span class="hl-4">name:</span><span class="hl-1"> </span><span class="hl-2">&#39;string&#39;</span><span class="hl-1">, </span><span class="hl-4">email:</span><span class="hl-1"> </span><span class="hl-2">&#39;string?&#39;</span><span class="hl-1"> },</span><br/><span class="hl-1">    </span><span class="hl-4">payload</span><span class="hl-1">,</span><br/><span class="hl-1">);</span><br/><span class="hl-7">// user is typed: { id: number; name: string; email?: string | null }</span><br/><br/><span class="hl-7">// Reusable schemas with derived types — no `as const` needed</span><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">userSchema</span><span class="hl-1"> = </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">schema</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-4">id:</span><span class="hl-1"> </span><span class="hl-2">&#39;number&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">name:</span><span class="hl-1"> </span><span class="hl-2">&#39;string&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">email:</span><span class="hl-1"> </span><span class="hl-2">&#39;string?&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">tags:</span><span class="hl-1"> [</span><span class="hl-2">&#39;string&#39;</span><span class="hl-1">],</span><br/><span class="hl-1">    </span><span class="hl-4">address:</span><span class="hl-1"> { </span><span class="hl-4">city:</span><span class="hl-1"> </span><span class="hl-2">&#39;string&#39;</span><span class="hl-1">, </span><span class="hl-4">zip:</span><span class="hl-1"> </span><span class="hl-2">&#39;string?&#39;</span><span class="hl-1"> },</span><br/><span class="hl-1">});</span><br/><span class="hl-5">type</span><span class="hl-1"> </span><span class="hl-9">User</span><span class="hl-1"> = </span><span class="hl-9">Infer</span><span class="hl-1">&lt;</span><span class="hl-5">typeof</span><span class="hl-1"> </span><span class="hl-4">userSchema</span><span class="hl-1">&gt;;</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">u</span><span class="hl-1">  = </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">parse</span><span class="hl-1">(</span><span class="hl-4">userSchema</span><span class="hl-1">, </span><span class="hl-4">payload</span><span class="hl-1">);     </span><span class="hl-7">// throws + typed as User</span><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">r</span><span class="hl-1">  = </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">safeParse</span><span class="hl-1">(</span><span class="hl-4">userSchema</span><span class="hl-1">, </span><span class="hl-4">payload</span><span class="hl-1">); </span><span class="hl-7">// { success, data: User } | { error }</span>
 </code><button type="button">Copy</button></pre>
 
-<p>Mix-and-match validator functions inside a schema (any slot accepts a
-<code>Validator&lt;T&gt;</code> from a built-in helper or your own):</p>
-<pre><code class="typescript"><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">strict</span><span class="hl-1"> = </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">schema</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-4">id:</span><span class="hl-1">    </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-4">isPositiveInteger</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">name:</span><span class="hl-1">  </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-4">isNonEmptyString</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-0">color</span><span class="hl-4">:</span><span class="hl-1"> (</span><span class="hl-4">v</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">isHexColor</span><span class="hl-1">(</span><span class="hl-4">v</span><span class="hl-1">),</span><br/><span class="hl-1">    </span><span class="hl-4">role:</span><span class="hl-1">  </span><span class="hl-2">&#39;admin|user|guest&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">});</span>
+<p>Mix-and-match validator functions inside a schema — any slot accepts a
+<code>Validator&lt;T&gt;</code>, whether from a built-in helper, a combinator, or your own:</p>
+<pre><code class="typescript"><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">strict</span><span class="hl-1"> = </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">schema</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-4">id:</span><span class="hl-1">    </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-4">validators</span><span class="hl-1">.</span><span class="hl-4">isPositiveInteger</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">name:</span><span class="hl-1">  </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-4">validators</span><span class="hl-1">.</span><span class="hl-4">isNonEmptyString</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-0">color</span><span class="hl-4">:</span><span class="hl-1"> (</span><span class="hl-4">v</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">isHexColor</span><span class="hl-1">(</span><span class="hl-4">v</span><span class="hl-1">),</span><br/><span class="hl-1">    </span><span class="hl-4">role:</span><span class="hl-1">  </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">literal</span><span class="hl-1">(</span><span class="hl-2">&#39;admin&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;user&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;guest&#39;</span><span class="hl-1">),</span><br/><span class="hl-1">});</span>
 </code><button type="button">Copy</button></pre>
 
+<blockquote>
+<p><strong>Use <code>typer.validators.isX</code>, not <code>typer.isX</code>, when passing a validator as a
+value.</strong> A bare method reference loses its <code>this</code> and fails even on valid
+input. <code>typer.validators</code> holds the same validators, pre-bound; wrapping in an
+arrow — <code>(v) =&gt; typer.isX(v)</code> — works just as well.</p>
+</blockquote>
+<blockquote>
+<p>Note: a type string like <code>'admin|user|guest'</code> means &quot;one of these <strong>type
+aliases</strong>&quot;, not &quot;one of these values&quot;. Use <code>typer.literal(...)</code> for specific
+values.</p>
+</blockquote>
+<h3 id="🛑-typos-are-compile-errors-40" class="tsd-anchor-link">🛑 Typos are compile errors <em>(4.0+)</em><a href="#🛑-typos-are-compile-errors-40" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>A misspelled alias used to infer <code>unknown</code> and blow up at runtime. Now it does
+not compile:</p>
+<pre><code class="typescript"><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">parse</span><span class="hl-1">({ </span><span class="hl-4">id:</span><span class="hl-1"> </span><span class="hl-2">&#39;nubmer&#39;</span><span class="hl-1"> }, </span><span class="hl-4">payload</span><span class="hl-1">);</span><br/><span class="hl-7">//                ~~~~~~~~</span><br/><span class="hl-7">// Type &#39;&quot;nubmer&quot;&#39; is not assignable to type</span><br/><span class="hl-7">// &#39;`Typer: unknown type alias in &quot;nubmer&quot; — register it with extend() or fix the spelling`&#39;</span>
+</code><button type="button">Copy</button></pre>
+
+<p>This covers unions, optionals, array elements and nested schemas:</p>
+<pre><code class="typescript"><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">schema</span><span class="hl-1">({ </span><span class="hl-4">a:</span><span class="hl-1"> </span><span class="hl-2">&#39;number|strng&#39;</span><span class="hl-1"> });   </span><span class="hl-7">// ❌</span><br/><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">schema</span><span class="hl-1">({ </span><span class="hl-4">b:</span><span class="hl-1"> </span><span class="hl-2">&#39;nubmer?&#39;</span><span class="hl-1"> });        </span><span class="hl-7">// ❌</span><br/><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">schema</span><span class="hl-1">({ </span><span class="hl-4">c:</span><span class="hl-1"> [</span><span class="hl-2">&#39;strng&#39;</span><span class="hl-1">] });        </span><span class="hl-7">// ❌</span><br/><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">schema</span><span class="hl-1">({ </span><span class="hl-4">d:</span><span class="hl-1"> { </span><span class="hl-4">e:</span><span class="hl-1"> </span><span class="hl-2">&#39;strng&#39;</span><span class="hl-1"> } });   </span><span class="hl-7">// ❌</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Dynamically built schemas carry no literal information to check, so they are
+still accepted:</p>
+<pre><code class="typescript"><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">dynamic</span><span class="hl-1">: </span><span class="hl-9">Record</span><span class="hl-1">&lt;</span><span class="hl-9">string</span><span class="hl-1">, </span><span class="hl-9">string</span><span class="hl-1">&gt; = </span><span class="hl-0">buildSchema</span><span class="hl-1">();</span><br/><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">checkStructure</span><span class="hl-1">(</span><span class="hl-4">dynamic</span><span class="hl-1">, </span><span class="hl-4">payload</span><span class="hl-1">); </span><span class="hl-7">// fine</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="🔎-structured-errors-40" class="tsd-anchor-link">🔎 Structured errors <em>(4.0+)</em><a href="#🔎-structured-errors-40" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>Every failure carries machine-readable issues, so you branch on data rather
+than parsing messages:</p>
+<pre><code class="typescript"><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">result</span><span class="hl-1"> = </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">safeParse</span><span class="hl-1">(</span><br/><span class="hl-1">    { </span><span class="hl-4">id:</span><span class="hl-1"> </span><span class="hl-2">&#39;number&#39;</span><span class="hl-1">, </span><span class="hl-4">address:</span><span class="hl-1"> { </span><span class="hl-4">city:</span><span class="hl-1"> </span><span class="hl-2">&#39;string&#39;</span><span class="hl-1"> } },</span><br/><span class="hl-1">    { </span><span class="hl-4">id:</span><span class="hl-1"> </span><span class="hl-2">&#39;nope&#39;</span><span class="hl-1">, </span><span class="hl-4">address:</span><span class="hl-1"> { </span><span class="hl-4">city:</span><span class="hl-1"> </span><span class="hl-8">1</span><span class="hl-1"> } },</span><br/><span class="hl-1">);</span><br/><br/><span class="hl-3">if</span><span class="hl-1"> (!</span><span class="hl-4">result</span><span class="hl-1">.</span><span class="hl-4">success</span><span class="hl-1">) {</span><br/><span class="hl-1">    </span><span class="hl-4">result</span><span class="hl-1">.</span><span class="hl-4">issues</span><span class="hl-1">;</span><br/><span class="hl-1">    </span><span class="hl-7">// [</span><br/><span class="hl-1">    </span><span class="hl-7">//   { code: &#39;invalid_type&#39;, path: &#39;id&#39;,           expected: &#39;number&#39;, received: &#39;string&#39;, message: &#39;…&#39; },</span><br/><span class="hl-1">    </span><span class="hl-7">//   { code: &#39;invalid_type&#39;, path: &#39;address.city&#39;, expected: &#39;string&#39;, received: &#39;number&#39;, message: &#39;…&#39; },</span><br/><span class="hl-1">    </span><span class="hl-7">// ]</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p><code>code</code> is one of <code>invalid_type</code>, <code>missing_key</code>, <code>unknown_type</code>,
+<code>invalid_schema</code>, <code>unexpected_key</code>, <code>custom</code>. Paths use dotted and indexed
+notation (<code>address.city</code>, <code>tags[2]</code>).</p>
+<p><code>parse</code> throws a <code>TyperError</code>, which extends <code>TypeError</code> — existing
+<code>instanceof TypeError</code> handling keeps working:</p>
+<pre><code class="typescript"><span class="hl-3">import</span><span class="hl-1"> { </span><span class="hl-4">TyperError</span><span class="hl-1"> } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@illavv/run_typer&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-3">try</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">parse</span><span class="hl-1">(</span><span class="hl-4">userSchema</span><span class="hl-1">, </span><span class="hl-4">payload</span><span class="hl-1">);</span><br/><span class="hl-1">} </span><span class="hl-3">catch</span><span class="hl-1"> (</span><span class="hl-4">e</span><span class="hl-1">) {</span><br/><span class="hl-1">    </span><span class="hl-3">if</span><span class="hl-1"> (</span><span class="hl-4">e</span><span class="hl-1"> </span><span class="hl-5">instanceof</span><span class="hl-1"> </span><span class="hl-9">TyperError</span><span class="hl-1">) {</span><br/><span class="hl-1">        </span><span class="hl-4">e</span><span class="hl-1">.</span><span class="hl-4">issues</span><span class="hl-1">;    </span><span class="hl-7">// the structured list</span><br/><span class="hl-1">        </span><span class="hl-4">e</span><span class="hl-1">.</span><span class="hl-0">flatten</span><span class="hl-1">(); </span><span class="hl-7">// { &#39;address.city&#39;: [&#39;Expected &quot;address.city&quot; to be string, got number&#39;] }</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<blockquote>
+<p><code>result.error</code> is built on first access. Reading only <code>result.issues</code> skips
+constructing an <code>Error</code> — whose stack capture costs more than the validation
+itself.</p>
+</blockquote>
+<h3 id="🧩-combinators-40" class="tsd-anchor-link">🧩 Combinators <em>(4.0+)</em><a href="#🧩-combinators-40" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>All of these return a <code>Validator&lt;T&gt;</code>, so they compose with each other and slot
+into any schema position:</p>
+<pre><code class="typescript"><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">orderSchema</span><span class="hl-1"> = </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">schema</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-4">id:</span><span class="hl-1">       </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-4">validators</span><span class="hl-1">.</span><span class="hl-4">isUUID</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">status:</span><span class="hl-1">   </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">literal</span><span class="hl-1">(</span><span class="hl-2">&#39;pending&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;shipped&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;cancelled&#39;</span><span class="hl-1">),</span><br/><span class="hl-1">    </span><span class="hl-4">qty:</span><span class="hl-1">      </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">refine</span><span class="hl-1">((</span><span class="hl-4">v</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">asNumber</span><span class="hl-1">(</span><span class="hl-4">v</span><span class="hl-1">), (</span><span class="hl-4">n</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">n</span><span class="hl-1"> &gt; </span><span class="hl-8">0</span><span class="hl-1">, </span><span class="hl-2">&#39;qty must be &gt; 0&#39;</span><span class="hl-1">),</span><br/><span class="hl-1">    </span><span class="hl-4">coupon:</span><span class="hl-1">   </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">withDefault</span><span class="hl-1">((</span><span class="hl-4">v</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">asString</span><span class="hl-1">(</span><span class="hl-4">v</span><span class="hl-1">), </span><span class="hl-2">&#39;&#39;</span><span class="hl-1">),</span><br/><span class="hl-1">    </span><span class="hl-4">sizes:</span><span class="hl-1">    </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">arrayOf</span><span class="hl-1">((</span><span class="hl-4">v</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">asNumber</span><span class="hl-1">(</span><span class="hl-4">v</span><span class="hl-1">), { </span><span class="hl-4">min:</span><span class="hl-1"> </span><span class="hl-8">1</span><span class="hl-1">, </span><span class="hl-4">max:</span><span class="hl-1"> </span><span class="hl-8">10</span><span class="hl-1"> }),</span><br/><span class="hl-1">    </span><span class="hl-4">labels:</span><span class="hl-1">   </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">record</span><span class="hl-1">((</span><span class="hl-4">v</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">asString</span><span class="hl-1">(</span><span class="hl-4">v</span><span class="hl-1">)),          </span><span class="hl-7">// Record&lt;string, string&gt;</span><br/><span class="hl-1">    </span><span class="hl-4">position:</span><span class="hl-1"> </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">tuple</span><span class="hl-1">([(</span><span class="hl-4">v</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">asNumber</span><span class="hl-1">(</span><span class="hl-4">v</span><span class="hl-1">), (</span><span class="hl-4">v</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">asNumber</span><span class="hl-1">(</span><span class="hl-4">v</span><span class="hl-1">)]), </span><span class="hl-7">// [number, number]</span><br/><span class="hl-1">    </span><span class="hl-4">placedAt:</span><span class="hl-1"> </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">instanceOf</span><span class="hl-1">(</span><span class="hl-4">Date</span><span class="hl-1">),</span><br/><span class="hl-1">    </span><span class="hl-4">slug:</span><span class="hl-1">     </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">transform</span><span class="hl-1">((</span><span class="hl-4">v</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">asString</span><span class="hl-1">(</span><span class="hl-4">v</span><span class="hl-1">), (</span><span class="hl-4">s</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">s</span><span class="hl-1">.</span><span class="hl-0">trim</span><span class="hl-1">().</span><span class="hl-0">toLowerCase</span><span class="hl-1">()),</span><br/><span class="hl-1">    </span><span class="hl-4">lines:</span><span class="hl-1">    </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">arrayOf</span><span class="hl-1">(</span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">objectOf</span><span class="hl-1">({ </span><span class="hl-4">sku:</span><span class="hl-1"> </span><span class="hl-2">&#39;string&#39;</span><span class="hl-1">, </span><span class="hl-4">qty:</span><span class="hl-1"> </span><span class="hl-2">&#39;number&#39;</span><span class="hl-1"> })),</span><br/><span class="hl-1">});</span>
+</code><button type="button">Copy</button></pre>
+
+<p><code>lazy</code> makes recursive shapes expressible:</p>
+<pre><code class="typescript"><span class="hl-5">type</span><span class="hl-1"> </span><span class="hl-9">Node</span><span class="hl-1"> = { </span><span class="hl-4">name</span><span class="hl-1">: </span><span class="hl-9">string</span><span class="hl-1">; </span><span class="hl-4">children</span><span class="hl-1">?: </span><span class="hl-9">Node</span><span class="hl-1">[] };</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">node</span><span class="hl-1">: </span><span class="hl-9">Validator</span><span class="hl-1">&lt;</span><span class="hl-9">Node</span><span class="hl-1">&gt; = </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">lazy</span><span class="hl-1">(() </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">objectOf</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-4">name:</span><span class="hl-1"> </span><span class="hl-2">&#39;string&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">children:</span><span class="hl-1"> </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">optional</span><span class="hl-1">(</span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">arrayOf</span><span class="hl-1">(</span><span class="hl-4">node</span><span class="hl-1">)),</span><br/><span class="hl-1">}) </span><span class="hl-3">as</span><span class="hl-1"> </span><span class="hl-9">Validator</span><span class="hl-1">&lt;</span><span class="hl-9">Node</span><span class="hl-1">&gt;);</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="🔧-custom-types-that-the-compiler-knows-about-40" class="tsd-anchor-link">🔧 Custom types that the compiler knows about <em>(4.0+)</em><a href="#🔧-custom-types-that-the-compiler-knows-about-40" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p><code>extend()</code> is <code>registerType</code> that also records the alias in the instance's
+type, so it works in compile-checked schemas and resolves in <code>Infer</code>:</p>
+<pre><code class="typescript"><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">typer</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">Typer</span><span class="hl-1">()</span><br/><span class="hl-1">    .</span><span class="hl-0">extend</span><span class="hl-1">(</span><span class="hl-2">&#39;positive&#39;</span><span class="hl-1">, (</span><span class="hl-4">v</span><span class="hl-1">): </span><span class="hl-9">number</span><span class="hl-1"> </span><span class="hl-5">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">        </span><span class="hl-3">if</span><span class="hl-1"> (</span><span class="hl-5">typeof</span><span class="hl-1"> </span><span class="hl-4">v</span><span class="hl-1"> !== </span><span class="hl-2">&#39;number&#39;</span><span class="hl-1"> || </span><span class="hl-4">v</span><span class="hl-1"> &lt;= </span><span class="hl-8">0</span><span class="hl-1">) </span><span class="hl-3">throw</span><span class="hl-1"> </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">TypeError</span><span class="hl-1">(</span><span class="hl-2">&#39;Must be positive&#39;</span><span class="hl-1">);</span><br/><span class="hl-1">        </span><span class="hl-3">return</span><span class="hl-1"> </span><span class="hl-4">v</span><span class="hl-1">;</span><br/><span class="hl-1">    })</span><br/><span class="hl-1">    .</span><span class="hl-0">extend</span><span class="hl-1">(</span><span class="hl-2">&#39;slug&#39;</span><span class="hl-1">, (</span><span class="hl-4">v</span><span class="hl-1">): </span><span class="hl-9">string</span><span class="hl-1"> </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">Typer</span><span class="hl-1">().</span><span class="hl-0">isSlug</span><span class="hl-1">(</span><span class="hl-4">v</span><span class="hl-1">));</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">schema</span><span class="hl-1"> = </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">schema</span><span class="hl-1">({ </span><span class="hl-4">qty:</span><span class="hl-1"> </span><span class="hl-2">&#39;positive&#39;</span><span class="hl-1">, </span><span class="hl-4">handle:</span><span class="hl-1"> </span><span class="hl-2">&#39;slug&#39;</span><span class="hl-1"> });</span><br/><span class="hl-5">type</span><span class="hl-1"> </span><span class="hl-9">Product</span><span class="hl-1"> = </span><span class="hl-9">Infer</span><span class="hl-1">&lt;</span><span class="hl-5">typeof</span><span class="hl-1"> </span><span class="hl-4">schema</span><span class="hl-1">, { </span><span class="hl-4">positive</span><span class="hl-1">: </span><span class="hl-9">number</span><span class="hl-1">; </span><span class="hl-4">slug</span><span class="hl-1">: </span><span class="hl-9">string</span><span class="hl-1"> }&gt;;</span><br/><span class="hl-7">// → { qty: number; handle: string }</span>
+</code><button type="button">Copy</button></pre>
+
+<p>It returns the same instance, just re-typed, so it chains. <code>registerType</code> is
+still available when you do not need the alias in the type system.</p>
 <h2 id="📖-usage-examples" class="tsd-anchor-link">📖 Usage Examples<a href="#📖-usage-examples" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <h3 id="✅-basic-type-validation" class="tsd-anchor-link">✅ Basic Type Validation<a href="#✅-basic-type-validation" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <pre><code class="typescript"><span class="hl-3">import</span><span class="hl-1"> { </span><span class="hl-4">Typer</span><span class="hl-1"> } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@illavv/run_typer&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">typer</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">Typer</span><span class="hl-1">();</span><br/><br/><span class="hl-7">// Type guards (return boolean)</span><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">is</span><span class="hl-1">&lt;</span><span class="hl-9">string</span><span class="hl-1">&gt;(</span><span class="hl-2">&quot;Hello&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;string&quot;</span><span class="hl-1">)); </span><span class="hl-7">// true</span><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">is</span><span class="hl-1">&lt;</span><span class="hl-9">number</span><span class="hl-1">&gt;(</span><span class="hl-8">123</span><span class="hl-1">, </span><span class="hl-2">&quot;number&quot;</span><span class="hl-1">)); </span><span class="hl-7">// true</span><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">is</span><span class="hl-1">&lt;</span><span class="hl-9">boolean</span><span class="hl-1">&gt;(</span><span class="hl-5">true</span><span class="hl-1">, </span><span class="hl-2">&quot;boolean&quot;</span><span class="hl-1">)); </span><span class="hl-7">// true</span><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">is</span><span class="hl-1">&lt;</span><span class="hl-9">unknown</span><span class="hl-1">[]&gt;([], </span><span class="hl-2">&quot;array&quot;</span><span class="hl-1">)); </span><span class="hl-7">// true</span><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">is</span><span class="hl-1">&lt;</span><span class="hl-9">object</span><span class="hl-1">&gt;({}, </span><span class="hl-2">&quot;object&quot;</span><span class="hl-1">)); </span><span class="hl-7">// true</span><br/><br/><span class="hl-7">// Type validation (throws on error)</span><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">str</span><span class="hl-1"> = </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">isType</span><span class="hl-1">&lt;</span><span class="hl-9">string</span><span class="hl-1">&gt;(</span><span class="hl-2">&#39;string&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;Hello&#39;</span><span class="hl-1">); </span><span class="hl-7">// Returns &#39;Hello&#39; typed as string</span><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">num</span><span class="hl-1"> = </span><span class="hl-4">typer</span><span class="hl-1">.</span><span class="hl-0">isType</span><span class="hl-1">&lt;</span><span class="hl-9">number</span><span class="hl-1">&gt;(</span><span class="hl-2">&#39;number&#39;</span><span class="hl-1">, </span><span class="hl-8">42</span><span class="hl-1">); </span><span class="hl-7">// Returns 42 typed as number</span>
@@ -127,18 +202,55 @@
 <p>Validates the length of a string or array. <em>(3.1+)</em></p>
 <h4 id="_-32" class="tsd-anchor-link"><code>isEmpty(value: unknown): unknown</code> / <code>isNonEmpty&lt;T&gt;(value: unknown): T</code><a href="#_-32" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
 <p>Polymorphic emptiness check across string, array, <code>Map</code>, <code>Set</code>, object. <em>(3.1+)</em></p>
+<h4 id="_-33" class="tsd-anchor-link"><code>isIP(value: unknown): string</code><a href="#_-33" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Validates an IP address of either version. <em>(4.0+)</em></p>
+<h4 id="_-34" class="tsd-anchor-link"><code>isSemver(value: unknown): string</code><a href="#_-34" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Validates a Semantic Versioning 2.0.0 string, pre-release and build metadata included. <em>(4.0+)</em></p>
+<h4 id="_-35" class="tsd-anchor-link"><code>isSlug(value: unknown): string</code><a href="#_-35" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Validates a URL-friendly slug (<code>hello-world</code>). <em>(4.0+)</em></p>
+<h4 id="_-36" class="tsd-anchor-link"><code>isPort(value: unknown): number</code><a href="#_-36" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Validates a TCP/UDP port number (1–65535; <code>0</code> is rejected). <em>(4.0+)</em></p>
+<h4 id="_-37" class="tsd-anchor-link"><code>isJWT(value: unknown): string</code><a href="#_-37" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Validates the <em>shape</em> of a JSON Web Token. Does <strong>not</strong> verify the signature — never use it as an authentication check. <em>(4.0+)</em></p>
+<h4 id="_-38" class="tsd-anchor-link"><code>isMACAddress(value: unknown): string</code><a href="#_-38" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Validates a MAC address in colon- or hyphen-separated form. <em>(4.0+)</em></p>
 <h3 id="combinators-31" class="tsd-anchor-link">Combinators <em>(3.1+)</em><a href="#combinators-31" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<h4 id="_-33" class="tsd-anchor-link"><code>nullable&lt;T&gt;(validator: Validator&lt;T&gt;): Validator&lt;T | null&gt;</code><a href="#_-33" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<h4 id="_-39" class="tsd-anchor-link"><code>nullable&lt;T&gt;(validator: Validator&lt;T&gt;): Validator&lt;T | null&gt;</code><a href="#_-39" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
 <p>Wraps a validator so <code>null</code> is also accepted.</p>
-<h4 id="_-34" class="tsd-anchor-link"><code>optional&lt;T&gt;(validator: Validator&lt;T&gt;): Validator&lt;T | undefined&gt;</code><a href="#_-34" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<h4 id="_-40" class="tsd-anchor-link"><code>optional&lt;T&gt;(validator: Validator&lt;T&gt;): Validator&lt;T | undefined&gt;</code><a href="#_-40" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
 <p>Wraps a validator so <code>undefined</code> is also accepted.</p>
-<h4 id="_-35" class="tsd-anchor-link"><code>union&lt;T extends readonly unknown[]&gt;(...validators): Validator&lt;T[number]&gt;</code><a href="#_-35" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<h4 id="_-41" class="tsd-anchor-link"><code>union&lt;T extends readonly unknown[]&gt;(...validators): Validator&lt;T[number]&gt;</code><a href="#_-41" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
 <p>Tries each validator in order; succeeds on the first match.</p>
+<h4 id="_-42" class="tsd-anchor-link"><code>literal&lt;T&gt;(...values): Validator&lt;T[number]&gt;</code><a href="#_-42" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Accepts only the listed literal values, narrowing to their union. <em>(4.0+)</em></p>
+<h4 id="_-43" class="tsd-anchor-link"><code>arrayOf&lt;T&gt;(element: Validator&lt;T&gt;, bounds?: { min?: number; max?: number }): Validator&lt;T[]&gt;</code><a href="#_-43" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Validates every element, reporting all failures at once. <em>(4.0+)</em></p>
+<h4 id="_-44" class="tsd-anchor-link"><code>record&lt;T&gt;(value: Validator&lt;T&gt;): Validator&lt;Record&lt;string, T&gt;&gt;</code><a href="#_-44" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Validates a dictionary object's values. Rejects arrays and <code>null</code>. <em>(4.0+)</em></p>
+<h4 id="_-45" class="tsd-anchor-link"><code>tuple&lt;T&gt;(validators: T): Validator&lt;[...]&gt;</code><a href="#_-45" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Validates a fixed-length, heterogeneous array. <em>(4.0+)</em></p>
+<h4 id="_-46" class="tsd-anchor-link"><code>refine&lt;T&gt;(validator: Validator&lt;T&gt;, predicate: (v: T) =&gt; boolean, message: string): Validator&lt;T&gt;</code><a href="#_-46" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Adds a constraint without changing the type. <em>(4.0+)</em></p>
+<h4 id="_-47" class="tsd-anchor-link"><code>transform&lt;T, U&gt;(validator: Validator&lt;T&gt;, transformer: (v: T) =&gt; U): Validator&lt;U&gt;</code><a href="#_-47" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Maps a validated value. The transformer only ever sees valid input. <em>(4.0+)</em></p>
+<h4 id="_-48" class="tsd-anchor-link"><code>withDefault&lt;T&gt;(validator: Validator&lt;T&gt;, fallback: T | (() =&gt; T)): Validator&lt;T&gt;</code><a href="#_-48" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Substitutes a default for <code>undefined</code> (not for <code>null</code>). Pass a factory for object/array defaults so instances are not shared. <em>(4.0+)</em></p>
+<h4 id="_-49" class="tsd-anchor-link"><code>lazy&lt;T&gt;(factory: () =&gt; Validator&lt;T&gt;): Validator&lt;T&gt;</code><a href="#_-49" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Defers construction, which is what makes recursive shapes expressible. Runs the factory once. <em>(4.0+)</em></p>
+<h4 id="_-50" class="tsd-anchor-link"><code>instanceOf&lt;T&gt;(ctor): Validator&lt;T&gt;</code><a href="#_-50" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Composable form of <code>isInstanceOf</code>. <em>(4.0+)</em></p>
+<h4 id="_-51" class="tsd-anchor-link"><code>objectOf&lt;S&gt;(schema: S, options?: { strict?: boolean }): Validator&lt;Infer&lt;S&gt;&gt;</code><a href="#_-51" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Turns a schema into a validator, so object shapes nest inside the other combinators. <em>(4.0+)</em></p>
+<h4 id="_-52" class="tsd-anchor-link"><code>validators</code><a href="#_-52" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>The <code>is*</code> / <code>as*</code> validators, pre-bound to the instance, so they can be passed as values without losing <code>this</code>. Built on first access and cached. <em>(4.0+)</em></p>
 <h3 id="non-throwing-api-31" class="tsd-anchor-link">Non-throwing API <em>(3.1+)</em><a href="#non-throwing-api-31" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<h4 id="_-36" class="tsd-anchor-link"><code>safeParse&lt;K&gt;(types, value): ParseResult&lt;TypeMap[K]&gt;</code><a href="#_-36" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
-<p>Same input as <code>isType</code>, returns a discriminated union
-<code>{ success: true, data } | { success: false, error: TypeError }</code> instead
-of throwing.</p>
+<h4 id="_-53" class="tsd-anchor-link"><code>safeParse&lt;K&gt;(types, value): ParseResult&lt;TypeMap[K]&gt;</code><a href="#_-53" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Same input as <code>parse</code>, returns a discriminated union instead of throwing:
+<code>{ success: true, data } | { success: false, issues, error }</code>.</p>
+<p><code>issues</code> is a <code>ValidationIssue[]</code> — <code>{ code, path, message, expected?, received? }</code>.
+<code>error</code> is a <code>TyperError</code> (which extends <code>TypeError</code>) built lazily on first
+access, so reading only <code>issues</code> avoids the cost of capturing a stack trace.
+<em>(<code>issues</code> added in 4.0)</em></p>
 <h3 id="schema-validation" class="tsd-anchor-link">Schema Validation<a href="#schema-validation" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <h4 id="32" class="tsd-anchor-link"><code>parse&lt;S&gt;(schemaOrTypeOrValidator, value): T</code> <em>(3.2+)</em><a href="#32" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
 <p>Universal entry point. Accepts a type alias, an array of aliases, a
@@ -155,46 +267,108 @@ variable. Use it to derive <code>Infer&lt;typeof schema&gt;</code> without <code
 <p>Derives a TypeScript type from a runtime schema literal — handles
 <code>?</code>-suffix optionals, <code>|</code>-unions, array elements, nested objects, and
 embedded <code>Validator&lt;T&gt;</code> functions.</p>
-<h4 id="_-37" class="tsd-anchor-link"><code>checkStructure(schema: Record&lt;string, unknown&gt;, obj: Record&lt;string, unknown&gt;, path?: string, strictMode?: boolean): StructureValidationReturn</code><a href="#_-37" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<h4 id="_-54" class="tsd-anchor-link"><code>checkStructure(schema: Record&lt;string, unknown&gt;, obj: Record&lt;string, unknown&gt;, path?: string, strictMode?: boolean): StructureValidationReturn</code><a href="#_-54" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
 <p>Validates object structure against schema. Returns <code>{isValid: boolean, errors: string[]}</code>.
 Lower-level than <code>parse</code> — kept for backward compatibility and for the
 strict-mode entry point.</p>
 <h3 id="type-management" class="tsd-anchor-link">Type Management<a href="#type-management" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<h4 id="_-38" class="tsd-anchor-link"><code>registerType(name: string, validator: (value: unknown) =&gt; unknown, override?: boolean): void</code><a href="#_-38" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<h4 id="_-55" class="tsd-anchor-link"><code>registerType(name: string, validator: (value: unknown) =&gt; unknown, override?: boolean): void</code><a href="#_-55" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
 <p>Registers custom type validator.</p>
-<h4 id="_-39" class="tsd-anchor-link"><code>unregisterType(name: string): void</code><a href="#_-39" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<h4 id="_-56" class="tsd-anchor-link"><code>unregisterType(name: string): void</code><a href="#_-56" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
 <p>Removes registered type.</p>
-<h4 id="_-40" class="tsd-anchor-link"><code>listTypes(): string[]</code><a href="#_-40" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<h4 id="_-57" class="tsd-anchor-link"><code>listTypes(): string[]</code><a href="#_-57" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
 <p>Returns all registered type names.</p>
-<h4 id="_-41" class="tsd-anchor-link"><code>exportTypes(): string</code><a href="#_-41" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<h4 id="_-58" class="tsd-anchor-link"><code>exportTypes(): string</code><a href="#_-58" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
 <p>Exports types as JSON string.</p>
-<h4 id="_-42" class="tsd-anchor-link"><code>importTypes(json: string): void</code><a href="#_-42" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<h4 id="_-59" class="tsd-anchor-link"><code>importTypes(json: string): void</code><a href="#_-59" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
 <p>Imports types from JSON string.</p>
 <h3 id="function-wrapping" class="tsd-anchor-link">Function Wrapping<a href="#function-wrapping" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<h4 id="_-43" class="tsd-anchor-link"><code>expect(func: Function, types: TyperExpectTypes): Function</code><a href="#_-43" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<h4 id="_-60" class="tsd-anchor-link"><code>expect(func: Function, types: TyperExpectTypes): Function</code><a href="#_-60" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
 <p>Wraps function with type checking for parameters and return value.</p>
-<h4 id="_-44" class="tsd-anchor-link"><code>validate(schema: Record&lt;string, string | string[]&gt;, obj: Record&lt;string, unknown&gt;): string[]</code><a href="#_-44" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<h4 id="_-61" class="tsd-anchor-link"><code>validate(schema: Record&lt;string, string | string[]&gt;, obj: Record&lt;string, unknown&gt;): string[]</code><a href="#_-61" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
 <p>Validates object against simple schema, returns error array.</p>
-<h4 id="_-45" class="tsd-anchor-link"><code>assert(value: unknown, expectedType: string | string[]): void</code><a href="#_-45" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<h4 id="_-62" class="tsd-anchor-link"><code>assert(value: unknown, expectedType: string | string[]): void</code><a href="#_-62" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
 <p>Logs warning if type assertion fails.</p>
 <h3 id="supported-types" class="tsd-anchor-link">Supported Types<a href="#supported-types" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <p><strong>Primitives</strong>: <code>string</code>, <code>number</code>, <code>boolean</code>, <code>bigint</code>, <code>symbol</code>, <code>undefined</code>, <code>null</code></p>
 <p><strong>Objects</strong>: <code>object</code>, <code>array</code>, <code>function</code>, <code>date</code>, <code>regexp</code>, <code>map</code>, <code>set</code></p>
 <p><strong>Advanced</strong>: <code>arraybuffer</code>, <code>dataview</code>, <code>typedarray</code>, <code>json</code>, <code>domelement</code></p>
 <p><strong>Aliases</strong>: Short forms like <code>s</code>/<code>str</code> for <code>string</code>, <code>n</code>/<code>num</code> for <code>number</code>, etc.</p>
+<h2 id="⚡-performance" class="tsd-anchor-link">⚡ Performance<a href="#⚡-performance" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>Schemas are compiled to closures once and cached by schema identity; every
+type name, optional marker and union alternative is resolved at compile time,
+so validating is a flat loop over predicates. Error paths are only built when
+something actually fails.</p>
+<p><code>npm run bench</code> on Node 26, median of 7 batches (absolute numbers are
+machine-dependent):</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th style="text-align:right">ops/sec</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>is(value, 'string')</code></td>
+<td style="text-align:right">~240M</td>
+</tr>
+<tr>
+<td><code>isType('string', value)</code></td>
+<td style="text-align:right">~165M</td>
+</tr>
+<tr>
+<td><code>isArrayOf('number', 50 items)</code></td>
+<td style="text-align:right">~45M</td>
+</tr>
+<tr>
+<td><code>parse(flat schema)</code> — valid</td>
+<td style="text-align:right">~24M</td>
+</tr>
+<tr>
+<td><code>parse(nested schema)</code> — valid</td>
+<td style="text-align:right">~8M</td>
+</tr>
+<tr>
+<td><code>checkStructure(nested)</code></td>
+<td style="text-align:right">~7M</td>
+</tr>
+<tr>
+<td><code>safeParse(nested)</code> — <strong>invalid</strong></td>
+<td style="text-align:right">~2M</td>
+</tr>
+</tbody>
+</table>
+<p>The last row is the one that changed most in 4.0 (17× faster): a failing
+validation no longer throws, catches and rebuilds its own error internally.</p>
+<blockquote>
+<p>The <code>is</code>/<code>isType</code> rows measure a few-nanosecond operation and swing widely
+with V8's inlining decisions — treat a change there as noise unless it
+reproduces across runs. The schema rows are stable to within a few percent.</p>
+</blockquote>
 <h2 id="🧪-testing" class="tsd-anchor-link">🧪 Testing<a href="#🧪-testing" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<p>Typer has <strong>100% line / 100% function / 99.3% statement / 95.7% branch coverage</strong> with 290 comprehensive tests covering:</p>
+<p>Typer has <strong>97% line / 99.4% function / 96.9% statement / 91.9% branch coverage</strong>
+with 406 tests covering:</p>
 <ul>
 <li>All type validators and edge cases</li>
 <li>Schema validation scenarios</li>
-<li>Custom type registration</li>
+<li>Custom type registration and built-in overrides</li>
+<li>Structured error reporting</li>
+<li>Combinators and composition</li>
 <li>Function wrapping and validation</li>
-<li>Error handling and edge cases</li>
 <li>TypeScript generic integration</li>
 </ul>
-<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">test</span><span class="hl-1">                </span><span class="hl-7"># Run tests</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">test:watch</span><span class="hl-1">     </span><span class="hl-7"># Watch mode</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">test:coverage</span><span class="hl-1">  </span><span class="hl-7"># Coverage report</span>
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">test</span><span class="hl-1">               </span><span class="hl-7"># Jest suite + type-level suite</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">test:watch</span><span class="hl-1">     </span><span class="hl-7"># Watch mode</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">test:coverage</span><span class="hl-1">  </span><span class="hl-7"># Coverage report</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">test:types</span><span class="hl-1">     </span><span class="hl-7"># Type-level assertions only</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">bench</span><span class="hl-1">          </span><span class="hl-7"># Benchmarks</span>
 </code><button type="button">Copy</button></pre>
 
+<p>The type-level suite (<code>tests/types/</code>) is checked by <code>tsc</code>, not Jest: it asserts
+that <code>Infer</code> produces exactly the expected types, and that invalid schemas are
+<em>rejected</em>. It is part of <code>npm test</code>.</p>
+<blockquote>
+<p>The uncovered lines are the <code>return p</code> statements of the built-in checkers.
+Since the predicate fast-path landed, those checkers only ever run to throw —
+see the <code>TODO(tech-debt)</code> note in <code>src/Typer.ts</code>.</p>
+</blockquote>
 <h2 id="🏗️-building" class="tsd-anchor-link">🏗️ Building<a href="#🏗️-building" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">build</span><span class="hl-1">          </span><span class="hl-7"># Build all formats</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">build:docs</span><span class="hl-1">     </span><span class="hl-7"># Build with documentation</span>
 </code><button type="button">Copy</button></pre>
@@ -202,7 +376,7 @@ strict-mode entry point.</p>
 <p>Outputs:</p>
 <ul>
 <li><code>dist/Typer.min.js</code> - UMD format</li>
-<li><code>dist/Typer.esm.min.js</code> - ES modules</li>
+<li><code>dist/Typer.esm.mjs</code> - ES modules</li>
 <li><code>dist/Typer.cjs.min.js</code> - CommonJS</li>
 <li><code>dist/Typer.d.ts</code> - TypeScript definitions</li>
 </ul>
@@ -230,4 +404,142 @@ strict-mode entry point.</p>
 </ul>
 <hr>
 <p><em>Built with ❤️ and TypeScript</em></p>
-</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#typer-advanced-typescript-type-validation-library"><span>Typer -<wbr/> <wbr/>Advanced <wbr/>Type<wbr/>Script <wbr/>Type <wbr/>Validation <wbr/>Library</span></a><ul><li><a href="#✨-key-features"><span>✨ <wbr/>Key <wbr/>Features</span></a></li><li><a href="#📦-installation"><span>📦 <wbr/>Installation</span></a></li><li><a href="#�-quick-start"><span>� <wbr/>Quick <wbr/>Start</span></a></li><li><ul><li><a href="#🪄-typed-schema-parsing-write-the-schema-once-get-the-type-for-free-32"><span>🪄 <wbr/>Typed schema parsing — write the schema once, get the type for free (3.2+)</span></a></li></ul></li><li><a href="#📖-usage-examples"><span>📖 <wbr/>Usage <wbr/>Examples</span></a></li><li><ul><li><a href="#✅-basic-type-validation"><span>✅ <wbr/>Basic <wbr/>Type <wbr/>Validation</span></a></li><li><a href="#🎯-advanced-type-validation"><span>🎯 <wbr/>Advanced <wbr/>Type <wbr/>Validation</span></a></li><li><a href="#🔬-advanced-types-support"><span>🔬 <wbr/>Advanced <wbr/>Types <wbr/>Support</span></a></li><li><a href="#🏗-schema-based-object-validation"><span>🏗 <wbr/>Schema-<wbr/>Based <wbr/>Object <wbr/>Validation</span></a></li><li><a href="#�-custom-type-registration"><span>� <wbr/>Custom <wbr/>Type <wbr/>Registration</span></a></li><li><a href="#�️-function-type-safety"><span>�️ <wbr/>Function <wbr/>Type <wbr/>Safety</span></a></li></ul></li><li><a href="#�-api-reference"><span>� <wbr/>API <wbr/>Reference</span></a></li><li><ul><li><a href="#core-validation-methods"><span>Core <wbr/>Validation <wbr/>Methods</span></a></li><li><ul><li><a href="#_"><span></span></a></li><li><a href="#_-1"><span></span></a></li><li><a href="#_-2"><span></span></a></li><li><a href="#_-3"><span></span></a></li><li><a href="#_-4"><span></span></a></li><li><a href="#_-5"><span></span></a></li><li><a href="#_-6"><span></span></a></li></ul></li><li><a href="#specialized-validation-methods"><span>Specialized <wbr/>Validation <wbr/>Methods</span></a></li><li><ul><li><a href="#_-7"><span></span></a></li><li><a href="#_-8"><span></span></a></li><li><a href="#_-9"><span></span></a></li><li><a href="#_-10"><span></span></a></li><li><a href="#_-11"><span></span></a></li><li><a href="#_-12"><span></span></a></li><li><a href="#_-13"><span></span></a></li><li><a href="#_-14"><span></span></a></li><li><a href="#_-15"><span></span></a></li><li><a href="#_-16"><span></span></a></li><li><a href="#_-17"><span></span></a></li><li><a href="#_-18"><span></span></a></li><li><a href="#_-19"><span></span></a></li><li><a href="#_-20"><span></span></a></li><li><a href="#_-21"><span></span></a></li><li><a href="#_-22"><span></span></a></li><li><a href="#_-23"><span> / </span></a></li><li><a href="#_-24"><span></span></a></li><li><a href="#_-25"><span></span></a></li><li><a href="#_-26"><span></span></a></li><li><a href="#_-27"><span></span></a></li><li><a href="#_-28"><span></span></a></li><li><a href="#_-29"><span></span></a></li><li><a href="#_-30"><span></span></a></li><li><a href="#_-31"><span></span></a></li><li><a href="#_-32"><span> / </span></a></li></ul></li><li><a href="#combinators-31"><span>Combinators (3.1+)</span></a></li><li><ul><li><a href="#_-33"><span></span></a></li><li><a href="#_-34"><span></span></a></li><li><a href="#_-35"><span></span></a></li></ul></li><li><a href="#non-throwing-api-31"><span>Non-<wbr/>throwing <wbr/>API (3.1+)</span></a></li><li><ul><li><a href="#_-36"><span></span></a></li></ul></li><li><a href="#schema-validation"><span>Schema <wbr/>Validation</span></a></li><li><ul><li><a href="#32"><span> (3.2+)</span></a></li><li><a href="#32-for-schema-overload"><span> (3.2+ for schema overload)</span></a></li><li><a href="#32-1"><span> (3.2+)</span></a></li><li><a href="#32-type-only-export"><span> (3.2+, type-<wbr/>only export)</span></a></li><li><a href="#_-37"><span></span></a></li></ul></li><li><a href="#type-management"><span>Type <wbr/>Management</span></a></li><li><ul><li><a href="#_-38"><span></span></a></li><li><a href="#_-39"><span></span></a></li><li><a href="#_-40"><span></span></a></li><li><a href="#_-41"><span></span></a></li><li><a href="#_-42"><span></span></a></li></ul></li><li><a href="#function-wrapping"><span>Function <wbr/>Wrapping</span></a></li><li><ul><li><a href="#_-43"><span></span></a></li><li><a href="#_-44"><span></span></a></li><li><a href="#_-45"><span></span></a></li></ul></li><li><a href="#supported-types"><span>Supported <wbr/>Types</span></a></li></ul></li><li><a href="#🧪-testing"><span>🧪 <wbr/>Testing</span></a></li><li><a href="#🏗️-building"><span>🏗️ <wbr/>Building</span></a></li><li><a href="#�-license"><span>� <wbr/>License</span></a></li><li><a href="#🤝-contributing"><span>🤝 <wbr/>Contributing</span></a></li><li><a href="#👤-author"><span>👤 <wbr/>Author</span></a></li><li><a href="#�-links"><span>� <wbr/>Links</span></a></li></ul></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="modules.html">@illavv/run_typer - v3.2.3</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer></footer><div class="overlay"></div></body></html>
+</div></div>
+<div class="col-sidebar">
+<div class="page-menu">
+<div class="tsd-navigation settings">
+<details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg>
+<h3>Settings</h3></summary>
+<div class="tsd-accordion-details">
+<div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span>
+<ul id="tsd-filter-options">
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li>
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div>
+<div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div>
+<details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg>
+<h3>On This Page</h3></summary>
+<div class="tsd-accordion-details"><a href="#typer-advanced-typescript-type-validation-library"><span>Typer -<wbr/> <wbr/>Advanced <wbr/>Type<wbr/>Script <wbr/>Type <wbr/>Validation <wbr/>Library</span></a>
+<ul>
+<li><a href="#✨-key-features"><span>✨ <wbr/>Key <wbr/>Features</span></a></li>
+<li><a href="#📦-installation"><span>📦 <wbr/>Installation</span></a></li>
+<li><a href="#�-quick-start"><span>� <wbr/>Quick <wbr/>Start</span></a></li>
+<li>
+<ul>
+<li><a href="#🪄-typed-schema-parsing-write-the-schema-once-get-the-type-for-free-32"><span>🪄 <wbr/>Typed schema parsing — write the schema once, get the type for free (3.2+)</span></a></li>
+<li><a href="#🛑-typos-are-compile-errors-40"><span>🛑 <wbr/>Typos are compile errors (4.0+)</span></a></li>
+<li><a href="#🔎-structured-errors-40"><span>🔎 <wbr/>Structured errors (4.0+)</span></a></li>
+<li><a href="#🧩-combinators-40"><span>🧩 <wbr/>Combinators (4.0+)</span></a></li>
+<li><a href="#🔧-custom-types-that-the-compiler-knows-about-40"><span>🔧 <wbr/>Custom types that the compiler knows about (4.0+)</span></a></li></ul></li>
+<li><a href="#📖-usage-examples"><span>📖 <wbr/>Usage <wbr/>Examples</span></a></li>
+<li>
+<ul>
+<li><a href="#✅-basic-type-validation"><span>✅ <wbr/>Basic <wbr/>Type <wbr/>Validation</span></a></li>
+<li><a href="#🎯-advanced-type-validation"><span>🎯 <wbr/>Advanced <wbr/>Type <wbr/>Validation</span></a></li>
+<li><a href="#🔬-advanced-types-support"><span>🔬 <wbr/>Advanced <wbr/>Types <wbr/>Support</span></a></li>
+<li><a href="#🏗-schema-based-object-validation"><span>🏗 <wbr/>Schema-<wbr/>Based <wbr/>Object <wbr/>Validation</span></a></li>
+<li><a href="#�-custom-type-registration"><span>� <wbr/>Custom <wbr/>Type <wbr/>Registration</span></a></li>
+<li><a href="#�️-function-type-safety"><span>�️ <wbr/>Function <wbr/>Type <wbr/>Safety</span></a></li></ul></li>
+<li><a href="#�-api-reference"><span>� <wbr/>API <wbr/>Reference</span></a></li>
+<li>
+<ul>
+<li><a href="#core-validation-methods"><span>Core <wbr/>Validation <wbr/>Methods</span></a></li>
+<li>
+<ul>
+<li><a href="#_"><span></span></a></li>
+<li><a href="#_-1"><span></span></a></li>
+<li><a href="#_-2"><span></span></a></li>
+<li><a href="#_-3"><span></span></a></li>
+<li><a href="#_-4"><span></span></a></li>
+<li><a href="#_-5"><span></span></a></li>
+<li><a href="#_-6"><span></span></a></li></ul></li>
+<li><a href="#specialized-validation-methods"><span>Specialized <wbr/>Validation <wbr/>Methods</span></a></li>
+<li>
+<ul>
+<li><a href="#_-7"><span></span></a></li>
+<li><a href="#_-8"><span></span></a></li>
+<li><a href="#_-9"><span></span></a></li>
+<li><a href="#_-10"><span></span></a></li>
+<li><a href="#_-11"><span></span></a></li>
+<li><a href="#_-12"><span></span></a></li>
+<li><a href="#_-13"><span></span></a></li>
+<li><a href="#_-14"><span></span></a></li>
+<li><a href="#_-15"><span></span></a></li>
+<li><a href="#_-16"><span></span></a></li>
+<li><a href="#_-17"><span></span></a></li>
+<li><a href="#_-18"><span></span></a></li>
+<li><a href="#_-19"><span></span></a></li>
+<li><a href="#_-20"><span></span></a></li>
+<li><a href="#_-21"><span></span></a></li>
+<li><a href="#_-22"><span></span></a></li>
+<li><a href="#_-23"><span> / </span></a></li>
+<li><a href="#_-24"><span></span></a></li>
+<li><a href="#_-25"><span></span></a></li>
+<li><a href="#_-26"><span></span></a></li>
+<li><a href="#_-27"><span></span></a></li>
+<li><a href="#_-28"><span></span></a></li>
+<li><a href="#_-29"><span></span></a></li>
+<li><a href="#_-30"><span></span></a></li>
+<li><a href="#_-31"><span></span></a></li>
+<li><a href="#_-32"><span> / </span></a></li>
+<li><a href="#_-33"><span></span></a></li>
+<li><a href="#_-34"><span></span></a></li>
+<li><a href="#_-35"><span></span></a></li>
+<li><a href="#_-36"><span></span></a></li>
+<li><a href="#_-37"><span></span></a></li>
+<li><a href="#_-38"><span></span></a></li></ul></li>
+<li><a href="#combinators-31"><span>Combinators (3.1+)</span></a></li>
+<li>
+<ul>
+<li><a href="#_-39"><span></span></a></li>
+<li><a href="#_-40"><span></span></a></li>
+<li><a href="#_-41"><span></span></a></li>
+<li><a href="#_-42"><span></span></a></li>
+<li><a href="#_-43"><span></span></a></li>
+<li><a href="#_-44"><span></span></a></li>
+<li><a href="#_-45"><span></span></a></li>
+<li><a href="#_-46"><span></span></a></li>
+<li><a href="#_-47"><span></span></a></li>
+<li><a href="#_-48"><span></span></a></li>
+<li><a href="#_-49"><span></span></a></li>
+<li><a href="#_-50"><span></span></a></li>
+<li><a href="#_-51"><span></span></a></li>
+<li><a href="#_-52"><span></span></a></li></ul></li>
+<li><a href="#non-throwing-api-31"><span>Non-<wbr/>throwing <wbr/>API (3.1+)</span></a></li>
+<li>
+<ul>
+<li><a href="#_-53"><span></span></a></li></ul></li>
+<li><a href="#schema-validation"><span>Schema <wbr/>Validation</span></a></li>
+<li>
+<ul>
+<li><a href="#32"><span> (3.2+)</span></a></li>
+<li><a href="#32-for-schema-overload"><span> (3.2+ for schema overload)</span></a></li>
+<li><a href="#32-1"><span> (3.2+)</span></a></li>
+<li><a href="#32-type-only-export"><span> (3.2+, type-<wbr/>only export)</span></a></li>
+<li><a href="#_-54"><span></span></a></li></ul></li>
+<li><a href="#type-management"><span>Type <wbr/>Management</span></a></li>
+<li>
+<ul>
+<li><a href="#_-55"><span></span></a></li>
+<li><a href="#_-56"><span></span></a></li>
+<li><a href="#_-57"><span></span></a></li>
+<li><a href="#_-58"><span></span></a></li>
+<li><a href="#_-59"><span></span></a></li></ul></li>
+<li><a href="#function-wrapping"><span>Function <wbr/>Wrapping</span></a></li>
+<li>
+<ul>
+<li><a href="#_-60"><span></span></a></li>
+<li><a href="#_-61"><span></span></a></li>
+<li><a href="#_-62"><span></span></a></li></ul></li>
+<li><a href="#supported-types"><span>Supported <wbr/>Types</span></a></li></ul></li>
+<li><a href="#⚡-performance"><span>⚡ <wbr/>Performance</span></a></li>
+<li><a href="#🧪-testing"><span>🧪 <wbr/>Testing</span></a></li>
+<li><a href="#🏗️-building"><span>🏗️ <wbr/>Building</span></a></li>
+<li><a href="#�-license"><span>� <wbr/>License</span></a></li>
+<li><a href="#🤝-contributing"><span>🤝 <wbr/>Contributing</span></a></li>
+<li><a href="#👤-author"><span>👤 <wbr/>Author</span></a></li>
+<li><a href="#�-links"><span>� <wbr/>Links</span></a></li></ul></div></details></div>
+<div class="site-menu">
+<nav class="tsd-navigation"><a href="modules.html">@illavv/run_typer - v3.2.3</a>
+<ul class="tsd-small-nested-navigation" id="tsd-nav-container">
+<li>Loading...</li></ul></nav></div></div></div><footer></footer>
+<div class="overlay"></div></body></html>

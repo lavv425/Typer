@@ -1,4 +1,4 @@
-<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>Validator | @illavv/run_typer - v3.2.3</title><meta name="description" content="Documentation for @illavv/run_typer"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
+<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>KnownAlias | @illavv/run_typer - v3.2.3</title><meta name="description" content="Documentation for @illavv/run_typer"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
 <div class="tsd-toolbar-contents container"><a href="../index.html" class="title">@illavv/run_typer - v3.2.3</a>
 <div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/>
 <ul role="listbox" id="tsd-search-results"></ul>
@@ -9,33 +9,17 @@
 <div class="tsd-page-title">
 <ul class="tsd-breadcrumb" aria-label="Breadcrumb">
 <li><a href="../modules/Types_Typer.html">Types/Typer</a></li>
-<li><a href="" aria-current="page">Validator</a></li></ul>
-<h1>Type Alias Validator&lt;T&gt;</h1></div>
-<div class="tsd-signature"><span class="tsd-kind-type-alias">Validator</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#t">T</a></div>
-<div class="tsd-comment tsd-typography"><p>A validator function: takes an unknown value and either returns the
-narrowed value or throws a <code>TypeError</code>. Used by combinators
-(<code>nullable</code>, <code>optional</code>, <code>union</code>) to compose validators.</p>
+<li><a href="" aria-current="page">KnownAlias</a></li></ul>
+<h1>Type Alias KnownAlias&lt;R&gt;</h1></div>
+<div class="tsd-signature"><span class="tsd-kind-type-alias">KnownAlias</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-keyword">keyof</span> <a href="Types_Typer.TypeMap.html" class="tsd-signature-type tsd-kind-type-alias">TypeMap</a> <span class="tsd-signature-symbol">&amp;</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-keyword">keyof</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#r">R</a> <span class="tsd-signature-symbol">&amp;</span> <span class="tsd-signature-type">string</span></div>
+<div class="tsd-comment tsd-typography"><p>Every alias a given instance accepts: the built-ins plus its registry.</p>
 </div>
 <section class="tsd-panel">
 <h4>Type Parameters</h4>
 <ul class="tsd-type-parameter-list">
-<li><span id="t"><span class="tsd-kind-type-parameter">T</span></span>
-<div class="tsd-comment tsd-typography"><p>The narrowed value type on success</p>
-</div></li></ul></section>
-<div class="tsd-type-declaration">
-<h4>Type Declaration</h4>
-<ul class="tsd-parameters">
-<li class="tsd-parameter-signature">
-<ul class="tsd-signatures">
-<li class="tsd-signature" id="__type"><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#t">T</a></li>
-<li class="tsd-description">
-<div class="tsd-parameters">
-<h4 class="tsd-parameters-title">Parameters</h4>
-<ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">value</span>: <span class="tsd-signature-type">unknown</span></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <a class="tsd-signature-type tsd-kind-type-parameter" href="#t">T</a></h4></li></ul></li></ul></div><aside class="tsd-sources">
+<li><span id="r"><span class="tsd-kind-type-parameter">R</span> <span class="tsd-signature-keyword">extends</span> <a href="Types_Typer.TypeRegistry.html" class="tsd-signature-type tsd-kind-type-alias">TypeRegistry</a></span></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/lavv425/Typer/blob/30304162e1800f537afd8a02faeb891f32bb8b24/src/Types/Typer/index.ts#L171">src/Types/Typer/index.ts:171</a></li></ul></aside></div>
+<li>Defined in <a href="https://github.com/lavv425/Typer/blob/30304162e1800f537afd8a02faeb891f32bb8b24/src/Types/Typer/index.ts#L332">src/Types/Typer/index.ts:332</a></li></ul></aside></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
