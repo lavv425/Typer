@@ -24,6 +24,52 @@ export type StructureValidationReturn = {
     errors: string[];
 };
 
+// ---------------------------------------------------------------------------
+//  Structured validation errors
+// ---------------------------------------------------------------------------
+
+/**
+ * Machine-readable reason a value failed validation.
+ *
+ * Prefer branching on this over matching the human-readable `message`, which
+ * is formatted for people and is not part of the stable API.
+ */
+export type IssueCode =
+    /** The value was present but did not match any of the expected types. */
+    | 'invalid_type'
+    /** A required key was absent from the object. */
+    | 'missing_key'
+    /** The schema referenced a type name that is not registered. */
+    | 'unknown_type'
+    /** The schema itself is malformed (empty type string, array with 2 entries, …). */
+    | 'invalid_schema'
+    /** Strict mode only: the object carried a key the schema does not declare. */
+    | 'unexpected_key'
+    /** A `Validator` function supplied in the schema threw. */
+    | 'custom';
+
+/**
+ * A single, structured validation failure.
+ *
+ * One failed `parse` can produce many issues — validation collects every
+ * problem rather than stopping at the first.
+ */
+export type ValidationIssue = {
+    /** Machine-readable reason, safe to branch on. */
+    code: IssueCode;
+    /**
+     * Dotted path to the offending value, e.g. `"address.city"` or
+     * `"tags[2]"`. Empty string when the failure is about the root value.
+     */
+    path: string;
+    /** Human-readable description. Matches the legacy `errors[]` strings. */
+    message: string;
+    /** What the schema asked for, when meaningful (e.g. `"number"`). */
+    expected?: string;
+    /** What was actually found, when meaningful (e.g. `"string"`). */
+    received?: string;
+};
+
 /**
  * Maps every built-in type alias accepted by `Typer` to the runtime type it
  * resolves to. Used to make `isType`/`is`/`safeParse` return the correct
