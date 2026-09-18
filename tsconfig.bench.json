@@ -1,0 +1,16 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "rootDir": ".",
+        "outDir": ".bench",
+        "declaration": true,
+        "declarationDir": ".bench/types",
+        "declarationMap": false,
+        "sourceMap": false,
+        "importHelpers": false
+    },
+    "include": [
+        "src/**/*",
+        "benchmarks/**/*"
+    ]
+}

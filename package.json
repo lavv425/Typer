@@ -22,6 +22,7 @@
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "test:types": "tsc -p tsconfig.typetest.json",
+        "bench": "tsc -p tsconfig.bench.json && node .bench/benchmarks/bench.js",
         "build": "rollup -c",
         "build:docs": "rollup -c && npx typedoc"
     },
