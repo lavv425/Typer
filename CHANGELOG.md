@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.0.0] - Unreleased
+## [4.0.0] - 2026-09-18
 
 Three themes: validation failures became structured data, schemas became
 compile-time checked, and the schema paths got substantially faster.
@@ -127,6 +127,9 @@ Where it came from:
   alongside the existing `src/Types/`.
 - Regexes moved out of the validators into `src/Constants/Patterns`, so each is
   compiled once instead of on every call.
+- Added a `prepublishOnly` hook running the full suite and a fresh build.
+  `dist/` is gitignored, so nothing previously guaranteed the published tarball
+  was built from the committed source.
 
 ### 📉 Coverage
 
