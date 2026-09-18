@@ -5,6 +5,138 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - Unreleased
+
+Three themes: validation failures became structured data, schemas became
+compile-time checked, and the schema paths got substantially faster.
+
+See [MIGRATION.md](./MIGRATION.md#migration-guide-v3x--v40) for the upgrade steps.
+
+### 💥 Breaking
+
+- **Schema type strings are now checked at compile time.** `typer.schema`,
+  `typer.parse`, `typer.safeParse` and `typer.objectOf` reject aliases they do
+  not recognise, so `{ id: 'nubmer' }` is a compile error instead of silently
+  inferring `unknown` and failing at runtime. Types registered at runtime with
+  `registerType` are invisible to the compiler — register them with the new
+  `extend()` instead, or keep using `checkStructure`, which is unchanged.
+- **Overriding a built-in alias now takes effect.** `registerType('string', fn, true)`
+  was silently ignored by `is`, `isType` and schema validation since 3.2.2,
+  because those read from the predicate fast-path table rather than the
+  registry. The override now wins everywhere.
+- **`checkStructure` shares the schema compiler**, which corrects four classes
+  of misleading message. In each case the new message is the accurate one:
+  - an unregistered alias reports `Unknown type: x` instead of pretending the
+    value mismatched;
+  - `['string?']` honours the optional marker on array elements instead of
+    treating `string?` as a type name;
+  - a malformed element schema is reported as malformed instead of blaming the
+    value;
+  - a malformed schema on a missing key reports the schema, not the key.
+- **The ESM bundle is now `dist/Typer.esm.mjs`** (was `dist/Typer.esm.min.js`).
+  The `exports` map is updated, so `import` still resolves; only deep imports
+  of the old path break. The `.mjs` extension stops Node from having to sniff
+  and reparse the file as a module.
+
+### ✨ Added
+
+- **Structured errors.** Every validation failure now carries
+  `ValidationIssue[]` — `code`, `path`, `expected`, `received`, `message` —
+  alongside the human-readable string.
+  - `parse` throws `TyperError` (extends `TypeError`, so existing
+    `instanceof TypeError` checks keep working) with `.issues` and `.flatten()`.
+  - `safeParse` failures expose `.issues` directly.
+  - `checkStructure` returns `issues` next to the existing `errors`.
+  - `IssueCode` is one of `invalid_type`, `missing_key`, `unknown_type`,
+    `invalid_schema`, `unexpected_key`, `custom`.
+- **Combinators**, all returning a `Validator<T>` so they compose and nest:
+  `literal`, `arrayOf`, `record`, `tuple`, `refine`, `transform`,
+  `withDefault`, `lazy` (for recursive shapes), `instanceOf`, and `objectOf`
+  (turns a schema into a validator, with optional `strict`).
+- **`extend(name, validator)`** — `registerType` that also tracks the alias in
+  the instance's type, so it is accepted by compile-time-checked schemas and
+  resolves to its real type in `Infer`. Returns the same instance, re-typed,
+  and chains.
+- **`validators`** — the `is*` / `as*` validators pre-bound to the instance, so
+  `{ id: typer.validators.isPositiveInteger }` works. A bare
+  `typer.isPositiveInteger` loses its `this` and fails with an opaque
+  "Cannot read properties of undefined" *even on valid input* — a form the
+  README had been recommending. Built on first access and cached in a single
+  slot: binding all of them onto the instance was measured to slow every other
+  method several-fold by pushing the object out of V8's fast property mode.
+- **Format validators**: `isIP`, `isSemver`, `isSlug`, `isPort`, `isJWT`,
+  `isMACAddress`.
+- **The package finally exports its types.** `Infer`, `Schema`, `Validator`,
+  `ParseResult`, `ValidationIssue`, `TyperError` and friends are reachable from
+  the package root; previously only the `Typer` class was, which made the
+  `import { type Infer }` shown in the README fail.
+- **`npm run bench`** — a reproducible benchmark harness (`benchmarks/`).
+- **`npm run test:types`** — a type-level test suite (`tests/types/`) asserting
+  exact `Infer` output and that invalid schemas are rejected. Wired into `npm test`.
+
+### ⚡ Performance
+
+Measured with `npm run bench` on Node 26, median of 7 batches:
+
+| Operation | 3.2.3 | 4.0.0 | Change |
+| --- | ---: | ---: | ---: |
+| `safeParse(nested)` — invalid input | 100K ops/sec | 1.7M ops/sec | **17×** |
+| `checkStructure(nested)` | 879K ops/sec | 7.0M ops/sec | **8×** |
+| `isArrayOf('number', 50 items)` | 2.0M ops/sec | 53M ops/sec | **26×** |
+| `parse(nested)` — valid input | 6.0M ops/sec | 8.0M ops/sec | 1.3× |
+| `parse(array of 50)` | 2.6M ops/sec | 3.3M ops/sec | 1.3× |
+| `isString` type guard | 153M ops/sec | 226M ops/sec | 1.5× |
+
+Where it came from:
+
+- The compiled schema checked each field by **calling a checker that throws**
+  and catching it. Every invalid field therefore paid for an exception and its
+  stack capture. Fields now go through the same boolean predicates `is()` uses.
+- `safeParse` **threw and caught its own error** one frame later. The schema
+  path now reports the failure directly, and the `Error` is built lazily on
+  first access to `result.error` — code that reads `result.issues` never pays
+  for the stack capture, which alone costs more than the validation.
+- Error paths were **built eagerly**: every field concatenated its dotted path
+  on every validation, even when it passed. Paths are now materialised only
+  when something fails.
+- `isArrayOf` re-resolved the element type name and re-entered `isType` for
+  every item; it now resolves the predicate once.
+- The type guards (`isString`, `isNumber`, `isBoolean`, `isArray`, `isObject`)
+  used `try`/`catch` around a throwing checker; they are now direct checks.
+- `checkStructure` walked the schema on every call. It now shares the compiled,
+  cached checker with `parse`, which also removed ~100 lines of duplicated
+  validation logic.
+
+### 🐛 Fixed
+
+- **Compiled schemas were never invalidated.** A schema validated before
+  `registerType` / `unregisterType` kept its stale type resolutions forever,
+  because only the predicate cache was cleared. Both caches are now dropped.
+- `registerType(name, fn, true)` overriding a built-in alias is no longer
+  ignored (see Breaking).
+- The rollup build emitted CommonJS `require()` calls into the "ESM" bundle, so
+  every internal module was left unresolved. The build now feeds real ES
+  modules to rollup. This only became visible once the source was split across
+  files.
+- The `exports` map now lists `types` first, as TypeScript's `node16`/`bundler`
+  resolution requires.
+
+### 🏗 Internal
+
+- Source split by concern: `src/Errors/`, `src/Utils/`, `src/Constants/`,
+  alongside the existing `src/Types/`.
+- Regexes moved out of the validators into `src/Constants/Patterns`, so each is
+  compiled once instead of on every call.
+
+### 📉 Coverage
+
+Line coverage is 97.3% (was ~100%). The only uncovered lines are the `return p`
+statements of the built-in `t*` checkers: now that predicates answer every
+successful check, those checkers only ever run to throw. This is flagged with a
+`TODO(tech-debt)` in the source — collapsing each checker into a
+(predicate, message) pair would remove the duplication but would reword some
+error messages, so it is deferred.
+
 ## [3.2.3] - 2026-04-28
 
 ### 🧪 Coverage — push from 86% to ~100%

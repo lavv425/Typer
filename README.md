@@ -1,23 +1,25 @@
 # Typer - Advanced TypeScript Type Validation Library
 
-![Coverage Badge](https://img.shields.io/badge/coverage-100%25%20lines-brightgreen)
+![Coverage Badge](https://img.shields.io/badge/coverage-97%25%20lines-brightgreen)
 ![Build Status](https://img.shields.io/badge/build-passing-success)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Version](https://img.shields.io/badge/version-3.2.3-blue)
+![Version](https://img.shields.io/badge/version-4.0.0-blue)
 
 Typer is a comprehensive TypeScript validation library that provides robust type checking, schema validation, and runtime type safety. Built with modern TypeScript features including generics, type guards, and advanced type inference.
 
 ## ✨ Key Features
 
 - **🔍 Comprehensive Type System**: Support for all JavaScript types including advanced types (BigInt, TypedArrays, etc.)
-- **🎯 Generic Type Safety**: Full TypeScript generic support with type inference; `Infer<typeof schema>` derives the static type from the runtime schema *(3.2+)*
+- **🎯 Type-checked schemas**: `Infer<typeof schema>` derives the static type from the runtime schema, and a typo like `'nubmer'` is a **compile error**, not a runtime surprise *(4.0+)*
+- **🧩 Composable validators**: `literal`, `arrayOf`, `record`, `tuple`, `refine`, `transform`, `withDefault`, `lazy`, `objectOf` — all nest freely *(4.0+)*
+- **🔎 Structured errors**: every failure carries `code`, `path`, `expected` and `received`, so you branch on data instead of parsing strings *(4.0+)*
 - **📋 Schema Validation**: Complex nested object structure validation with strict mode
-- **🔧 Extensible Architecture**: Register custom types and validators
-- **⚡ High Performance**: Closure-compiled schema cache (3–10× faster than walking the schema each call) and a predicate fast-path for `is`/`isType` — ~70M `is()` ops/sec and ~74M `isType()` ops/sec on hot literals *(3.2.2+)*
+- **🔧 Extensible Architecture**: Register custom types with `extend()` and keep full type inference
+- **⚡ High Performance**: Closure-compiled, cached schemas with a predicate fast-path — see [Performance](#-performance)
 - **🛡️ Runtime Safety**: Catch type errors at runtime with detailed error messages
 - **📱 Phone Number Validation**: International phone number validation (ITU-T E.164 standard)
-- **📧 Advanced Validations**: Email, URL, and other common format validations
+- **📧 Advanced Validations**: Email, URL, UUID, IP, semver, slug, JWT, MAC and more
 
 ## 📦 Installation
 
@@ -77,17 +79,151 @@ const u  = typer.parse(userSchema, payload);     // throws + typed as User
 const r  = typer.safeParse(userSchema, payload); // { success, data: User } | { error }
 ```
 
-Mix-and-match validator functions inside a schema (any slot accepts a
-`Validator<T>` from a built-in helper or your own):
+Mix-and-match validator functions inside a schema — any slot accepts a
+`Validator<T>`, whether from a built-in helper, a combinator, or your own:
 
 ```typescript
 const strict = typer.schema({
-    id:    typer.isPositiveInteger,
-    name:  typer.isNonEmptyString,
+    id:    typer.validators.isPositiveInteger,
+    name:  typer.validators.isNonEmptyString,
     color: (v) => typer.isHexColor(v),
-    role:  'admin|user|guest',
+    role:  typer.literal('admin', 'user', 'guest'),
 });
 ```
+
+> **Use `typer.validators.isX`, not `typer.isX`, when passing a validator as a
+> value.** A bare method reference loses its `this` and fails even on valid
+> input. `typer.validators` holds the same validators, pre-bound; wrapping in an
+> arrow — `(v) => typer.isX(v)` — works just as well.
+
+> Note: a type string like `'admin|user|guest'` means "one of these **type
+> aliases**", not "one of these values". Use `typer.literal(...)` for specific
+> values.
+
+### 🛑 Typos are compile errors *(4.0+)*
+
+A misspelled alias used to infer `unknown` and blow up at runtime. Now it does
+not compile:
+
+```typescript
+typer.parse({ id: 'nubmer' }, payload);
+//                ~~~~~~~~
+// Type '"nubmer"' is not assignable to type
+// '`Typer: unknown type alias in "nubmer" — register it with extend() or fix the spelling`'
+```
+
+This covers unions, optionals, array elements and nested schemas:
+
+```typescript
+typer.schema({ a: 'number|strng' });   // ❌
+typer.schema({ b: 'nubmer?' });        // ❌
+typer.schema({ c: ['strng'] });        // ❌
+typer.schema({ d: { e: 'strng' } });   // ❌
+```
+
+Dynamically built schemas carry no literal information to check, so they are
+still accepted:
+
+```typescript
+const dynamic: Record<string, string> = buildSchema();
+typer.checkStructure(dynamic, payload); // fine
+```
+
+### 🔎 Structured errors *(4.0+)*
+
+Every failure carries machine-readable issues, so you branch on data rather
+than parsing messages:
+
+```typescript
+const result = typer.safeParse(
+    { id: 'number', address: { city: 'string' } },
+    { id: 'nope', address: { city: 1 } },
+);
+
+if (!result.success) {
+    result.issues;
+    // [
+    //   { code: 'invalid_type', path: 'id',           expected: 'number', received: 'string', message: '…' },
+    //   { code: 'invalid_type', path: 'address.city', expected: 'string', received: 'number', message: '…' },
+    // ]
+}
+```
+
+`code` is one of `invalid_type`, `missing_key`, `unknown_type`,
+`invalid_schema`, `unexpected_key`, `custom`. Paths use dotted and indexed
+notation (`address.city`, `tags[2]`).
+
+`parse` throws a `TyperError`, which extends `TypeError` — existing
+`instanceof TypeError` handling keeps working:
+
+```typescript
+import { TyperError } from '@illavv/run_typer';
+
+try {
+    typer.parse(userSchema, payload);
+} catch (e) {
+    if (e instanceof TyperError) {
+        e.issues;    // the structured list
+        e.flatten(); // { 'address.city': ['Expected "address.city" to be string, got number'] }
+    }
+}
+```
+
+> `result.error` is built on first access. Reading only `result.issues` skips
+> constructing an `Error` — whose stack capture costs more than the validation
+> itself.
+
+### 🧩 Combinators *(4.0+)*
+
+All of these return a `Validator<T>`, so they compose with each other and slot
+into any schema position:
+
+```typescript
+const orderSchema = typer.schema({
+    id:       typer.validators.isUUID,
+    status:   typer.literal('pending', 'shipped', 'cancelled'),
+    qty:      typer.refine((v) => typer.asNumber(v), (n) => n > 0, 'qty must be > 0'),
+    coupon:   typer.withDefault((v) => typer.asString(v), ''),
+    sizes:    typer.arrayOf((v) => typer.asNumber(v), { min: 1, max: 10 }),
+    labels:   typer.record((v) => typer.asString(v)),          // Record<string, string>
+    position: typer.tuple([(v) => typer.asNumber(v), (v) => typer.asNumber(v)]), // [number, number]
+    placedAt: typer.instanceOf(Date),
+    slug:     typer.transform((v) => typer.asString(v), (s) => s.trim().toLowerCase()),
+    lines:    typer.arrayOf(typer.objectOf({ sku: 'string', qty: 'number' })),
+});
+```
+
+`lazy` makes recursive shapes expressible:
+
+```typescript
+type Node = { name: string; children?: Node[] };
+
+const node: Validator<Node> = typer.lazy(() => typer.objectOf({
+    name: 'string',
+    children: typer.optional(typer.arrayOf(node)),
+}) as Validator<Node>);
+```
+
+### 🔧 Custom types that the compiler knows about *(4.0+)*
+
+`extend()` is `registerType` that also records the alias in the instance's
+type, so it works in compile-checked schemas and resolves in `Infer`:
+
+```typescript
+const typer = new Typer()
+    .extend('positive', (v): number => {
+        if (typeof v !== 'number' || v <= 0) throw new TypeError('Must be positive');
+        return v;
+    })
+    .extend('slug', (v): string => new Typer().isSlug(v));
+
+const schema = typer.schema({ qty: 'positive', handle: 'slug' });
+type Product = Infer<typeof schema, { positive: number; slug: string }>;
+// → { qty: number; handle: string }
+```
+
+It returns the same instance, just re-typed, so it chains. `registerType` is
+still available when you do not need the alias in the type system.
 
 ## 📖 Usage Examples
 
@@ -381,6 +517,24 @@ Validates the length of a string or array. *(3.1+)*
 #### `isEmpty(value: unknown): unknown` / `isNonEmpty<T>(value: unknown): T`
 Polymorphic emptiness check across string, array, `Map`, `Set`, object. *(3.1+)*
 
+#### `isIP(value: unknown): string`
+Validates an IP address of either version. *(4.0+)*
+
+#### `isSemver(value: unknown): string`
+Validates a Semantic Versioning 2.0.0 string, pre-release and build metadata included. *(4.0+)*
+
+#### `isSlug(value: unknown): string`
+Validates a URL-friendly slug (`hello-world`). *(4.0+)*
+
+#### `isPort(value: unknown): number`
+Validates a TCP/UDP port number (1–65535; `0` is rejected). *(4.0+)*
+
+#### `isJWT(value: unknown): string`
+Validates the *shape* of a JSON Web Token. Does **not** verify the signature — never use it as an authentication check. *(4.0+)*
+
+#### `isMACAddress(value: unknown): string`
+Validates a MAC address in colon- or hyphen-separated form. *(4.0+)*
+
 ### Combinators *(3.1+)*
 
 #### `nullable<T>(validator: Validator<T>): Validator<T | null>`
@@ -392,12 +546,49 @@ Wraps a validator so `undefined` is also accepted.
 #### `union<T extends readonly unknown[]>(...validators): Validator<T[number]>`
 Tries each validator in order; succeeds on the first match.
 
+#### `literal<T>(...values): Validator<T[number]>`
+Accepts only the listed literal values, narrowing to their union. *(4.0+)*
+
+#### `arrayOf<T>(element: Validator<T>, bounds?: { min?: number; max?: number }): Validator<T[]>`
+Validates every element, reporting all failures at once. *(4.0+)*
+
+#### `record<T>(value: Validator<T>): Validator<Record<string, T>>`
+Validates a dictionary object's values. Rejects arrays and `null`. *(4.0+)*
+
+#### `tuple<T>(validators: T): Validator<[...]>`
+Validates a fixed-length, heterogeneous array. *(4.0+)*
+
+#### `refine<T>(validator: Validator<T>, predicate: (v: T) => boolean, message: string): Validator<T>`
+Adds a constraint without changing the type. *(4.0+)*
+
+#### `transform<T, U>(validator: Validator<T>, transformer: (v: T) => U): Validator<U>`
+Maps a validated value. The transformer only ever sees valid input. *(4.0+)*
+
+#### `withDefault<T>(validator: Validator<T>, fallback: T | (() => T)): Validator<T>`
+Substitutes a default for `undefined` (not for `null`). Pass a factory for object/array defaults so instances are not shared. *(4.0+)*
+
+#### `lazy<T>(factory: () => Validator<T>): Validator<T>`
+Defers construction, which is what makes recursive shapes expressible. Runs the factory once. *(4.0+)*
+
+#### `instanceOf<T>(ctor): Validator<T>`
+Composable form of `isInstanceOf`. *(4.0+)*
+
+#### `objectOf<S>(schema: S, options?: { strict?: boolean }): Validator<Infer<S>>`
+Turns a schema into a validator, so object shapes nest inside the other combinators. *(4.0+)*
+
+#### `validators`
+The `is*` / `as*` validators, pre-bound to the instance, so they can be passed as values without losing `this`. Built on first access and cached. *(4.0+)*
+
 ### Non-throwing API *(3.1+)*
 
 #### `safeParse<K>(types, value): ParseResult<TypeMap[K]>`
-Same input as `isType`, returns a discriminated union
-`{ success: true, data } | { success: false, error: TypeError }` instead
-of throwing.
+Same input as `parse`, returns a discriminated union instead of throwing:
+`{ success: true, data } | { success: false, issues, error }`.
+
+`issues` is a `ValidationIssue[]` — `{ code, path, message, expected?, received? }`.
+`error` is a `TyperError` (which extends `TypeError`) built lazily on first
+access, so reading only `issues` avoids the cost of capturing a stack trace.
+*(`issues` added in 4.0)*
 
 ### Schema Validation
 
@@ -463,22 +654,61 @@ Logs warning if type assertion fails.
 
 **Aliases**: Short forms like `s`/`str` for `string`, `n`/`num` for `number`, etc.
 
+## ⚡ Performance
+
+Schemas are compiled to closures once and cached by schema identity; every
+type name, optional marker and union alternative is resolved at compile time,
+so validating is a flat loop over predicates. Error paths are only built when
+something actually fails.
+
+`npm run bench` on Node 26, median of 7 batches (absolute numbers are
+machine-dependent):
+
+| Operation | ops/sec |
+| --- | ---: |
+| `is(value, 'string')` | ~240M |
+| `isType('string', value)` | ~165M |
+| `isArrayOf('number', 50 items)` | ~45M |
+| `parse(flat schema)` — valid | ~24M |
+| `parse(nested schema)` — valid | ~8M |
+| `checkStructure(nested)` | ~7M |
+| `safeParse(nested)` — **invalid** | ~2M |
+
+The last row is the one that changed most in 4.0 (17× faster): a failing
+validation no longer throws, catches and rebuilds its own error internally.
+
+> The `is`/`isType` rows measure a few-nanosecond operation and swing widely
+> with V8's inlining decisions — treat a change there as noise unless it
+> reproduces across runs. The schema rows are stable to within a few percent.
+
 ## 🧪 Testing
 
-Typer has **100% line / 100% function / 99.3% statement / 95.7% branch coverage** with 290 comprehensive tests covering:
+Typer has **97% line / 99.4% function / 96.9% statement / 91.9% branch coverage**
+with 406 tests covering:
 
 - All type validators and edge cases
 - Schema validation scenarios
-- Custom type registration
+- Custom type registration and built-in overrides
+- Structured error reporting
+- Combinators and composition
 - Function wrapping and validation
-- Error handling and edge cases
 - TypeScript generic integration
 
 ```bash
-npm test                # Run tests
+npm test               # Jest suite + type-level suite
 npm run test:watch     # Watch mode
 npm run test:coverage  # Coverage report
+npm run test:types     # Type-level assertions only
+npm run bench          # Benchmarks
 ```
+
+The type-level suite (`tests/types/`) is checked by `tsc`, not Jest: it asserts
+that `Infer` produces exactly the expected types, and that invalid schemas are
+*rejected*. It is part of `npm test`.
+
+> The uncovered lines are the `return p` statements of the built-in checkers.
+> Since the predicate fast-path landed, those checkers only ever run to throw —
+> see the `TODO(tech-debt)` note in `src/Typer.ts`.
 
 ## 🏗️ Building
 
@@ -489,7 +719,7 @@ npm run build:docs     # Build with documentation
 
 Outputs:
 - `dist/Typer.min.js` - UMD format
-- `dist/Typer.esm.min.js` - ES modules
+- `dist/Typer.esm.mjs` - ES modules
 - `dist/Typer.cjs.min.js` - CommonJS
 - `dist/Typer.d.ts` - TypeScript definitions
 
