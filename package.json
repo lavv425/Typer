@@ -43,15 +43,15 @@
     },
     "homepage": "https://github.com/lavv425/Typer",
     "devDependencies": {
-        "@rollup/plugin-commonjs": "^29.0.2",
+        "@rollup/plugin-commonjs": "^29.0.3",
         "@rollup/plugin-node-resolve": "^16.0.3",
         "@rollup/plugin-terser": "^1.0.0",
         "@rollup/plugin-typescript": "^12.3.0",
         "@types/jest": "^30.0.0",
-        "jest": "^30.3.0",
-        "rollup": "^4.60.2",
-        "ts-jest": "^29.4.9",
-        "typedoc": "0.28.19",
+        "jest": "^30.5.1",
+        "rollup": "^4.63.3",
+        "ts-jest": "^29.4.12",
+        "typedoc": "0.28.20",
         "typescript": "^6.0.3"
     },
     "dependencies": {
