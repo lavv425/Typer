@@ -18,9 +18,10 @@
         "dist"
     ],
     "scripts": {
-        "test": "jest",
+        "test": "jest && npm run test:types",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
+        "test:types": "tsc -p tsconfig.typetest.json",
         "build": "rollup -c",
         "build:docs": "rollup -c && npx typedoc"
     },

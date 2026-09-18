@@ -146,11 +146,146 @@ describe('Typer - Type Management', () => {
         it('should not warn for known types', () => {
             const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
             const json = '["string", "number"]';
-            
+
             typer.importTypes(json);
-            
+
             expect(consoleSpy).not.toHaveBeenCalled();
             consoleSpy.mockRestore();
+        });
+    });
+
+    describe('extend', () => {
+        const positive = (v: unknown): number => {
+            if (typeof v !== 'number' || v <= 0) throw new TypeError('Must be positive');
+            return v;
+        };
+
+        it('registers the type and returns the same instance', () => {
+            const extended = typer.extend('positive', positive);
+
+            expect(extended).toBe(typer);
+            expect(typer.listTypes()).toContain('positive');
+        });
+
+        it('makes the alias usable in is/isType and schemas', () => {
+            typer.extend('positive', positive);
+
+            expect(typer.is(5, 'positive')).toBe(true);
+            expect(typer.is(-5, 'positive')).toBe(false);
+            expect(typer.isType('positive', 5)).toBe(5);
+            expect(typer.checkStructure({ qty: 'positive' }, { qty: 5 }).isValid).toBe(true);
+            expect(typer.checkStructure({ qty: 'positive' }, { qty: -5 }).isValid).toBe(false);
+        });
+
+        it('chains', () => {
+            const extended = typer
+                .extend('positive', positive)
+                .extend('slug', (v) => new Typer().isSlug(v));
+
+            expect(extended.is(5, 'positive')).toBe(true);
+            expect(extended.is('a-b', 'slug')).toBe(true);
+            expect(extended.is('A B', 'slug')).toBe(false);
+        });
+
+        it('rejects a duplicate unless override is set', () => {
+            typer.extend('positive', positive);
+
+            expect(() => typer.extend('positive', positive)).toThrow('Type "positive" is already registered.');
+            expect(() => typer.extend('positive', positive, true)).not.toThrow();
+        });
+    });
+
+    describe('overriding a built-in alias', () => {
+        // `is`/`isType`/schemas serve built-in aliases from a fast predicate
+        // table. An override has to take priority over that table, or it would
+        // be silently ignored everywhere except the error-message path.
+        const atLeastFive = (v: unknown): string => {
+            if (typeof v !== 'string' || v.length < 5) throw new TypeError('too short');
+            return v;
+        };
+
+        it('applies the override to is()', () => {
+            expect(typer.is('ab', 'string')).toBe(true);
+
+            typer.registerType<unknown, string>('string', atLeastFive, true);
+
+            expect(typer.is('ab', 'string')).toBe(false);
+            expect(typer.is('abcdef', 'string')).toBe(true);
+        });
+
+        it('applies the override to isType()', () => {
+            typer.registerType<unknown, string>('string', atLeastFive, true);
+
+            expect(() => typer.isType('string', 'ab')).toThrow();
+            expect(typer.isType('string', 'abcdef')).toBe('abcdef');
+        });
+
+        it('applies the override to every alias sharing that checker', () => {
+            typer.registerType<unknown, string>('str', atLeastFive, true);
+
+            // 'str' was overridden; 's' and 'string' still point at the original.
+            expect(typer.is('ab', 'str')).toBe(false);
+            expect(typer.is('ab', 'string')).toBe(true);
+        });
+
+        it('applies the override inside schemas', () => {
+            typer.registerType<unknown, string>('string', atLeastFive, true);
+
+            expect(typer.checkStructure({ a: 'string' }, { a: 'ab' }).isValid).toBe(false);
+            expect(typer.checkStructure({ a: 'string' }, { a: 'abcdef' }).isValid).toBe(true);
+        });
+
+        it('leaves untouched built-ins on the fast path', () => {
+            typer.registerType<unknown, string>('string', atLeastFive, true);
+
+            expect(typer.is(1, 'number')).toBe(true);
+            expect(typer.is('x', 'number')).toBe(false);
+        });
+    });
+
+    describe('compiled schema cache invalidation', () => {
+        // Schemas resolve their type names once, at compile time, and the
+        // compiled result is cached per schema object. Changing the registry
+        // afterwards has to drop that cache or the schema keeps validating
+        // against the old definition.
+        it('picks up a type registered after the schema was first used', () => {
+            const schema = { value: 'positive' };
+
+            expect(typer.checkStructure(schema, { value: 1 }).errors).toEqual(['Unknown type: positive']);
+
+            typer.registerType<unknown, number>('positive', (v) => {
+                if (typeof v !== 'number' || v <= 0) throw new TypeError('Must be positive');
+                return v;
+            });
+
+            expect(typer.checkStructure(schema, { value: 1 }).isValid).toBe(true);
+            expect(typer.checkStructure(schema, { value: -1 }).isValid).toBe(false);
+        });
+
+        it('picks up an overridden type after the schema was first used', () => {
+            const schema = { value: 'small' };
+            typer.registerType<unknown, number>('small', (v) => {
+                if (typeof v !== 'number' || v >= 10) throw new TypeError('Must be < 10');
+                return v;
+            });
+            expect(typer.checkStructure(schema, { value: 5 }).isValid).toBe(true);
+
+            typer.registerType<unknown, number>('small', (v) => {
+                if (typeof v !== 'number' || v >= 3) throw new TypeError('Must be < 3');
+                return v;
+            }, true);
+
+            expect(typer.checkStructure(schema, { value: 5 }).isValid).toBe(false);
+        });
+
+        it('picks up an unregistered type after the schema was first used', () => {
+            const schema = { value: 'temp' };
+            typer.registerType<unknown, unknown>('temp', (v) => v);
+            expect(typer.checkStructure(schema, { value: 'anything' }).isValid).toBe(true);
+
+            typer.unregisterType('temp');
+
+            expect(typer.checkStructure(schema, { value: 'anything' }).errors).toEqual(['Unknown type: temp']);
         });
     });
 });
