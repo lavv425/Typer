@@ -203,6 +203,39 @@ try {
 > constructing an `Error` — whose stack capture costs more than the validation
 > itself.
 
+### 🧬 Deriving schemas from schemas *(4.1+)*
+
+Real applications derive shapes from each other constantly. Writing the second
+copy by hand means the two diverge at the first change:
+
+```typescript
+const userSchema = typer.schema({
+    id: 'number',
+    name: 'string',
+    email: 'string',
+    password: 'string',
+});
+
+const publicUser = typer.pick(userSchema, ['id', 'name']);
+const createUser = typer.omit(userSchema, ['id']);
+const patchUser  = typer.partial(typer.omit(userSchema, ['id', 'password']));
+const timestamped = typer.merge(userSchema, { createdAt: 'date' });
+
+type PatchUser = Infer<typeof patchUser>;
+// → { name?: string | null; email?: string | null }
+```
+
+All four return a plain new schema and leave the sources untouched, so the
+result parses, infers and composes like any other. `merge` lets the second
+schema win on overlapping keys.
+
+> `partial` gives a type-string slot the `?` marker it already understands.
+> Slots with no marker of their own — a validator, an array, a nested schema —
+> are rebuilt as `optional(...)` validators instead, so a *made-optional* nested
+> slot reports its failures as one `custom` issue at the slot's path rather than
+> one per field. Pass the keys you need if that matters:
+> `typer.partial(schema, ['name', 'email'])`.
+
 ### 🛡️ Validated means safe to merge *(4.1+)*
 
 Typer validates in place and returns the same reference it was given. That is
@@ -706,6 +739,18 @@ schemas) or `TypeMap[K]` (for type aliases).
 #### `safeParse<S>(schemaOrTypeOrValidator, value): ParseResult<T>` *(3.2+ for schema overload)*
 Non-throwing variant. Returns
 `{ success: true, data } | { success: false, error: TypeError }`.
+
+#### `pick<S, K>(schema: S, keys: readonly K[]): PickSchema<S, K>` *(4.1+)*
+Derives a schema keeping only the listed keys. Returns a new schema; the source is untouched.
+
+#### `omit<S, K>(schema: S, keys: readonly K[]): OmitSchema<S, K>` *(4.1+)*
+Derives a schema without the listed keys — the complement of `pick`.
+
+#### `merge<A, B>(base: A, extension: B): MergeSchema<A, B>` *(4.1+)*
+Combines two schemas. Keys of `extension` win where the two overlap.
+
+#### `partial<S, K>(schema: S, keys?: readonly K[]): PartialSchema<S, K>` *(4.1+)*
+Makes every key optional, or only the listed ones. Type-string slots gain the `?` marker; validator, array and nested-schema slots are rebuilt as `optional(...)` validators and report failures as a single `custom` issue at the slot path.
 
 #### `schema<const S>(definition: S): S` *(3.2+)*
 Identity helper that preserves literal types of a schema declared in a

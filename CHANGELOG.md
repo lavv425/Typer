@@ -31,6 +31,28 @@ Work from the 4.0.0 adoption roadmap, in the order that audit recommended.
   footprint at `tslib` alone. `STANDARD_VENDOR` (`'typer'`) is exported for
   consumers that attribute issues by vendor.
 
+- **Schema composition: `pick`, `omit`, `partial`, `merge`.** Deriving
+  `CreateUserDto` from `UserDto` needed a second copy of the shape written by
+  hand, and the two diverged at the first change.
+
+  ```typescript
+  const publicUser  = typer.pick(userSchema, ['id', 'name']);
+  const createUser  = typer.omit(userSchema, ['id']);
+  const patchUser   = typer.partial(typer.omit(userSchema, ['id', 'password']));
+  const timestamped = typer.merge(userSchema, { createdAt: 'date' });
+  ```
+
+  All four return a new schema and leave their sources untouched, and the
+  results parse, infer and compose like any other schema. `merge` lets the
+  second schema win on overlapping keys.
+
+  `partial` gives a type-string slot the `?` marker it already understands.
+  Validator, array and nested-schema slots have no marker of their own in the
+  schema language, so they are rebuilt as `optional(...)` validators — which
+  means a *made-optional* nested slot reports its failures as one `custom`
+  issue at the slot's path rather than one per field. Passing an explicit key
+  list avoids that where it matters.
+
 - **Constraint failures carry a machine-readable code.** Three new
   `IssueCode`s — `too_small`, `too_big`, `invalid_format` — plus `minimum` and
   `maximum` on the issue itself.

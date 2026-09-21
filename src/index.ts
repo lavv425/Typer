@@ -10,4 +10,4 @@ export default new Typer();
 // `src/Typer.ts`) expose the same named surface.
 export { Typer, TyperError, STANDARD_VENDOR } from './Typer';
 export type { StandardSchemaV1 } from './Typer';
-export type { BoundValidators, Infer, IssueCode, KnownAlias, ParseResult, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperExpectTypes, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from './Typer';
+export type { BoundValidators, Infer, IssueBounds, IssueCode, KnownAlias, MergeSchema, OmitSchema, OptionalSlot, ParseResult, PartialSchema, PickSchema, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperExpectTypes, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from './Typer';

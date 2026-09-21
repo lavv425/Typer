@@ -2,7 +2,7 @@
 
 import type { Error } from "./Types/Globals";
 import type { StandardSchemaV1 } from "./Types/StandardSchema";
-import type { BoundValidators, FieldChecker, Infer, KnownAlias, ParseResult, Schema, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TyperExpectTypes, TyperReturn, TypeRegistry, TypeSlot, ValidateSchema, ValidationIssue, Validator, ValueChecker } from "./Types/Typer";
+import type { BoundValidators, FieldChecker, Infer, KnownAlias, MergeSchema, OmitSchema, ParseResult, PartialSchema, PickSchema, Schema, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TyperExpectTypes, TyperReturn, TypeRegistry, TypeSlot, ValidateSchema, ValidationIssue, Validator, ValueChecker } from "./Types/Typer";
 import { TyperError } from "./Errors/TyperError";
 import { constraintOf, formatIssues, issueError, issueMessages, makeIssue, toStandardIssues } from "./Utils/Issues";
 import * as Patterns from "./Constants/Patterns";
@@ -11,6 +11,12 @@ import { SAFE_RESULT } from "./Constants/Symbols";
 import type { SafeReporting } from "./Constants/Symbols";
 import { DANGEROUS_KEYS, stripDangerousKeys } from "./Utils/Sanitize";
 import { indexPath, joinPath } from "./Utils/Path";
+
+/**
+ * Own-property test that does not go through the object being tested, so a
+ * schema carrying a `hasOwnProperty` key of its own cannot shadow it.
+ */
+const hasOwnKey = (target: object, key: string): boolean => Object.prototype.hasOwnProperty.call(target, key);
 
 /**
  * Class representing a type checker.
@@ -1161,6 +1167,138 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      */
     public schema<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(definition: S): S {
         return definition;
+    }
+
+    /**
+     * Derives a schema keeping only the listed keys.
+     *
+     * Real applications derive schemas from each other constantly —
+     * `CreateUserDto` from `UserDto` — and rewriting the shape by hand means
+     * two copies that diverge at the first change.
+     *
+     * @template S - The source schema
+     * @template K - The keys to keep
+     * @param {S} schema - The schema to derive from.
+     * @param {readonly K[]} keys - The keys to keep.
+     * @returns {PickSchema} A new schema; the source is untouched.
+     * @example
+     * const userSchema = typer.schema({ id: 'number', name: 'string', password: 'string' });
+     * const publicUser = typer.pick(userSchema, ['id', 'name']);
+     * type PublicUser = Infer<typeof publicUser>; // { id: number; name: string }
+     */
+    public pick<S extends Record<string, unknown>, const K extends keyof S>(schema: S, keys: readonly K[]): PickSchema<S, K> {
+        const out: Record<string, unknown> = {};
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i] as string;
+            if (hasOwnKey(schema, key)) out[key] = schema[key];
+        }
+        return out as PickSchema<S, K>;
+    }
+
+    /**
+     * Derives a schema without the listed keys — the complement of {@link pick}.
+     *
+     * @template S - The source schema
+     * @template K - The keys to drop
+     * @param {S} schema - The schema to derive from.
+     * @param {readonly K[]} keys - The keys to drop.
+     * @returns {OmitSchema} A new schema; the source is untouched.
+     * @example
+     * const createUser = typer.omit(userSchema, ['id']);
+     */
+    public omit<S extends Record<string, unknown>, const K extends keyof S>(schema: S, keys: readonly K[]): OmitSchema<S, K> {
+        const dropped = new Set<unknown>(keys);
+        const out: Record<string, unknown> = {};
+        for (const key of Object.keys(schema)) {
+            if (!dropped.has(key)) out[key] = schema[key];
+        }
+        return out as OmitSchema<S, K>;
+    }
+
+    /**
+     * Combines two schemas. Keys of `extension` win where the two overlap.
+     *
+     * @template A - The base schema
+     * @template B - The schema layered on top
+     * @param {A} base - The schema to start from.
+     * @param {B} extension - The schema whose keys take precedence.
+     * @returns {MergeSchema} A new schema; neither source is touched.
+     * @example
+     * const timestamped = typer.merge(userSchema, { createdAt: 'date', updatedAt: 'date' });
+     */
+    public merge<A extends Record<string, unknown>, B extends Record<string, unknown>>(base: A, extension: B): MergeSchema<A, B> {
+        return { ...base, ...extension } as MergeSchema<A, B>;
+    }
+
+    /**
+     * Derives a schema with every key optional, or only the listed ones.
+     *
+     * A type-string slot simply gains the `?` marker. Every other slot kind has
+     * no marker of its own in the schema language, so it is wrapped with
+     * {@link optional} — which means a **nested schema or array slot made
+     * optional reports its failures as one `custom` issue at the slot's path**,
+     * rather than one issue per offending field. Pass the keys you actually
+     * need if that matters.
+     *
+     * @template S - The source schema
+     * @template K - The keys to make optional; all of them by default
+     * @param {S} schema - The schema to derive from.
+     * @param {readonly K[]} [keys] - The keys to make optional. Omit for all of them.
+     * @returns {PartialSchema} A new schema; the source is untouched.
+     * @example
+     * const patchUser = typer.partial(typer.omit(userSchema, ['id']));
+     * type PatchUser = Infer<typeof patchUser>; // { name?: string | null; … }
+     *
+     * // Only some keys:
+     * const draft = typer.partial(userSchema, ['name']);
+     */
+    public partial<S extends Record<string, unknown>>(schema: S): PartialSchema<S>;
+    public partial<S extends Record<string, unknown>, const K extends keyof S>(schema: S, keys: readonly K[]): PartialSchema<S, K>;
+    public partial<S extends Record<string, unknown>>(schema: S, keys?: readonly (keyof S)[]): PartialSchema<S> {
+        const targeted = keys === undefined ? null : new Set<unknown>(keys);
+        const out: Record<string, unknown> = {};
+
+        for (const key of Object.keys(schema)) {
+            out[key] = targeted === null || targeted.has(key)
+                ? this.optionalSlot(schema[key])
+                : schema[key];
+        }
+
+        return out as PartialSchema<S>;
+    }
+
+    /**
+     * Makes one schema slot optional, whatever kind of slot it is.
+     *
+     * A malformed slot is passed through untouched, so the schema compiler
+     * still reports it as the malformed slot it is rather than as a mismatched
+     * value.
+     *
+     * @param slot - The slot to rewrite.
+     */
+    private optionalSlot(slot: unknown): unknown {
+        if (typeof slot === 'string') return slot.endsWith('?') ? slot : `${slot}?`;
+        if (typeof slot === 'function') return this.optional(slot as Validator<unknown>);
+        if (Array.isArray(slot)) {
+            if (slot.length !== 1) return slot;
+            return this.optional(this.arrayOf(this.slotElementValidator(slot[0])));
+        }
+        if (slot !== null && typeof slot === 'object') {
+            return this.optional(this.objectOf(slot as never) as Validator<unknown>);
+        }
+        return slot;
+    }
+
+    /**
+     * Turns an array slot's element definition into a validator, so the slot
+     * can be rebuilt through {@link arrayOf}.
+     *
+     * @param element - The element definition: an alias, a validator, or a nested schema.
+     */
+    private slotElementValidator(element: unknown): Validator<unknown> {
+        if (typeof element === 'function') return element as Validator<unknown>;
+        if (typeof element === 'string') return (value: unknown) => this.isType(element, value);
+        return this.objectOf(element as never) as Validator<unknown>;
     }
 
     /**
@@ -2839,4 +2977,4 @@ export { TyperError } from "./Errors/TyperError";
 export { STANDARD_VENDOR } from "./Types/StandardSchema";
 
 export type { StandardSchemaV1 } from "./Types/StandardSchema";
-export type { BoundValidators, Infer, IssueCode, KnownAlias, ParseResult, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperExpectTypes, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from "./Types/Typer";
+export type { BoundValidators, Infer, IssueBounds, IssueCode, KnownAlias, MergeSchema, OmitSchema, OptionalSlot, ParseResult, PartialSchema, PickSchema, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperExpectTypes, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from "./Types/Typer";

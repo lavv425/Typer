@@ -354,6 +354,47 @@ export type Infer<S, R extends TypeRegistry = {}> = Prettify<
     & { [K in OptionalKeys<S>]?: ResolveSchemaValue<S[K], R> }
 >;
 
+// ---------------------------------------------------------------------------
+//  Schema composition
+//
+//  Schemas are plain object literals, so deriving one from another is object
+//  manipulation plus the matching mapped type. These are the mapped types.
+// ---------------------------------------------------------------------------
+
+/** The schema `pick` produces: `S` narrowed to the listed keys. */
+export type PickSchema<S, K extends keyof S> = Prettify<Pick<S, K>>;
+
+/** The schema `omit` produces: `S` without the listed keys. */
+export type OmitSchema<S, K extends keyof S> = Prettify<Omit<S, K>>;
+
+/** The schema `merge` produces. Keys of `B` win where the two overlap. */
+export type MergeSchema<A, B> = Prettify<Omit<A, keyof B> & B>;
+
+/**
+ * One schema slot, made optional.
+ *
+ * A type-string slot gains the `?` marker it already understands. Every other
+ * slot kind — a validator, an array, a nested schema — has no marker of its
+ * own in the schema language, so it becomes a validator that also accepts
+ * `undefined`, which `Infer` reads as an optional key just the same.
+ *
+ * @template V - The slot to make optional
+ */
+export type OptionalSlot<V> =
+    V extends string
+    ? (V extends `${string}?` ? V : `${V}?`)
+    : V extends Validator<infer T>
+    ? Validator<T | undefined>
+    : Validator<ResolveSchemaValue<V> | undefined>;
+
+/**
+ * The schema `partial` produces: every slot optional, or only the listed ones.
+ *
+ * @template S - The schema to derive from
+ * @template K - The keys to make optional; all of them by default
+ */
+export type PartialSchema<S, K extends keyof S = keyof S> = Prettify<{[P in keyof S]: P extends K ? OptionalSlot<S[P]> : S[P]}>;
+
 /**
  * Element types allowed inside an array-schema slot, e.g. `tags: ['string']`
  * or `users: [userSchema]` or `ids: [validator]`.
