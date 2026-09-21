@@ -31,6 +31,24 @@ Work from the 4.0.0 adoption roadmap, in the order that audit recommended.
   footprint at `tslib` alone. `STANDARD_VENDOR` (`'typer'`) is exported for
   consumers that attribute issues by vendor.
 
+- **Bundle-size budget check.** `npm run size` gzips each built artifact and
+  fails when it grows past its budget. A small bundle is one of the three
+  things the library actually wins on, so a regression in it now fails the
+  build like any other. It also runs as part of `prepublishOnly`.
+
+### 🔧 Changed
+
+- **Package metadata.** `"sideEffects": false` lets bundlers drop unused code
+  with confidence, which was previously impossible to prove and cost exactly
+  the selling point the bundle size is meant to make. `engines.node` declares
+  the supported floor (`>=20.0.0`), matching what is tested.
+
+- **`src/` is now published.** The source maps in `dist/` point at
+  `../src/Typer.ts`, which was not in the tarball — so go-to-definition and
+  step-debugging broke for every consumer. Publishing the sources fixes both
+  and costs nothing at runtime: the maps and sources are never loaded by the
+  bundle, and the gzipped bundle size is unchanged.
+
 ## [4.0.0] - 2026-09-18
 
 Three themes: validation failures became structured data, schemas became
