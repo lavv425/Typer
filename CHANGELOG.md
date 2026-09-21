@@ -5,6 +5,288 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Work from the 4.0.0 adoption roadmap, in the order that audit recommended.
+
+### ✨ Added
+
+- **Standard Schema support.** `typer.standard(schemaOrValidatorOrAlias)` returns
+  a validator carrying the `~standard` property described by the
+  [Standard Schema](https://standardschema.dev) specification, which is what
+  tRPC, Hono, TanStack Form and Router, Nuxt and dozens of other frameworks look
+  for when they accept a validation library without a dedicated adapter.
+  `objectOf()` now carries the same property.
+
+  The wrapper is needed because a Typer schema is an inert object literal owned
+  by the caller — Typer does not mutate it to attach anything. The result is
+  still a plain `Validator`, so it composes exactly as before.
+
+  Issue paths are converted to the spec's segment form (`'items[0].qty'` becomes
+  `['items', 0, 'qty']`); `code`, `expected` and `received` ride along as extra
+  properties, so nothing machine-readable is lost on the way out.
+
+  The specification interface is vendored as `StandardSchemaV1` rather than
+  taken as a dependency on `@standard-schema/spec`, keeping the install
+  footprint at `tslib` alone. `STANDARD_VENDOR` (`'typer'`) is exported for
+  consumers that attribute issues by vendor.
+
+- **`toJSONSchema()`.** Without it there was no way to generate OpenAPI or
+  Swagger documentation from a schema, which is the main reason people reach
+  for TypeBox.
+
+  ```typescript
+  typer.toJSONSchema({ id: 'number', email: typer.validators.isEmail, note: 'string?' });
+  // { $schema: '…/2020-12/schema', type: 'object',
+  //   properties: { id: { type: 'number' },
+  //                 email: { type: 'string', format: 'email' },
+  //                 note: { type: ['string', 'null'] } },
+  //   required: ['id', 'email'] }
+  ```
+
+  Type strings, `?` markers, `|` unions, arrays and nested objects convert
+  exactly. Validators cannot be introspected, so Typer's own validators and
+  combinators carry the fragment they correspond to — `isEmail` becomes
+  `format: 'email'`, `arrayOf(…, { min: 1 })` becomes `minItems: 1`, `literal`
+  becomes `enum`, `tuple` becomes `prefixItems`, `record` becomes
+  `additionalProperties`, `withDefault` contributes `default`, and
+  `discriminatedUnion` becomes a discriminating `oneOf`.
+
+  A validator the caller wrote becomes `{}`, as do the aliases JSON cannot
+  carry and anything registered with `extend`. `{ unrepresentable: 'throw' }`
+  turns those into an error naming every path, so a build step can refuse
+  rather than publish a schema that quietly accepts anything.
+
+  Those fragments are built on first read, not at construction: setup cost is
+  the benchmark Typer clearly wins, and most callers never ask for a JSON
+  Schema. Building them eagerly cost `objectOf` 42% of its setup time; lazily
+  it is 15% (1.21 µs to 1.39 µs, measured interleaved), which leaves the
+  margin over Zod's 5.74 µs and TypeBox's 3.43 µs intact. `schema()` and
+  `parse()` on a schema literal are untouched.
+
+- **`discriminatedUnion(key, variants)`.** `union` tries each variant in turn,
+  so its cost grows with the number of variants and its error lists every
+  variant's failure — for the `{ type: 'a' | 'b' }` payloads that dominate real
+  APIs, that is both the wrong cost and the wrong error.
+
+  ```typescript
+  const event = typer.discriminatedUnion('type', {
+      created: { id: 'string', at: 'date' },
+      renamed: { id: 'string', name: 'string' },
+  });
+
+  typer.safeParse(event, { type: 'renamed', id: 'x', name: 42 }).issues;
+  // [{ code: 'invalid_type', path: 'name', expected: 'string' }]
+  // rather than the failure of every variant
+  ```
+
+  The discriminant is read once and selects the one variant that can match, in
+  constant time however many there are. Variants are keyed by discriminant
+  value, so the mapping is exact by construction — there is no literal to
+  extract from a schema and no way to declare the same tag twice. Each member
+  carries its tag as a literal type, so the result narrows on the discriminant.
+
+  The discriminant key is treated as declared even when a variant does not
+  mention it, so `strict` mode does not flag the very key the union selects by.
+
+- **Coercion: `typer.coerce.number`, `.boolean`, `.date`.** Query strings, form
+  data and environment variables arrive as strings, so every handler was
+  rewriting the conversion by hand ahead of validation — precisely where the
+  mistakes get through.
+
+  ```typescript
+  const query = typer.parse({
+      page:     typer.coerce.number,
+      archived: typer.coerce.boolean,
+      since:    typer.coerce.date,
+  }, req.query);
+  ```
+
+  The two classic traps are handled rather than inherited: `Number('')` is `0`
+  and `Boolean('false')` is `true`. These reject `''`, `'   '`, `null`,
+  `undefined`, `NaN`, arrays and objects instead of producing a number, and read
+  `'false'`/`'0'`/`'no'`/`'off'` as `false` and `'true'`/`'1'`/`'yes'`/`'on'` as
+  `true`, rejecting anything else rather than guessing. A bigint outside the
+  safe integer range is refused rather than silently losing digits, and
+  `coerce.date` rejects the `Invalid Date` the `Date` constructor would hand
+  back.
+
+- **Schema composition: `pick`, `omit`, `partial`, `merge`.** Deriving
+  `CreateUserDto` from `UserDto` needed a second copy of the shape written by
+  hand, and the two diverged at the first change.
+
+  ```typescript
+  const publicUser  = typer.pick(userSchema, ['id', 'name']);
+  const createUser  = typer.omit(userSchema, ['id']);
+  const patchUser   = typer.partial(typer.omit(userSchema, ['id', 'password']));
+  const timestamped = typer.merge(userSchema, { createdAt: 'date' });
+  ```
+
+  All four return a new schema and leave their sources untouched, and the
+  results parse, infer and compose like any other schema. `merge` lets the
+  second schema win on overlapping keys.
+
+  `partial` gives a type-string slot the `?` marker it already understands.
+  Validator, array and nested-schema slots have no marker of their own in the
+  schema language, so they are rebuilt as `optional(...)` validators — which
+  means a *made-optional* nested slot reports its failures as one `custom`
+  issue at the slot's path rather than one per field. Passing an explicit key
+  list avoids that where it matters.
+
+- **Constraint failures carry a machine-readable code.** Three new
+  `IssueCode`s — `too_small`, `too_big`, `invalid_format` — plus `minimum` and
+  `maximum` on the issue itself.
+
+  Every constraint used to report `code: 'custom'`, so "too short" and "out of
+  range" were indistinguishable unless you read the message — the exact thing
+  the structured errors exist to avoid, and a promise the README was making
+  only for type errors:
+
+  ```typescript
+  typer.safeParse({
+      name: (v) => typer.isLength({ min: 3, max: 50 }, v),
+      pin:  (v) => typer.isInRange(1000, 9999, v),
+  }, { name: 'ab', pin: 42 }).issues;
+  // before: both code: 'custom'
+  // after:  { code: 'too_small', minimum: 3 }
+  //         { code: 'too_small', minimum: 1000, maximum: 9999 }
+  ```
+
+  Covers the bounds validators (`isInRange`, `isLength`, `isPort`, the
+  positive/negative and empty/non-empty family, `arrayOf` bounds, `tuple`
+  length) and the format validators (`isEmail`, `isURL`, `isUUID`, `isIP*`,
+  `isSemver`, `isSlug`, `isJWT`, `isMACAddress`, `isHexColor`, `isISODate`,
+  `isBase64`, `isPhoneNumber`, `isInteger`, `isFiniteNumber`, `isSafeInteger`,
+  `matches`).
+
+  Messages are unchanged, including the `Validation failed at "path": …`
+  wrapping inside a schema. Constraint validators now throw a `TyperError`
+  rather than a bare `TypeError` — it still extends `TypeError`, so existing
+  `catch` blocks and `instanceof` checks are unaffected. A validator that
+  throws without reporting a reason still produces `custom`.
+
+- **Bundle-size budget check.** `npm run size` gzips each built artifact and
+  fails when it grows past its budget. A small bundle is one of the three
+  things the library actually wins on, so a regression in it now fails the
+  build like any other. It also runs as part of `prepublishOnly`.
+
+### ⚡ Performance
+
+- **`safeParse` no longer pays for a thrown error when the validator can report
+  without one.** `objectOf(schema)` wraps the same compiled checker `safeParse`
+  uses directly, but the failure travelled out of it as a `TyperError` —
+  constructing the error and capturing its stack — only to be caught one frame
+  later and converted back into a `ParseResult`.
+
+  Measured on the same failing payload: `safeParse(objectOf(schema), bad)` went
+  from **3.51 µs to 0.46 µs**, which is parity with `safeParse(schema, bad)`
+  (0.46 µs). It was 6× slower before.
+
+  This mattered beyond the number: `strict` mode is only reachable through
+  `objectOf`, so the safest way to validate was also the slowest one. `parse()`
+  and calling the validator directly still throw — that is what they are for.
+
+### 🔒 Security
+
+- **Undeclared `__proto__`, `constructor` and `prototype` are stripped from
+  validated objects.** Typer validates in place and returns the same reference,
+  so a `JSON.parse` payload carrying those keys used to pass `success: true`
+  with them intact — harmless in the returned object itself, dangerous at the
+  first spread, `Object.assign` or ORM update downstream.
+
+  They are removed unless the schema declares them as fields of its own, in
+  which case they are ordinary keys and are validated normally. A valid payload
+  stays valid, and `strict` mode is unchanged for every other extra key.
+
+  When the object is frozen and the key cannot be removed, validation now fails
+  with the new `dangerous_key` issue code instead of returning an object it
+  could not make safe.
+
+  The hot path is unaffected (measured at 66 ns before and after, on a flat
+  four-field object): a three-read probe gates the exact `hasOwnProperty` check,
+  so a plain unpolluted object pays ~2.5 ns rather than ~15 ns.
+
+- **`record()` drops dangerous keys instead of copying them.** It builds a new
+  object, and `out['__proto__'] = value` sets the result's prototype rather
+  than a field — a distinct hole from the one above, in the opposite direction.
+
+### 🐛 Fixed
+
+- **A transforming validator in a schema slot now takes effect.** The compiled
+  checker called the validator and discarded its return value, so `transform`,
+  `withDefault` and `nullable` were inert inside a schema — including in the
+  README's own example, where `withDefault` never wrote its default and
+  `transform` never trimmed anything.
+
+  ```typescript
+  const payload = { slug: '  Hello  ' };
+  typer.parse({ slug: typer.transform((v) => typer.asString(v), (s) => s.trim()) }, payload);
+  payload.slug; // '  Hello  ' before, 'Hello' now
+  ```
+
+  A slot is written back **only when the validator returned something other
+  than what it was given**, so every `is*`/`as*` validator and `objectOf` — all
+  of which hand back their input — leave the object untouched, down to property
+  identity. Array element slots follow the same rule.
+
+  A validator declared as returning another type (`isISODate`, say) now
+  actually replaces the value, which is what `Infer` has always claimed the
+  slot holds.
+
+- **`isNegativeInteger` reported the wrong message.** A copy-paste: it said
+  `must be a positive integer`. It now says `must be a negative integer`.
+
+### 🔧 Changed
+
+- **`isInRange` no longer puts the failing value in its message.** A numeric
+  range is exactly what guards PINs, one-time codes and amounts, and the
+  message is what ends up in application logs — where the value was landing
+  twice over:
+
+  ```
+  before: '42 must be between 1000 and 9999, is 42'
+  after:  'value must be between 1000 and 9999'
+  ```
+
+  The value moves to the issue's new `value` field, so nothing is lost for
+  callers that want to show it. That field is deliberately left out of the
+  Standard Schema output, which is the boundary where an issue is handed to a
+  framework that may log or serialize it whole. `isLength` already reported
+  only the length and is unchanged.
+
+- **The schema-identity cache is documented where it bites.** Compiled checkers
+  are cached by schema *object* identity, so a literal written inside a handler
+  is a new object on every call and is recompiled every time — 78 ns hoisted
+  against 873 ns inline, and silent, because the code looks ordinary. Now
+  called out on `parse`, on `schema`, and in a dedicated README section. (It is
+  a cost, not a leak: the cache is a `WeakMap`.)
+
+- **The bundle grew from 6.7 KB to 9.7 KB gzip**, and the size budget is
+  raised to match. That is the price of this release's features, and none of
+  it can be tree-shaken away by a consumer who uses none of them, because the
+  whole API hangs off a class instance. It is the concrete argument for the
+  5.0 modularization rather than a reason to keep loosening the budget. The
+  README's size claims are updated accordingly.
+
+- **The README no longer leads with "High Performance".** On the hot path Typer
+  is slower than Zod and about nine times slower than a compiled TypeBox, so
+  claiming speed as the headline invited exactly the comparison it loses — and
+  buried the three things it does win: instant setup (1.13 µs against 5.74 and
+  3.43), a small bundle (7.0 KB gzip), and schemas that read like the shape
+  they describe. The full comparison, wins and losses, is now a table in the
+  Performance section.
+
+- **Package metadata.** `"sideEffects": false` lets bundlers drop unused code
+  with confidence, which was previously impossible to prove and cost exactly
+  the selling point the bundle size is meant to make. `engines.node` declares
+  the supported floor (`>=20.0.0`), matching what is tested.
+
+- **`src/` is now published.** The source maps in `dist/` point at
+  `../src/Typer.ts`, which was not in the tarball — so go-to-definition and
+  step-debugging broke for every consumer. Publishing the sources fixes both
+  and costs nothing at runtime: the maps and sources are never loaded by the
+  bundle, and the gzipped bundle size is unchanged.
+
 ## [4.0.0] - 2026-09-18
 
 Three themes: validation failures became structured data, schemas became

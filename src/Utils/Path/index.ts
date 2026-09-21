@@ -26,3 +26,61 @@ export const joinPath = (parentPath: string, key: string): string => (parentPath
  * @returns `"user.tags[2]"` style path.
  */
 export const indexPath = (arrayPath: string, index: number): string => `${arrayPath}[${index}]`;
+
+/**
+ * Inverse of {@link joinPath}/{@link indexPath}: turns a dotted path back into
+ * its segments, with array indices as numbers.
+ *
+ * Standard Schema reports `issue.path` as a segment array, while Typer builds
+ * and stores it as a string — this is the adapter between the two.
+ *
+ * Object keys containing `.` or `[` are indistinguishable from separators once
+ * joined, so they split here too. Typer never produces such a path itself
+ * (schema keys with those characters would already be ambiguous in `errors[]`),
+ * and reconstructing them would require changing the stored representation.
+ *
+ * @param path - A path as produced by `joinPath`/`indexPath`, `""` for the root.
+ * @returns The segments, e.g. `"items[0].qty"` -> `['items', 0, 'qty']`.
+ */
+export const splitPath = (path: string): Array<string | number> => {
+    if (path === '') return [];
+
+    const segments: Array<string | number> = [];
+    let current = '';
+
+    for (let i = 0; i < path.length; i++) {
+        const char = path[i];
+
+        if (char === '.') {
+            if (current !== '') {
+                segments.push(current);
+                current = '';
+            }
+            continue;
+        }
+
+        if (char === '[') {
+            if (current !== '') {
+                segments.push(current);
+                current = '';
+            }
+            const end = path.indexOf(']', i);
+            // Unterminated bracket: keep the remainder verbatim rather than
+            // inventing a segment, so nothing is silently dropped.
+            if (end === -1) {
+                current = path.slice(i);
+                break;
+            }
+            const raw = path.slice(i + 1, end);
+            const index = Number(raw);
+            segments.push(raw !== '' && Number.isInteger(index) ? index : raw);
+            i = end;
+            continue;
+        }
+
+        current += char;
+    }
+
+    if (current !== '') segments.push(current);
+    return segments;
+};

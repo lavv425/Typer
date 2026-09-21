@@ -8,5 +8,7 @@ export default new Typer();
 
 // Re-exported so `src/index.ts` and the rolled-up bundle (which is built from
 // `src/Typer.ts`) expose the same named surface.
-export { Typer, TyperError } from './Typer';
-export type { BoundValidators, Infer, IssueCode, KnownAlias, ParseResult, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperExpectTypes, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from './Typer';
+export { Typer, TyperError, STANDARD_VENDOR } from './Typer';
+export type { StandardSchemaV1 } from './Typer';
+export type { JSONSchemaDocument, JSONSchemaFragment, ToJSONSchemaOptions, UnrepresentablePolicy } from './Typer';
+export type { BoundValidators, Coercions, DiscriminatedUnion, Infer, IssueMeta, IssueCode, KnownAlias, MergeSchema, OmitSchema, OptionalSlot, ParseResult, PartialSchema, PickSchema, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperExpectTypes, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from './Typer';

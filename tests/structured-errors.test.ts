@@ -65,13 +65,23 @@ describe('Typer - structured validation errors', () => {
             expect(result.issues[0]).toMatchObject({ code: 'unknown_type', path: 'id', expected: 'nubmer' });
         });
 
-        it('marks a throwing validator entry with the custom code', () => {
+        it('carries the constraint code through a validator entry', () => {
             const result = typer.safeParse({ id: typer.validators.isPositiveInteger }, { id: -1 });
+
+            if (result.success) throw new Error('expected failure');
+            expect(result.issues[0].code).toBe('too_small');
+            expect(result.issues[0].minimum).toBe(0);
+            expect(result.issues[0].path).toBe('id');
+            expect(result.issues[0].message).toContain('must be a positive integer');
+        });
+
+        it('falls back to the custom code for a validator that reports nothing', () => {
+            const result = typer.safeParse({ id: () => { throw new Error('nope'); } }, { id: -1 });
 
             if (result.success) throw new Error('expected failure');
             expect(result.issues[0].code).toBe('custom');
             expect(result.issues[0].path).toBe('id');
-            expect(result.issues[0].message).toContain('must be a positive integer');
+            expect(result.issues[0].message).toContain('nope');
         });
 
         it('accepts a valid value for the same validator entry', () => {

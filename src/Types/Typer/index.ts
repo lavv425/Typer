@@ -1,3 +1,5 @@
+import type { StandardSchemaV1 } from "../StandardSchema";
+
 /**
  * Defines the expected input and output types for a function.
  */
@@ -50,8 +52,31 @@ export type IssueCode =
     | 'invalid_schema'
     /** Strict mode only: the object carried a key the schema does not declare. */
     | 'unexpected_key'
+    /**
+     * The value was below a lower bound — too short, too few elements, or
+     * numerically too small. `minimum` carries the bound that was violated.
+     */
+    | 'too_small'
+    /**
+     * The value was above an upper bound — too long, too many elements, or
+     * numerically too large. `maximum` carries the bound that was violated.
+     */
+    | 'too_big'
+    /**
+     * The value had the right type but the wrong shape: not an email, not a
+     * UUID, not an integer, no match for the given pattern. `expected` names
+     * the format.
+     */
+    | 'invalid_format'
     /** A `Validator` function supplied in the schema threw. */
-    | 'custom';
+    | 'custom'
+    /**
+     * An undeclared `__proto__`, `constructor` or `prototype` own key was
+     * present and could not be removed, because the object is frozen or the
+     * property is non-configurable. On a normal object the key is stripped
+     * silently and no issue is reported.
+     */
+    | 'dangerous_key';
 
 /**
  * A single, structured validation failure.
@@ -73,6 +98,42 @@ export type ValidationIssue = {
     expected?: string;
     /** What was actually found, when meaningful (e.g. `"string"`). */
     received?: string;
+    /**
+     * The lower bound that was violated, on a `too_small` issue — the minimum
+     * length, element count or numeric value the constraint allows.
+     */
+    minimum?: number;
+    /**
+     * The upper bound that was violated, on a `too_big` issue — the maximum
+     * length, element count or numeric value the constraint allows.
+     */
+    maximum?: number;
+    /**
+     * The offending value itself, when the constraint is about the value
+     * rather than a property of it.
+     *
+     * **Treat as sensitive.** A numeric bound is exactly what guards PINs,
+     * one-time codes and amounts, so the value is deliberately kept out of
+     * `message` and out of the Standard Schema output — the two places an
+     * issue is most likely to be logged or forwarded wholesale. Read it
+     * explicitly when you want to show it.
+     */
+    value?: unknown;
+};
+
+/**
+ * The extra detail a constraint issue can carry.
+ *
+ * Kept as a separate object so {@link ValidationIssue}'s optional fields stay
+ * out of the positional argument list of every other issue.
+ */
+export type IssueMeta = {
+    /** The minimum the constraint allows, on a `too_small` issue. */
+    minimum?: number;
+    /** The maximum the constraint allows, on a `too_big` issue. */
+    maximum?: number;
+    /** The offending value. Sensitive — see {@link ValidationIssue.value}. */
+    value?: unknown;
 };
 
 /**
@@ -170,6 +231,33 @@ export type ParseResult<T> =
  */
 export type Validator<T> = (value: unknown) => T;
 
+/**
+ * The coercing validators exposed by `Typer#coerce`.
+ *
+ * Each is an ordinary `Validator`, so it slots into a schema, nests in a
+ * combinator, and is passed around like any other.
+ */
+export type Coercions = {
+    /** Converts to a number, rejecting `''`, `null`, arrays and unparseable strings. */
+    number: Validator<number>;
+    /** Converts to a boolean by reading the value: `'false'` and `'0'` are `false`. */
+    boolean: Validator<boolean>;
+    /** Converts to a valid `Date` from a `Date`, epoch milliseconds, or a date string. */
+    date: Validator<Date>;
+};
+
+/**
+ * A `Validator` that is also a Standard Schema.
+ *
+ * It stays callable exactly like any other validator — so it can still be
+ * nested in `arrayOf`, `record`, a schema slot, or called directly — while the
+ * `~standard` property makes it accepted by tRPC, Hono, TanStack Form/Router,
+ * Nuxt and every other consumer of the contract, with no adapter.
+ *
+ * @template T - The validated type on success
+ */
+export type StandardValidator<T> = Validator<T> & StandardSchemaV1<unknown, T>;
+
 // ---------------------------------------------------------------------------
 //  Schema compiler internals
 // ---------------------------------------------------------------------------
@@ -186,8 +274,11 @@ export type FieldChecker = (obj: Record<string, unknown>, issues: ValidationIssu
 /**
  * A compiled check for a value in an anonymous position — currently an array
  * element, which has an owning array path plus an index but no key of its own.
+ *
+ * The array and index are passed rather than the value, so a transforming
+ * validator can write its result back the way a field slot does.
  */
-export type ValueChecker = (value: unknown, issues: ValidationIssue[], arrayPath: string, index: number) => void;
+export type ValueChecker = (array: unknown[], index: number, issues: ValidationIssue[], arrayPath: string) => void;
 
 /**
  * Everything the hot path needs from a type-string slot (`"string"`,
@@ -293,6 +384,59 @@ export type Infer<S, R extends TypeRegistry = {}> = Prettify<
     & { [K in RequiredKeys<S>]: ResolveSchemaValue<S[K], R> }
     & { [K in OptionalKeys<S>]?: ResolveSchemaValue<S[K], R> }
 >;
+
+// ---------------------------------------------------------------------------
+//  Schema composition
+//
+//  Schemas are plain object literals, so deriving one from another is object
+//  manipulation plus the matching mapped type. These are the mapped types.
+// ---------------------------------------------------------------------------
+
+/** The schema `pick` produces: `S` narrowed to the listed keys. */
+export type PickSchema<S, K extends keyof S> = Prettify<Pick<S, K>>;
+
+/** The schema `omit` produces: `S` without the listed keys. */
+export type OmitSchema<S, K extends keyof S> = Prettify<Omit<S, K>>;
+
+/** The schema `merge` produces. Keys of `B` win where the two overlap. */
+export type MergeSchema<A, B> = Prettify<Omit<A, keyof B> & B>;
+
+/**
+ * One schema slot, made optional.
+ *
+ * A type-string slot gains the `?` marker it already understands. Every other
+ * slot kind — a validator, an array, a nested schema — has no marker of its
+ * own in the schema language, so it becomes a validator that also accepts
+ * `undefined`, which `Infer` reads as an optional key just the same.
+ *
+ * @template V - The slot to make optional
+ */
+export type OptionalSlot<V> =
+    V extends string
+    ? (V extends `${string}?` ? V : `${V}?`)
+    : V extends Validator<infer T>
+    ? Validator<T | undefined>
+    : Validator<ResolveSchemaValue<V> | undefined>;
+
+/**
+ * The schema `partial` produces: every slot optional, or only the listed ones.
+ *
+ * @template S - The schema to derive from
+ * @template K - The keys to make optional; all of them by default
+ */
+export type PartialSchema<S, K extends keyof S = keyof S> = Prettify<{[P in keyof S]: P extends K ? OptionalSlot<S[P]> : S[P]}>;
+
+/**
+ * The type produced by `discriminatedUnion`: one member per variant, each
+ * carrying its own discriminant as a literal.
+ *
+ * @template Key - The discriminant key
+ * @template V - The variants, keyed by discriminant value
+ * @template R - Custom aliases registered on the instance, if any
+ */
+export type DiscriminatedUnion<Key extends string, V, R extends TypeRegistry = {}> = {
+    [K in keyof V & string]: Prettify<{ [P in Key]: K } & Infer<V[K], R>>
+}[keyof V & string];
 
 /**
  * Element types allowed inside an array-schema slot, e.g. `tags: ['string']`

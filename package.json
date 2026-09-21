@@ -14,8 +14,13 @@
             "require": "./dist/Typer.cjs.min.js"
         }
     },
+    "sideEffects": false,
+    "engines": {
+        "node": ">=20.0.0"
+    },
     "files": [
-        "dist"
+        "dist",
+        "src"
     ],
     "scripts": {
         "test": "jest && npm run test:types",
@@ -23,10 +28,11 @@
         "test:coverage": "jest --coverage",
         "test:types": "tsc -p tsconfig.typetest.json",
         "bench": "tsc -p tsconfig.bench.json && node .bench/benchmarks/bench.js",
+        "size": "node scripts/check-bundle-size.mjs",
         "build": "rollup -c",
         "docs": "npx typedoc",
         "build:docs": "rollup -c && npx typedoc",
-        "prepublishOnly": "npm test && npm run build"
+        "prepublishOnly": "npm test && npm run build && npm run size"
     },
     "repository": {
         "type": "git",
@@ -52,6 +58,7 @@
         "@rollup/plugin-terser": "^1.0.0",
         "@rollup/plugin-typescript": "^12.3.0",
         "@types/jest": "^30.0.0",
+        "@types/mocha": "^10.0.10",
         "jest": "^30.5.1",
         "rollup": "^4.63.3",
         "ts-jest": "^29.4.12",
@@ -60,5 +67,10 @@
     },
     "dependencies": {
         "tslib": "^2.8.1"
+    },
+    "allowScripts": {
+        "@parcel/watcher@2.6.0": true,
+        "fsevents@2.3.3": true,
+        "unrs-resolver@1.12.2": true
     }
 }

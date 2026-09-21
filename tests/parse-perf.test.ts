@@ -1,4 +1,5 @@
 import { Typer } from '../src/Typer';
+import { compare } from './helpers/measure';
 
 /**
  * Smoke test for the closure-based compiler. The compiled `parse()` path is
@@ -38,28 +39,17 @@ describe('Typer - parse() compiled path performance', () => {
             address: { street: '1 Way', city: 'Rome', zip: '00100' },
         };
 
-        const N = 5_000;
-
-        // Warm-up — JIT both paths, populate the schema cache for parse().
-        for (let i = 0; i < 200; i++) {
-            typer.parse(schema, payload);
-            typer.checkStructure(schema as Record<string, unknown>, payload);
-        }
-
-        const t1 = performance.now();
-        for (let i = 0; i < N; i++) typer.parse(schema, payload);
-        const compiled = performance.now() - t1;
-
-        const t2 = performance.now();
-        for (let i = 0; i < N; i++) typer.checkStructure(schema as Record<string, unknown>, payload);
-        const raw = performance.now() - t2;
+        const { compiled, raw } = compare([
+            { label: 'compiled', run: () => { typer.parse(schema, payload); } },
+            { label: 'raw', run: () => { typer.checkStructure(schema as Record<string, unknown>, payload); } },
+        ]);
 
         // Loose threshold to keep CI happy across machines/load.
         expect(compiled).toBeLessThanOrEqual(raw * 1.2);
 
         // Diagnostic — visible only when --verbose / on failure.
         // eslint-disable-next-line no-console
-        console.log(`[perf] parse(compiled): ${compiled.toFixed(2)}ms — checkStructure: ${raw.toFixed(2)}ms — speedup: ${(raw / compiled).toFixed(2)}×`);
+        console.log(`[perf] parse(compiled): ${compiled.toFixed(0)}ns — checkStructure: ${raw.toFixed(0)}ns — speedup: ${(raw / compiled).toFixed(2)}×`);
     });
 
     it('reusing the same schema literal hits the compile cache', () => {

@@ -168,6 +168,128 @@ type _UserList = Expect<Equal<ReturnType<typeof userList>, { id: number }[]>>;
 typer.objectOf({ id: 'nubmer' });
 
 // ---------------------------------------------------------------------------
+//  Schema composition: pick / omit / partial / merge
+// ---------------------------------------------------------------------------
+
+const accountSchema = typer.schema({
+    id: 'number',
+    name: 'string',
+    email: 'string?',
+    verified: typer.validators.isBoolean,
+});
+
+const picked = typer.pick(accountSchema, ['id', 'name']);
+type _Picked = Expect<Equal<Infer<typeof picked>, { id: number; name: string }>>;
+
+const omitted = typer.omit(accountSchema, ['id', 'verified']);
+type _Omitted = Expect<Equal<Infer<typeof omitted>, { name: string; email?: string | null }>>;
+
+const merged = typer.merge(picked, { createdAt: 'date' } as const);
+type _Merged = Expect<Equal<Infer<typeof merged>, { id: number; name: string; createdAt: Date }>>;
+
+// The extension wins on an overlapping key, in the type as at runtime.
+const overridden = typer.merge(picked, { id: 'string' } as const);
+type _Overridden = Expect<Equal<Infer<typeof overridden>, { name: string; id: string }>>;
+
+// A type-string slot gains the `?` marker, so it becomes `T | null` and optional.
+const partialled = typer.partial(typer.pick(accountSchema, ['id', 'name']));
+type _Partialled = Expect<Equal<Infer<typeof partialled>, { id?: number | null; name?: string | null }>>;
+
+// Already-optional slots are left alone rather than gaining a second marker.
+const doublePartial = typer.partial(typer.partial(typer.pick(accountSchema, ['id'])));
+type _DoublePartial = Expect<Equal<Infer<typeof doublePartial>, { id?: number | null }>>;
+
+// Only the listed keys are touched.
+const partiallyPartial = typer.partial(typer.pick(accountSchema, ['id', 'name']), ['name']);
+type _PartiallyPartial = Expect<Equal<Infer<typeof partiallyPartial>, { id: number; name?: string | null }>>;
+
+// Slots with no marker of their own become validators accepting `undefined`,
+// which `Infer` reads as an optional key just the same.
+const partialNested = typer.partial({ address: { city: 'string' } } as const);
+type _PartialNested = Expect<Equal<Infer<typeof partialNested>, { address?: { city: string } | undefined }>>;
+
+const partialArray = typer.partial({ tags: ['string'] } as const);
+type _PartialArray = Expect<Equal<Infer<typeof partialArray>, { tags?: string[] | undefined }>>;
+
+const partialValidator = typer.partial(typer.pick(accountSchema, ['verified']));
+type _PartialValidator = Expect<Equal<Infer<typeof partialValidator>, { verified?: boolean | undefined }>>;
+
+// Derived schemas are ordinary schemas: they parse, and they infer.
+const createAccount = typer.merge(typer.omit(accountSchema, ['id']), { password: 'string' } as const);
+declare const accountPayload: unknown;
+const createdAccount = typer.parse(createAccount, accountPayload);
+type _CreatedAccount = Expect<Equal<typeof createdAccount, {
+    name: string;
+    verified: boolean;
+    password: string;
+    email?: string | null;
+}>>;
+
+// @ts-expect-error - 'nope' is not a key of the source schema
+typer.pick(accountSchema, ['nope']);
+
+// @ts-expect-error - same for omit
+typer.omit(accountSchema, ['nope']);
+
+// @ts-expect-error - and for the targeted form of partial
+typer.partial(accountSchema, ['nope']);
+
+// ---------------------------------------------------------------------------
+//  Discriminated unions and coercion
+// ---------------------------------------------------------------------------
+
+const shapeUnion = typer.discriminatedUnion('kind', {
+    circle: { radius: 'number' },
+    square: { side: 'number' },
+});
+type _ShapeUnion = Expect<Equal<
+    ReturnType<typeof shapeUnion>,
+    { kind: 'circle'; radius: number } | { kind: 'square'; side: number }
+>>;
+
+// Each member carries its own tag as a literal, so it narrows on `kind`.
+declare const someShape: ReturnType<typeof shapeUnion>;
+const narrowed = someShape.kind === 'circle' ? someShape.radius : someShape.side;
+type _Narrowed = Expect<Equal<typeof narrowed, number>>;
+
+// A variant that declares the discriminant itself keeps the literal type.
+const taggedUnion = typer.discriminatedUnion('kind', { circle: { kind: 'string', radius: 'number' } });
+type _TaggedUnion = Expect<Equal<ReturnType<typeof taggedUnion>, { kind: 'circle'; radius: number }>>;
+
+const coercedQuery = typer.schema({
+    page: typer.coerce.number,
+    archived: typer.coerce.boolean,
+    since: typer.coerce.date,
+});
+type _CoercedQuery = Expect<Equal<
+    Infer<typeof coercedQuery>,
+    { page: number; archived: boolean; since: Date }
+>>;
+
+// ---------------------------------------------------------------------------
+//  Standard Schema
+// ---------------------------------------------------------------------------
+
+// A standard schema stays a callable validator, and keeps its inferred output.
+const standardUser = typer.standard({ id: 'number', name: 'string', email: 'string?' });
+type _StandardUser = Expect<Equal<ReturnType<typeof standardUser>, User>>;
+type _StandardUserVersion = Expect<Equal<(typeof standardUser)['~standard']['version'], 1>>;
+
+// objectOf() carries the contract too, so it can be handed to a framework as-is.
+type _ObjectOfIsStandard = Expect<Equal<(typeof userObject)['~standard']['vendor'], string>>;
+
+// Aliases and validators are wrapped with their own type preserved.
+const standardAlias = typer.standard('number');
+type _StandardAlias = Expect<Equal<ReturnType<typeof standardAlias>, number>>;
+
+const standardValidator = typer.standard(typer.arrayOf((v) => typer.asString(v)));
+type _StandardValidator = Expect<Equal<ReturnType<typeof standardValidator>, string[]>>;
+
+// standard() is alias-checked exactly like schema().
+// @ts-expect-error - 'nubmer' is not a known alias
+typer.standard({ id: 'nubmer' });
+
+// ---------------------------------------------------------------------------
 //  Dynamically built schemas must still be accepted
 // ---------------------------------------------------------------------------
 

@@ -1,17 +1,111 @@
 "use strict";
 
 import type { Error } from "./Types/Globals";
-import type { BoundValidators, FieldChecker, Infer, KnownAlias, ParseResult, Schema, StructureValidationReturn, TypeKey, TypeMap, TyperExpectTypes, TyperReturn, TypeRegistry, TypeSlot, ValidateSchema, ValidationIssue, Validator, ValueChecker } from "./Types/Typer";
+import type { StandardSchemaV1 } from "./Types/StandardSchema";
+import type { BoundValidators, Coercions, DiscriminatedUnion, FieldChecker, Infer, KnownAlias, MergeSchema, OmitSchema, ParseResult, PartialSchema, PickSchema, Schema, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TyperExpectTypes, TyperReturn, TypeRegistry, TypeSlot, ValidateSchema, ValidationIssue, Validator, ValueChecker } from "./Types/Typer";
 import { TyperError } from "./Errors/TyperError";
-import { formatIssues, issueMessages, makeIssue } from "./Utils/Issues";
+import { constraintOf, formatIssues, issueError, issueMessages, makeIssue, toStandardIssues } from "./Utils/Issues";
 import * as Patterns from "./Constants/Patterns";
+import { STANDARD_VENDOR } from "./Types/StandardSchema";
+import { describing, describingLazy, JSON_SCHEMA, SAFE_RESULT } from "./Constants/Symbols";
+import type { SafeReporting, SelfDescribing } from "./Constants/Symbols";
+import type { JSONSchemaDocument, JSONSchemaFragment, ToJSONSchemaOptions } from "./Types/JSONSchema";
+import { OPTIONAL_MARKER, toJSONSchema } from "./Utils/JSONSchema";
+import { DANGEROUS_KEYS, stripDangerousKeys } from "./Utils/Sanitize";
 import { indexPath, joinPath } from "./Utils/Path";
 
 /**
+ * Own-property test that does not go through the object being tested, so a
+ * schema carrying a `hasOwnProperty` key of its own cannot shadow it.
+ */
+const hasOwnKey = (target: object, key: string): boolean => Object.prototype.hasOwnProperty.call(target, key);
+
+/**
+ * The JSON Schema fragment a validator carries, or the permissive `{}` when it
+ * carries none.
+ *
+ * A validator is an opaque function: unless Typer built it, there is nothing
+ * to read, and `{}` — "anything" — is the only honest answer. `toJSONSchema`
+ * reports those slots separately, so the gap is visible rather than silent.
+ */
+const describedFragment = (validator: unknown): JSONSchemaFragment => {
+    if (typeof validator !== 'function' && (validator === null || typeof validator !== 'object')) return {};
+    return (validator as SelfDescribing)[JSON_SCHEMA] ?? {};
+};
+
+/** Widens a fragment to also accept `null`. */
+const nullableFragment = (fragment: JSONSchemaFragment): JSONSchemaFragment => {
+    if (Object.keys(fragment).length === 0) return {};
+    if (typeof fragment.type === 'string') return { ...fragment, type: [fragment.type, 'null'] };
+    if (Array.isArray(fragment.type)) return { ...fragment, type: Array.from(new Set([...(fragment.type as string[]), 'null'])) };
+    return { anyOf: [fragment, { type: 'null' }] };
+};
+
+/**
+ * Strings `coerce.boolean` reads as `true`. Anything not listed here or in
+ * {@link FALSY_STRINGS} is rejected rather than guessed at.
+ */
+const TRUTHY_STRINGS = new Set(['true', '1', 'yes', 'on']);
+
+/** Strings `coerce.boolean` reads as `false`. */
+const FALSY_STRINGS = new Set(['false', '0', 'no', 'off']);
+
+/**
+ * JSON Schema equivalents of the built-in validators, keyed by method name.
+ *
+ * A validator is an opaque function, so `toJSONSchema` cannot work out that
+ * `isEmail` accepts email addresses. The bound validators carry these, which
+ * is the difference between emitting `{ type: 'string', format: 'email' }` and
+ * emitting `{}`.
+ *
+ * Only validators with an honest equivalent are listed. `isPhoneNumber` and
+ * `isSlug`, for instance, have no registered `format`, so they are described
+ * by the pattern-free `{ type: 'string' }` their values satisfy rather than by
+ * a made-up keyword.
+ */
+const VALIDATOR_JSON_SCHEMA: Readonly<Record<string, JSONSchemaFragment>> = {
+    isString: { type: 'string' },
+    asString: { type: 'string' },
+    isNonEmptyString: { type: 'string', minLength: 1 },
+    isNumber: { type: 'number' },
+    asNumber: { type: 'number' },
+    isFiniteNumber: { type: 'number' },
+    isInteger: { type: 'integer' },
+    isSafeInteger: { type: 'integer' },
+    isPositiveNumber: { type: 'number', minimum: 0 },
+    isPositiveInteger: { type: 'integer', minimum: 0 },
+    isNegativeNumber: { type: 'number', exclusiveMaximum: 0 },
+    isNegativeInteger: { type: 'integer', maximum: -1 },
+    isPort: { type: 'integer', minimum: 1, maximum: 65535 },
+    isBoolean: { type: 'boolean' },
+    asBoolean: { type: 'boolean' },
+    isArray: { type: 'array' },
+    asArray: { type: 'array' },
+    isNonEmptyArray: { type: 'array', minItems: 1 },
+    isObject: { type: 'object' },
+    asObject: { type: 'object' },
+    isPlainObject: { type: 'object' },
+    isEmail: { type: 'string', format: 'email' },
+    isURL: { type: 'string', format: 'uri' },
+    isUUID: { type: 'string', format: 'uuid' },
+    isIPv4: { type: 'string', format: 'ipv4' },
+    isIPv6: { type: 'string', format: 'ipv6' },
+    isISODate: { type: 'string', format: 'date-time' },
+    isHexColor: { type: 'string' },
+    isBase64: { type: 'string', contentEncoding: 'base64' },
+    isJWT: { type: 'string' },
+    isMACAddress: { type: 'string' },
+    isSemver: { type: 'string' },
+    isSlug: { type: 'string' },
+    isPhoneNumber: { type: 'string' },
+    isIP: { type: 'string' },
+};
+
+/**
  * Class representing a type checker.
- * Version: 3.2.3
+ * Version: 4.0.0
  * @author Michael Lavigna - <https://michaellavigna.com> - <michael.lavigna@hotmail.it>
- * @since 3.2.3
+ * @since 4.0.0
  */
 export class Typer<TRegistry extends TypeRegistry = {}> {
     /**
@@ -158,7 +252,13 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             // Read the implementation off `this`, so a subclass override wins.
             const method = self[name];
             if (typeof method === 'function') {
-                bound[name] = (method as (...args: unknown[]) => unknown).bind(this);
+                const validator = (method as (...args: unknown[]) => unknown).bind(this);
+                // Carrying the JSON Schema equivalent here is what lets
+                // `toJSONSchema` emit `{ type: 'string', format: 'email' }`
+                // for `{ email: typer.validators.isEmail }` instead of giving
+                // up on an opaque function.
+                const fragment = VALIDATOR_JSON_SCHEMA[name];
+                bound[name] = fragment === undefined ? validator : describing(validator, fragment);
             }
         }
 
@@ -717,7 +817,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isEmail(p: unknown): string {
         const str = this.isType<string>('string', p);
         if (!Patterns.EMAIL.test(str)) {
-            throw new TypeError(`${p} must be a valid email address.`);
+            throw issueError('invalid_format', `${p} must be a valid email address.`, 'email');
         }
         return str;
     }
@@ -727,17 +827,24 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * 
      * @param {number} min - The minimum value.
      * @param {number} max - The maximum value.
+     * The failing value is **not** in the error message: a numeric range is
+     * exactly what guards PINs, one-time codes and amounts, and the message is
+     * what ends up in application logs. It is on the issue's `value` field
+     * instead, for callers that want to show it.
+     *
      * @param {unknown} p - The parameter to check.
      * @returns {number} The validated number
-     * @throws {TypeError} Throws if the parameter is not a number within the specified range.
+     * @throws {TyperError} Throws if the parameter is not a number within the specified range.
      * @example
      * const age = typer.isInRange(18, 65, 25); // age: number
      */
     public isInRange(min: number, max: number, p: unknown): number {
         const num = this.isType<number>('number', p);
-        if (num < min || num > max) {
-            throw new TypeError(`${p} must be between ${min} and ${max}, is ${num}`);
-        }
+        // Split so the issue says which end of the range was missed.
+        const message = `value must be between ${min} and ${max}`;
+        const meta = { minimum: min, maximum: max, value: num };
+        if (num < min) throw issueError('too_small', message, `${min}..${max}`, 'number', meta);
+        if (num > max) throw issueError('too_big', message, `${min}..${max}`, 'number', meta);
         return num;
     }
 
@@ -753,7 +860,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isInteger(p: unknown): number {
         const num = this.isType<number>('number', p);
         if (!Number.isInteger(num)) {
-            throw new TypeError(`${p} must be an integer.`);
+            throw issueError('invalid_format', `${p} must be an integer.`, 'integer');
         }
         return num;
     }
@@ -771,7 +878,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isNonEmptyArray<T = unknown>(p: unknown): T[] {
         const arr = this.isType<T[]>('array', p);
         if (arr.length === 0) {
-            throw new TypeError(`${p} must be a non-empty array.`);
+            throw issueError('too_small', `${p} must be a non-empty array.`, undefined, undefined, { minimum: 1 });
         }
         return arr;
     }
@@ -788,7 +895,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isNonEmptyString(p: unknown): string {
         const str = this.isType<string>('string', p);
         if (str.trim().length === 0) {
-            throw new TypeError(`${p} must be a non-empty string.`);
+            throw issueError('too_small', `${p} must be a non-empty string.`, undefined, undefined, { minimum: 1 });
         }
         return str;
     }
@@ -829,14 +936,14 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
 
         // Check if empty after cleaning
         if (digitsOnly.length === 0) {
-            throw new TypeError(`${p} must be a valid phone number.`);
+            throw issueError('invalid_format', `${p} must be a valid phone number.`, 'phone');
         }
 
         // More restrictive regex for phone number validation
         // Allows: +country code, parentheses, spaces, hyphens, and periods
         // Requires at least 7 digits, max 15 (international standard)
         if (!Patterns.PHONE.test(str)) {
-            throw new TypeError(`${p} must be a valid phone number.`);
+            throw issueError('invalid_format', `${p} must be a valid phone number.`, 'phone');
         }
 
         // Count actual digits (excluding + sign)
@@ -844,12 +951,12 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
 
         // Validate digit count (7-15 digits for international numbers)
         if (digitCount < 7 || digitCount > 15) {
-            throw new TypeError(`${p} must be a valid phone number with 7-15 digits.`);
+            throw issueError('invalid_format', `${p} must be a valid phone number with 7-15 digits.`, 'phone');
         }
 
         // Check for invalid patterns
         if (str.includes('..') || str.includes('--') || str.includes('  ')) {
-            throw new TypeError(`${p} must be a valid phone number.`);
+            throw issueError('invalid_format', `${p} must be a valid phone number.`, 'phone');
         }
 
         return str;
@@ -867,7 +974,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isPositiveNumber(p: unknown): number {
         const num = this.isType<number>('number', p);
         if (num < 0) {
-            throw new TypeError(`${p} must be a positive number.`);
+            throw issueError('too_small', `${p} must be a positive number.`, undefined, undefined, { minimum: 0 });
         }
         return num;
     }
@@ -884,7 +991,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isPositiveInteger(p: unknown): number {
         const num = this.isInteger(p);
         if (num < 0) {
-            throw new TypeError(`${p} must be a positive integer.`);
+            throw issueError('too_small', `${p} must be a positive integer.`, undefined, undefined, { minimum: 0 });
         }
         return num;
     }
@@ -901,7 +1008,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isNegativeNumber(p: unknown): number {
         const num = this.isType<number>('number', p);
         if (num >= 0) {
-            throw new TypeError(`${p} must be a negative number.`);
+            throw issueError('too_big', `${p} must be a negative number.`);
         }
         return num;
     }
@@ -918,7 +1025,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isNegativeInteger(p: unknown): number {
         const num = this.isInteger(p);
         if (num >= 0) {
-            throw new TypeError(`${p} must be a positive integer.`);
+            throw issueError('too_big', `${p} must be a negative integer.`, undefined, undefined, { maximum: -1 });
         }
         return num;
     }
@@ -1040,7 +1147,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         try {
             new URL(str);
         } catch (_) {
-            throw new TypeError(`${p} must be a valid URL.`);
+            throw issueError('invalid_format', `${p} must be a valid URL.`, 'url');
         }
         return str;
     }
@@ -1143,6 +1250,11 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * `Infer<typeof schema>`, and then call `parse(schema, value)` with
      * full type inference — without sprinkling `as const`.
      *
+     * Declaring the schema in a variable is also what makes it fast: compiled
+     * checkers are cached by object identity, so a schema hoisted out of the
+     * handler is compiled once, while a literal written inside it is a new
+     * object every call and is recompiled every time.
+     *
      * @example
      * const userSchema = typer.schema({
      *   id: 'number',
@@ -1154,6 +1266,322 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      */
     public schema<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(definition: S): S {
         return definition;
+    }
+
+    /**
+     * @private
+     * Lazily-built cache behind {@link coerce}, for the same reason as
+     * {@link boundValidators}: a field declared at construction keeps the
+     * instance shape fixed.
+     */
+    private coercions: Coercions | undefined = undefined;
+
+    /**
+     * Validators that convert before validating.
+     *
+     * Query strings, form data and environment variables arrive as strings, so
+     * without these every HTTP handler rewrites the conversion by hand — which
+     * is exactly where the mistakes are made. Each one rejects what it cannot
+     * convert rather than inventing a value, which is the difference between
+     * these and the bare `Number()` / `Boolean()` they replace:
+     *
+     * | Input | `Number()` / `Boolean()` | `typer.coerce.*` |
+     * |---|---|---|
+     * | `''` | `0` | rejected |
+     * | `'   '` | `0` | rejected |
+     * | `null` | `0` | rejected |
+     * | `[]` | `0` | rejected |
+     * | `'abc'` | `NaN` | rejected |
+     * | `'false'` | `true` | `false` |
+     * | `'0'` | `true` | `false` |
+     *
+     * In a schema slot the converted value replaces the original, so the
+     * object that comes out of `parse` holds the numbers and dates, not the
+     * strings that arrived.
+     *
+     * @example
+     * const query = typer.parse({
+     *     page:    typer.coerce.number,
+     *     perPage: typer.coerce.number,
+     *     archived: typer.coerce.boolean,
+     *     since:   typer.coerce.date,
+     * }, req.query);
+     * // { page: 2, perPage: 50, archived: false, since: Date }
+     */
+    public get coerce(): Coercions {
+        return (this.coercions ??= {
+            // The fragments describe the *wire* shape these accept, which is
+            // the point of coercion and the shape a JSON Schema documents.
+            number: describing((value: unknown): number => this.coerceNumber(value), { type: ['number', 'string'] }),
+            boolean: describing((value: unknown): boolean => this.coerceBoolean(value), { type: ['boolean', 'string', 'number'] }),
+            date: describing((value: unknown): Date => this.coerceDate(value), { type: ['string', 'number'], format: 'date-time' }),
+        });
+    }
+
+    /**
+     * Converts to a number, rejecting everything `Number()` would silently turn
+     * into `0` or `NaN`.
+     *
+     * @param value - The value to convert.
+     * @throws {TyperError} When the value has no unambiguous numeric reading.
+     */
+    private coerceNumber(value: unknown): number {
+        if (typeof value === 'number') {
+            if (Number.isNaN(value)) throw issueError('invalid_type', `NaN cannot be coerced to a number.`, 'number', 'NaN');
+            return value;
+        }
+
+        if (typeof value === 'string') {
+            // `Number('')` and `Number('   ')` are 0 — the classic trap, and
+            // the reason an absent query parameter must not read as zero.
+            const trimmed = value.trim();
+            if (trimmed === '') throw issueError('invalid_type', `"" cannot be coerced to a number.`, 'number', 'string');
+
+            const parsed = Number(trimmed);
+            if (Number.isNaN(parsed)) throw issueError('invalid_type', `"${value}" cannot be coerced to a number.`, 'number', 'string');
+            return parsed;
+        }
+
+        if (typeof value === 'boolean') return value ? 1 : 0;
+
+        if (typeof value === 'bigint') {
+            // Outside the safe range the conversion would lose digits without
+            // saying so, which is worse than refusing.
+            if (value > BigInt(Number.MAX_SAFE_INTEGER) || value < BigInt(Number.MIN_SAFE_INTEGER)) {
+                throw issueError('invalid_type', `${value}n is outside the safe integer range and cannot be coerced to a number.`, 'number', 'bigint');
+            }
+            return Number(value);
+        }
+
+        // `Number(null)`, `Number([])` and `Number([7])` are 0, 0 and 7.
+        throw issueError('invalid_type', `${String(value)} cannot be coerced to a number.`, 'number', this.getType(value));
+    }
+
+    /**
+     * Converts to a boolean by reading the value, not its truthiness —
+     * `Boolean('false')` is `true`, which is never what a query string meant.
+     *
+     * @param value - The value to convert.
+     * @throws {TyperError} When the value is not a recognised boolean spelling.
+     */
+    private coerceBoolean(value: unknown): boolean {
+        if (typeof value === 'boolean') return value;
+
+        if (typeof value === 'string') {
+            const normalized = value.trim().toLowerCase();
+            if (TRUTHY_STRINGS.has(normalized)) return true;
+            if (FALSY_STRINGS.has(normalized)) return false;
+            throw issueError('invalid_type', `"${value}" cannot be coerced to a boolean.`, 'boolean', 'string');
+        }
+
+        // Only the two numbers that spell a boolean; 2 is not "true".
+        if (value === 1) return true;
+        if (value === 0) return false;
+
+        throw issueError('invalid_type', `${String(value)} cannot be coerced to a boolean.`, 'boolean', this.getType(value));
+    }
+
+    /**
+     * Converts to a valid `Date`, rejecting the `Invalid Date` that the `Date`
+     * constructor produces instead of failing.
+     *
+     * @param value - The value to convert: a `Date`, epoch milliseconds, or a parseable string.
+     * @throws {TyperError} When the value does not name a real instant.
+     */
+    private coerceDate(value: unknown): Date {
+        if (value instanceof Date) {
+            if (Number.isNaN(value.getTime())) throw issueError('invalid_type', `Invalid Date cannot be coerced to a date.`, 'date', 'date');
+            return value;
+        }
+
+        if (typeof value === 'number' || typeof value === 'string') {
+            if (typeof value === 'string' && value.trim() === '') {
+                throw issueError('invalid_type', `"" cannot be coerced to a date.`, 'date', 'string');
+            }
+            // `new Date(NaN)` and `new Date(Infinity)` are both Invalid Date.
+            const date = new Date(typeof value === 'string' ? value.trim() : value);
+            if (Number.isNaN(date.getTime())) {
+                throw issueError('invalid_type', `${String(value)} cannot be coerced to a date.`, 'date', typeof value);
+            }
+            return date;
+        }
+
+        throw issueError('invalid_type', `${String(value)} cannot be coerced to a date.`, 'date', this.getType(value));
+    }
+
+    /**
+     * Converts a schema into a JSON Schema document — the input OpenAPI and
+     * Swagger tooling expects, and the main reason people reach for TypeBox.
+     *
+     * Type strings, `?` markers, `|` unions, arrays and nested objects all
+     * have exact equivalents. Validator slots do not: a validator is an opaque
+     * function, so Typer's own validators and combinators carry the fragment
+     * they correspond to (`isEmail` becomes
+     * `{ type: 'string', format: 'email' }`, `arrayOf(…, { min: 1 })` becomes
+     * `minItems: 1`), and a validator the caller wrote becomes `{}` — which
+     * accepts anything.
+     *
+     * Aliases with no JSON counterpart — `symbol`, `function`, `map`, `set`,
+     * `regexp`, the buffer types, and anything registered with `extend` — are
+     * in the same position. Pass `unrepresentable: 'throw'` in a build step to
+     * be told about them instead of shipping a schema that quietly accepts
+     * anything at those keys.
+     *
+     * @template S - The schema to convert
+     * @param {S} schema - The schema to convert.
+     * @param {ToJSONSchemaOptions} [options] - Dialect, metadata, strictness, and the unrepresentable-slot policy.
+     * @returns {JSONSchemaDocument} A JSON Schema document, draft 2020-12 by default.
+     * @throws {TyperError} With `unrepresentable: 'throw'`, listing every slot that has no equivalent.
+     * @example
+     * typer.toJSONSchema({ id: 'number', email: typer.validators.isEmail, note: 'string?' });
+     * // {
+     * //   $schema: 'https://json-schema.org/draft/2020-12/schema',
+     * //   type: 'object',
+     * //   properties: {
+     * //     id:    { type: 'number' },
+     * //     email: { type: 'string', format: 'email' },
+     * //     note:  { type: ['string', 'null'] },
+     * //   },
+     * //   required: ['id', 'email'],
+     * // }
+     */
+    public toJSONSchema<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(
+        schema: S,
+        options: ToJSONSchemaOptions = {},
+    ): JSONSchemaDocument {
+        return toJSONSchema(schema as Record<string, unknown>, options);
+    }
+
+    /**
+     * Derives a schema keeping only the listed keys.
+     *
+     * Real applications derive schemas from each other constantly —
+     * `CreateUserDto` from `UserDto` — and rewriting the shape by hand means
+     * two copies that diverge at the first change.
+     *
+     * @template S - The source schema
+     * @template K - The keys to keep
+     * @param {S} schema - The schema to derive from.
+     * @param {readonly K[]} keys - The keys to keep.
+     * @returns {PickSchema} A new schema; the source is untouched.
+     * @example
+     * const userSchema = typer.schema({ id: 'number', name: 'string', password: 'string' });
+     * const publicUser = typer.pick(userSchema, ['id', 'name']);
+     * type PublicUser = Infer<typeof publicUser>; // { id: number; name: string }
+     */
+    public pick<S extends Record<string, unknown>, const K extends keyof S>(schema: S, keys: readonly K[]): PickSchema<S, K> {
+        const out: Record<string, unknown> = {};
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i] as string;
+            if (hasOwnKey(schema, key)) out[key] = schema[key];
+        }
+        return out as PickSchema<S, K>;
+    }
+
+    /**
+     * Derives a schema without the listed keys — the complement of {@link pick}.
+     *
+     * @template S - The source schema
+     * @template K - The keys to drop
+     * @param {S} schema - The schema to derive from.
+     * @param {readonly K[]} keys - The keys to drop.
+     * @returns {OmitSchema} A new schema; the source is untouched.
+     * @example
+     * const createUser = typer.omit(userSchema, ['id']);
+     */
+    public omit<S extends Record<string, unknown>, const K extends keyof S>(schema: S, keys: readonly K[]): OmitSchema<S, K> {
+        const dropped = new Set<unknown>(keys);
+        const out: Record<string, unknown> = {};
+        for (const key of Object.keys(schema)) {
+            if (!dropped.has(key)) out[key] = schema[key];
+        }
+        return out as OmitSchema<S, K>;
+    }
+
+    /**
+     * Combines two schemas. Keys of `extension` win where the two overlap.
+     *
+     * @template A - The base schema
+     * @template B - The schema layered on top
+     * @param {A} base - The schema to start from.
+     * @param {B} extension - The schema whose keys take precedence.
+     * @returns {MergeSchema} A new schema; neither source is touched.
+     * @example
+     * const timestamped = typer.merge(userSchema, { createdAt: 'date', updatedAt: 'date' });
+     */
+    public merge<A extends Record<string, unknown>, B extends Record<string, unknown>>(base: A, extension: B): MergeSchema<A, B> {
+        return { ...base, ...extension } as MergeSchema<A, B>;
+    }
+
+    /**
+     * Derives a schema with every key optional, or only the listed ones.
+     *
+     * A type-string slot simply gains the `?` marker. Every other slot kind has
+     * no marker of its own in the schema language, so it is wrapped with
+     * {@link optional} — which means a **nested schema or array slot made
+     * optional reports its failures as one `custom` issue at the slot's path**,
+     * rather than one issue per offending field. Pass the keys you actually
+     * need if that matters.
+     *
+     * @template S - The source schema
+     * @template K - The keys to make optional; all of them by default
+     * @param {S} schema - The schema to derive from.
+     * @param {readonly K[]} [keys] - The keys to make optional. Omit for all of them.
+     * @returns {PartialSchema} A new schema; the source is untouched.
+     * @example
+     * const patchUser = typer.partial(typer.omit(userSchema, ['id']));
+     * type PatchUser = Infer<typeof patchUser>; // { name?: string | null; … }
+     *
+     * // Only some keys:
+     * const draft = typer.partial(userSchema, ['name']);
+     */
+    public partial<S extends Record<string, unknown>>(schema: S): PartialSchema<S>;
+    public partial<S extends Record<string, unknown>, const K extends keyof S>(schema: S, keys: readonly K[]): PartialSchema<S, K>;
+    public partial<S extends Record<string, unknown>>(schema: S, keys?: readonly (keyof S)[]): PartialSchema<S> {
+        const targeted = keys === undefined ? null : new Set<unknown>(keys);
+        const out: Record<string, unknown> = {};
+
+        for (const key of Object.keys(schema)) {
+            out[key] = targeted === null || targeted.has(key)
+                ? this.optionalSlot(schema[key])
+                : schema[key];
+        }
+
+        return out as PartialSchema<S>;
+    }
+
+    /**
+     * Makes one schema slot optional, whatever kind of slot it is.
+     *
+     * A malformed slot is passed through untouched, so the schema compiler
+     * still reports it as the malformed slot it is rather than as a mismatched
+     * value.
+     *
+     * @param slot - The slot to rewrite.
+     */
+    private optionalSlot(slot: unknown): unknown {
+        if (typeof slot === 'string') return slot.endsWith('?') ? slot : `${slot}?`;
+        if (typeof slot === 'function') return this.optional(slot as Validator<unknown>);
+        if (Array.isArray(slot)) {
+            if (slot.length !== 1) return slot;
+            return this.optional(this.arrayOf(this.slotElementValidator(slot[0])));
+        }
+        if (slot !== null && typeof slot === 'object') {
+            return this.optional(this.objectOf(slot as never) as Validator<unknown>);
+        }
+        return slot;
+    }
+
+    /**
+     * Turns an array slot's element definition into a validator, so the slot
+     * can be rebuilt through {@link arrayOf}.
+     *
+     * @param element - The element definition: an alias, a validator, or a nested schema.
+     */
+    private slotElementValidator(element: unknown): Validator<unknown> {
+        if (typeof element === 'function') return element as Validator<unknown>;
+        if (typeof element === 'string') return (value: unknown) => this.isType(element, value);
+        return this.objectOf(element as never) as Validator<unknown>;
     }
 
     /**
@@ -1200,6 +1628,19 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      *
      * No `as const` is needed when calling with a literal schema thanks to
      * the `<const S>` parameter — the inferred type matches the schema.
+     *
+     * **Declare the schema once, outside the hot path.** Compiled checkers are
+     * cached by schema object identity, so a literal written inside a handler
+     * is a new object on every call and is recompiled every time — about an
+     * order of magnitude slower (78 ns hoisted against 873 ns inline), with
+     * nothing to show for it:
+     *
+     * ```typescript
+     * const userSchema = typer.schema({ id: 'number' });   // once
+     * app.post('/u', (req) => typer.parse(userSchema, req.body));
+     *
+     * app.post('/u', (req) => typer.parse({ id: 'number' }, req.body)); // recompiles
+     * ```
      *
      * @example
      * const user = typer.parse(
@@ -1257,18 +1698,38 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         // catching it one frame later. For safeParse a mismatch is an expected
         // outcome, and building an Error — its stack capture in particular — is
         // by far the most expensive part of a failed validation.
-        if (typesOrSchemaOrValidator !== null
-            && typeof typesOrSchemaOrValidator === "object"
-            && !Array.isArray(typesOrSchemaOrValidator)) {
+        if (typesOrSchemaOrValidator !== null && typeof typesOrSchemaOrValidator === "object" && !Array.isArray(typesOrSchemaOrValidator)) {
             const issues = this.getCompiledChecker(typesOrSchemaOrValidator as Record<string, unknown>)(value, '');
             return issues.length === 0
                 ? { success: true, data: value }
                 : Typer.failure(issues);
         }
 
+        // The same fast path, for validators that can report without throwing.
+        // `objectOf(schema)` wraps the very checker the branch above uses, so
+        // routing it through `parse` made the wrapper cost an order of
+        // magnitude more than the schema it wraps.
+        if (typeof typesOrSchemaOrValidator === "function") {
+            const safeRun = (typesOrSchemaOrValidator as SafeReporting<unknown>)[SAFE_RESULT];
+            if (safeRun !== undefined) return safeRun(value);
+            return Typer.runCatching(typesOrSchemaOrValidator as Validator<unknown>, value);
+        }
+
+        return Typer.runCatching((input: unknown) => this.parse(typesOrSchemaOrValidator as never, input), value);
+    }
+
+    /**
+     * Runs a throwing validator and reports the outcome as a {@link ParseResult}.
+     *
+     * The fallback for everything with no non-throwing path of its own: a
+     * user-supplied validator, a type alias, an array of aliases.
+     *
+     * @param validator - The validator to run.
+     * @param value - The value to validate.
+     */
+    private static runCatching<T>(validator: Validator<T>, value: unknown): ParseResult<T> {
         try {
-            const data = this.parse(typesOrSchemaOrValidator as never, value);
-            return { success: true, data };
+            return { success: true, data: validator(value) };
         } catch (e: unknown) {
             if (e instanceof TyperError) return Typer.failure(e.issues, e);
             const message = e instanceof Error ? e.message : String(e);
@@ -1300,8 +1761,17 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     }
 
     /**
-     * Cache of compiled schema checkers, keyed by schema object identity.
-     * Re-using the same schema literal across calls hits the cache.
+     * Cache of compiled schema checkers, keyed by schema **object identity**.
+     *
+     * Identity, not structure: a schema literal written inside a handler is a
+     * new object on every call, so it never hits this cache and is recompiled
+     * every time. That costs roughly an order of magnitude — measured at 78 ns
+     * hoisted against 873 ns inline — and it is silent, because
+     * `typer.parse({ id: 'number' }, req.body)` looks like perfectly ordinary
+     * code. Declare the schema once, outside the handler.
+     *
+     * It is a leak-free cost, not a leak: a `WeakMap` releases the entry as
+     * soon as the throwaway schema object is collected.
      */
     private schemaCheckerCache = new WeakMap<object, (value: unknown, rootPath: string) => ValidationIssue[]>();
 
@@ -1366,8 +1836,16 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         }
         const fieldCount = fields.length;
 
+        // A schema is free to declare `constructor` as a field of its own — in
+        // that case it is an ordinary key and is validated, not stripped. Which
+        // of the three are dangerous *for this schema* is therefore known at
+        // compile time, and the hot path only walks the ones that are.
+        const unsafe = DANGEROUS_KEYS.filter(key => !keys.includes(key));
+        const unsafeCount = unsafe.length;
+
         if (!strictMode) {
             return (obj, issues, parentPath) => {
+                if (unsafeCount > 0) stripDangerousKeys(obj, unsafe, issues, parentPath);
                 for (let i = 0; i < fieldCount; i++) {
                     fields[i](obj, issues, parentPath);
                 }
@@ -1378,6 +1856,9 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         // Set lookup per key of the *input* rather than a per-call filter.
         const declared = new Set(keys);
         return (obj, issues, parentPath) => {
+            // Stripped before the extra-key sweep: an unsafe key is removed,
+            // not reported twice.
+            if (unsafeCount > 0) stripDangerousKeys(obj, unsafe, issues, parentPath);
             for (let i = 0; i < fieldCount; i++) {
                 fields[i](obj, issues, parentPath);
             }
@@ -1399,11 +1880,17 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             const validator = expected as Validator<unknown>;
             return (obj, issues, parentPath) => {
                 try {
-                    validator(obj[key]);
+                    const result = validator(obj[key]);
+                    // Write back only when the validator actually produced
+                    // something else. Every `is*`/`as*` validator and
+                    // `objectOf` hand back what they were given, so the object
+                    // is not touched at all in the overwhelming majority of
+                    // slots; `coerce.*`, `transform` and `withDefault` exist to
+                    // produce a different value, and used to have that value
+                    // silently discarded.
+                    if (result !== obj[key]) obj[key] = result;
                 } catch (e) {
-                    const msg = e instanceof Error ? e.message : String(e);
-                    const path = joinPath(parentPath, key);
-                    issues.push(makeIssue('custom', path, `Validation failed at "${path}": ${msg}`));
+                    issues.push(Typer.slotIssue(e, joinPath(parentPath, key)));
                 }
             };
         }
@@ -1435,6 +1922,35 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
                 expectedType,
             ));
         };
+    }
+
+    /**
+     * Builds the issue for a validator that threw inside a schema slot.
+     *
+     * The message keeps the `Validation failed at "path": …` wrapping it has
+     * always had — it is what names the offending key — while `code` and the
+     * constraint metadata are taken from the validator when it reported them.
+     * Without this every constraint failure arrives as `code: 'custom'`, and
+     * "too short" cannot be told from "out of range" except by reading prose.
+     *
+     * @param error - The value the validator threw.
+     * @param path - Dotted path of the slot that failed.
+     */
+    private static slotIssue(error: unknown, path: string): ValidationIssue {
+        const message = error instanceof Error ? error.message : String(error);
+        const wrapped = `Validation failed at "${path}": ${message}`;
+
+        const constraint = constraintOf(error);
+        if (constraint === undefined) return makeIssue('custom', path, wrapped);
+
+        return makeIssue(
+            constraint.code,
+            path,
+            wrapped,
+            constraint.expected,
+            constraint.received,
+            { minimum: constraint.minimum, maximum: constraint.maximum, value: constraint.value },
+        );
     }
 
     /**
@@ -1583,7 +2099,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             // checkers append `[i]` only when they actually report an issue.
             const arrayPath = joinPath(parentPath, key);
             for (let i = 0; i < length; i++) {
-                elementCheck(value[i], issues, arrayPath, i);
+                elementCheck(value, i, issues, arrayPath);
             }
         };
     }
@@ -1624,20 +2140,21 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     private compileValue(expected: unknown, strictMode: boolean): ValueChecker {
         if (typeof expected === "function") {
             const validator = expected as Validator<unknown>;
-            return (value, issues, arrayPath, index) => {
+            return (array, index, issues, arrayPath) => {
                 try {
-                    validator(value);
+                    const result = validator(array[index]);
+                    // Same write-back rule as a field slot: only a validator
+                    // that actually produced something else touches the array.
+                    if (result !== array[index]) array[index] = result;
                 } catch (e) {
-                    const msg = e instanceof Error ? e.message : String(e);
-                    const path = indexPath(arrayPath, index);
-                    issues.push(makeIssue('custom', path, `Validation failed at "${path}": ${msg}`));
+                    issues.push(Typer.slotIssue(e, indexPath(arrayPath, index)));
                 }
             };
         }
 
         if (typeof expected === "string") {
             if (expected.trim() === "") {
-                return (_v, issues, arrayPath, index) => {
+                return (_array, index, issues, arrayPath) => {
                     const path = indexPath(arrayPath, index);
                     issues.push(makeIssue('invalid_schema', path, `Empty type definition at "${path}"`));
                 };
@@ -1645,7 +2162,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
 
             const slot = this.parseTypeSlot(expected);
             if (slot === null) {
-                return (_v, issues, arrayPath, index) => {
+                return (_array, index, issues, arrayPath) => {
                     const path = indexPath(arrayPath, index);
                     issues.push(makeIssue('invalid_schema', path, `Invalid type definition "${expected}" at "${path}"`));
                 };
@@ -1654,7 +2171,8 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             const { isOptional, predicates, unknownType, description } = slot;
             const predicateCount = predicates.length;
 
-            return (value, issues, arrayPath, index) => {
+            return (array, index, issues, arrayPath) => {
+                const value = array[index];
                 if (isOptional && (value === undefined || value === null)) return;
 
                 for (let i = 0; i < predicateCount; i++) {
@@ -1682,7 +2200,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
          * unreachable. Kept as a defensive fallback for future call sites. */
         if (Array.isArray(expected)) {
             // Array-of-array isn't supported as a schema; mirror checkStructure error wording.
-            return (_v, issues, arrayPath, index) => {
+            return (_array, index, issues, arrayPath) => {
                 const path = indexPath(arrayPath, index);
                 issues.push(makeIssue('invalid_schema', path, `Array element type must be a string at "${path}"`));
             };
@@ -1690,7 +2208,8 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
 
         if (expected !== null && typeof expected === "object") {
             const compiledNested = this.compileSchema(expected as Record<string, unknown>, strictMode);
-            return (value, issues, arrayPath, index) => {
+            return (array, index, issues, arrayPath) => {
+                const value = array[index];
                 const path = indexPath(arrayPath, index);
                 if (value === null || typeof value !== "object" || Array.isArray(value)) {
                     const received = this.getType(value);
@@ -1705,7 +2224,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         // non-string/function/object element schemas before we reach this
         // branch. Kept as a defensive fallback for future call sites.
         /* istanbul ignore next */
-        return (_v, issues, arrayPath, index) => {
+        return (_array, index, issues, arrayPath) => {
             const expectedType = expected === null ? "null" : typeof expected;
             const path = indexPath(arrayPath, index);
             issues.push(makeIssue(
@@ -1731,10 +2250,11 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * maybeStr("hi"); // "hi"
      */
     public nullable<T>(validator: Validator<T>): Validator<T | null> {
-        return (value: unknown): T | null => {
+        const wrapped = (value: unknown): T | null => {
             if (value === null) return null;
             return validator(value);
         };
+        return describingLazy(wrapped, () => nullableFragment(describedFragment(validator)));
     }
 
     /**
@@ -1750,10 +2270,11 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * maybeNum(42); // 42
      */
     public optional<T>(validator: Validator<T>): Validator<T | undefined> {
-        return (value: unknown): T | undefined => {
+        const wrapped = (value: unknown): T | undefined => {
             if (value === undefined) return undefined;
             return validator(value);
         };
+        return describingLazy(wrapped, () => ({ ...describedFragment(validator), [OPTIONAL_MARKER]: true }));
     }
 
     /**
@@ -1789,6 +2310,101 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     }
 
     /**
+     * Builds a validator for a union whose members are told apart by a single
+     * key — the shape most API payloads use.
+     *
+     * {@link union} tries each variant in turn, so its cost grows with the
+     * number of variants and its error lists every variant's failure. This
+     * reads the discriminant once and goes straight to the one variant that can
+     * possibly match, in constant time, and reports against that variant alone.
+     *
+     * The variants are keyed by discriminant value, so the mapping is exact by
+     * construction — there is no literal to extract from a schema and no way to
+     * declare two variants with the same tag.
+     *
+     * @template Key - The discriminant key
+     * @template V - The variants, keyed by discriminant value
+     * @param {Key} key - The key that tells the variants apart.
+     * @param {V} variants - Schema per discriminant value.
+     * @param {{ strict?: boolean }} [options] - `strict` rejects keys the selected variant does not declare.
+     * @returns {StandardValidator} A validator producing the union of the variants.
+     * @throws {TyperError} If the discriminant is missing or unknown, or the selected variant fails.
+     * @example
+     * const shape = typer.discriminatedUnion('kind', {
+     *     circle: { radius: 'number' },
+     *     square: { side: 'number' },
+     * });
+     * shape({ kind: 'circle', radius: 2 });
+     * // → { kind: 'circle'; radius: number } | { kind: 'square'; side: number }
+     */
+    public discriminatedUnion<const Key extends string, const V extends Record<string, Record<string, unknown>>>(key: Key, variants: V, options: { strict?: boolean } = {}): StandardValidator<DiscriminatedUnion<Key, V, TRegistry>> {
+        type Out = DiscriminatedUnion<Key, V, TRegistry>;
+
+        const strict = options.strict === true;
+        const checkers = new Map<string, (value: unknown, rootPath: string) => ValidationIssue[]>();
+
+        for (const tag of Object.keys(variants)) {
+            // The discriminant is declared on the compiled schema even when the
+            // variant does not mention it, so strict mode does not flag the very
+            // key the union is selected by. Re-checking it costs one `typeof`
+            // and keeps the variant free to declare it itself.
+            const declared = variants[tag];
+            const schema = hasOwnKey(declared, key) ? declared : { [key]: 'string', ...declared };
+            checkers.set(tag, this.getCompiledChecker(schema, strict));
+        }
+
+        const tags = Object.keys(variants);
+        const expected = `one of [${tags.join(', ')}]`;
+
+        const run = (value: unknown): ValidationIssue[] => {
+            if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+                const received = this.getType(value);
+                return [makeIssue('invalid_type', '', `Invalid object: must be a non-null object, got ${received}`, 'object', received)];
+            }
+
+            const tag = (value as Record<string, unknown>)[key];
+            if (tag === undefined) {
+                return [makeIssue('missing_key', key, `Missing required key "${key}"`, expected, 'undefined')];
+            }
+
+            const checker = typeof tag === 'string' ? checkers.get(tag) : undefined;
+            if (checker === undefined) {
+                return [makeIssue('invalid_type', key, `Expected "${key}" to be ${expected}, got ${String(tag)}`, expected, this.getType(tag))];
+            }
+
+            return checker(value, '');
+        };
+
+        const validator = (value: unknown): Out => {
+            const issues = run(value);
+            if (issues.length > 0) throw new TyperError(formatIssues(issues), issues);
+            return value as Out;
+        };
+
+        describingLazy(validator, () => ({
+            oneOf: tags.map((tag) => {
+                const variant = toJSONSchema(variants[tag], { $schema: false, strict }) as {
+                    properties?: Record<string, unknown>;
+                    required?: string[];
+                };
+                // The discriminant is pinned to its own value on each branch,
+                // which is what makes the `oneOf` actually discriminating.
+                return {
+                    ...variant,
+                    properties: { [key]: { const: tag }, ...variant.properties },
+                    required: Array.from(new Set([key, ...(variant.required ?? [])])),
+                };
+            }),
+            discriminator: { propertyName: key },
+        }));
+
+        return Typer.asStandard(validator, (value) => {
+            const issues = run(value);
+            return issues.length === 0 ? { success: true, data: value as Out } : Typer.failure(issues);
+        });
+    }
+
+    /**
      * Builds a validator accepting only the listed literal values.
      *
      * The returned validator narrows to the union of those literals, so it is
@@ -1807,12 +2423,13 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         ...values: T
     ): Validator<T[number]> {
         const allowed = new Set<unknown>(values);
-        return (value: unknown): T[number] => {
+        const validator = (value: unknown): T[number] => {
             if (!allowed.has(value)) {
                 throw new TypeError(`${String(value)} must be one of [${values.join(', ')}].`);
             }
             return value as T[number];
         };
+        return describing(validator, { enum: [...values] });
     }
 
     /**
@@ -1832,15 +2449,15 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      */
     public arrayOf<T>(element: Validator<T>, bounds: { min?: number; max?: number } = {}): Validator<T[]> {
         const { min, max } = bounds;
-        return (value: unknown): T[] => {
+        const validator = (value: unknown): T[] => {
             if (!Array.isArray(value)) {
                 throw new TypeError(`${String(value)} must be an array, is ${this.getType(value)}`);
             }
             if (min !== undefined && value.length < min) {
-                throw new TypeError(`array length must be >= ${min}, is ${value.length}`);
+                throw issueError('too_small', `array length must be >= ${min}, is ${value.length}`, undefined, undefined, { minimum: min });
             }
             if (max !== undefined && value.length > max) {
-                throw new TypeError(`array length must be <= ${max}, is ${value.length}`);
+                throw issueError('too_big', `array length must be <= ${max}, is ${value.length}`, undefined, undefined, { maximum: max });
             }
 
             const out: T[] = new Array(value.length);
@@ -1857,6 +2474,13 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             if (issues.length > 0) throw new TyperError(formatIssues(issues), issues);
             return out;
         };
+
+        return describingLazy(validator, () => {
+            const fragment: JSONSchemaFragment = { type: 'array', items: describedFragment(element) };
+            if (min !== undefined) fragment.minItems = min;
+            if (max !== undefined) fragment.maxItems = max;
+            return fragment;
+        });
     }
 
     /**
@@ -1864,6 +2488,10 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * satisfying `value`.
      *
      * Rejects arrays and `null`, unlike the `'object'` alias.
+     *
+     * Keys that are dangerous to copy (`__proto__`, `constructor`,
+     * `prototype`) are dropped rather than written to the result: assigning
+     * `out['__proto__']` would set the output's prototype instead of a field.
      *
      * @template T - The value type
      * @param {Validator} value - Validator applied to each own enumerable value.
@@ -1874,7 +2502,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * scores({ alice: 1, bob: 2 }); // Record<string, number>
      */
     public record<T>(value: Validator<T>): Validator<Record<string, T>> {
-        return (input: unknown): Record<string, T> => {
+        const validator = (input: unknown): Record<string, T> => {
             if (input === null || typeof input !== 'object' || Array.isArray(input)) {
                 throw new TypeError(`${String(input)} must be an object, is ${this.getType(input)}`);
             }
@@ -1882,6 +2510,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             const out: Record<string, T> = {};
             const issues: ValidationIssue[] = [];
             for (const key of Object.keys(input)) {
+                if (DANGEROUS_KEYS.includes(key)) continue;
                 try {
                     out[key] = value((input as Record<string, unknown>)[key]);
                 } catch (e) {
@@ -1892,6 +2521,8 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             if (issues.length > 0) throw new TyperError(formatIssues(issues), issues);
             return out;
         };
+
+        return describingLazy(validator, () => ({ type: 'object', additionalProperties: describedFragment(value) }));
     }
 
     /**
@@ -1905,16 +2536,16 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * const point = typer.tuple([(v) => typer.asNumber(v), (v) => typer.asNumber(v)]);
      * point([1, 2]); // [number, number]
      */
-    public tuple<const T extends readonly Validator<unknown>[]>(
-        validators: T,
-    ): Validator<{ -readonly [K in keyof T]: T[K] extends Validator<infer U> ? U : never }> {
+    public tuple<const T extends readonly Validator<unknown>[]>(validators: T): Validator<{ -readonly [K in keyof T]: T[K] extends Validator<infer U> ? U : never }> {
         type Out = { -readonly [K in keyof T]: T[K] extends Validator<infer U> ? U : never };
-        return (value: unknown): Out => {
+        const validator = (value: unknown): Out => {
             if (!Array.isArray(value)) {
                 throw new TypeError(`${String(value)} must be an array, is ${this.getType(value)}`);
             }
             if (value.length !== validators.length) {
-                throw new TypeError(`tuple must have exactly ${validators.length} elements, has ${value.length}`);
+                const message = `tuple must have exactly ${validators.length} elements, has ${value.length}`;
+                const bounds = { minimum: validators.length, maximum: validators.length };
+                throw issueError(value.length < validators.length ? 'too_small' : 'too_big', message, undefined, undefined, bounds);
             }
 
             const out = new Array(validators.length);
@@ -1931,6 +2562,13 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             if (issues.length > 0) throw new TyperError(formatIssues(issues), issues);
             return out as Out;
         };
+
+        return describingLazy(validator, () => ({
+            type: 'array',
+            prefixItems: validators.map((v) => describedFragment(v)),
+            minItems: validators.length,
+            maxItems: validators.length,
+        }));
     }
 
     /**
@@ -1986,10 +2624,18 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * limit(undefined); // 10
      */
     public withDefault<T>(validator: Validator<T>, fallback: T | (() => T)): Validator<T> {
-        return (value: unknown): T => {
+        const wrapped = (value: unknown): T => {
             if (value !== undefined) return validator(value);
             return typeof fallback === 'function' ? (fallback as () => T)() : fallback;
         };
+
+        return describingLazy(wrapped, () => {
+            const fragment: JSONSchemaFragment = { ...describedFragment(validator), [OPTIONAL_MARKER]: true };
+            // A factory's result is produced per call, so there is no single
+            // literal to advertise as the schema's default.
+            if (typeof fallback !== 'function') fragment.default = fallback;
+            return fragment;
+        });
     }
 
     /**
@@ -2033,25 +2679,134 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * The schema is compiled once and cached like any other, so this is as fast
      * as calling {@link parse} directly.
      *
+     * The returned validator is also a {@link https://standardschema.dev Standard Schema},
+     * so it can be handed straight to tRPC, Hono, TanStack Form and friends.
+     *
      * @template S - The schema
      * @param {S} schema - The shape to validate against.
      * @param {{ strict?: boolean }} [options] - `strict` rejects keys the schema does not declare.
-     * @returns {Validator} A validator producing `Infer<S>`.
+     * @returns {StandardValidator} A validator producing `Infer<S>`, carrying `~standard`.
      * @throws {TyperError} With one issue per problem found.
      * @example
      * const users = typer.arrayOf(typer.objectOf({ id: 'number', name: 'string' }));
      * users(payload); // { id: number; name: string }[]
      */
-    public objectOf<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(
-        schema: S,
-        options: { strict?: boolean } = {},
-    ): Validator<Infer<S, TRegistry>> {
+    public objectOf<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(schema: S, options: { strict?: boolean } = {}): StandardValidator<Infer<S, TRegistry>> {
         const checker = this.getCompiledChecker(schema as Record<string, unknown>, options.strict === true);
-        return (value: unknown): Infer<S, TRegistry> => {
+
+        const validator = (value: unknown): Infer<S, TRegistry> => {
             const issues = checker(value, '');
             if (issues.length > 0) throw new TyperError(formatIssues(issues), issues);
             return value as Infer<S, TRegistry>;
         };
+
+        describingLazy(validator, () => toJSONSchema(schema as Record<string, unknown>, {
+            $schema: false,
+            strict: options.strict === true,
+        }));
+
+        return Typer.asStandard(validator, (value) => {
+            const issues = checker(value, '');
+            return issues.length === 0
+                ? { success: true, data: value as Infer<S, TRegistry> }
+                : Typer.failure(issues);
+        });
+    }
+
+    /**
+     * Turns any schema, validator or type alias into a
+     * {@link https://standardschema.dev Standard Schema}.
+     *
+     * Standard Schema is the common contract that lets a validation library be
+     * accepted by tRPC, Hono, TanStack Form and Router, Nuxt and the rest,
+     * without a per-library adapter. The returned value is still a plain
+     * validator function, so it also keeps working everywhere a `Validator`
+     * does.
+     *
+     * Schema literals are the one shape that cannot carry `~standard` on their
+     * own — they are inert object literals owned by the caller, and Typer does
+     * not mutate them — which is why this wrapper exists.
+     *
+     * @template S - The schema
+     * @param {S} target - A schema object, a `Validator`, or a type alias (or array of aliases).
+     * @param {{ strict?: boolean }} [options] - Schema objects only: `strict` rejects undeclared keys.
+     * @returns {StandardValidator} The validator, carrying `~standard`.
+     * @example
+     * const userSchema = typer.standard({ id: 'number', email: 'string' });
+     * userSchema['~standard'].validate({ id: 1, email: 'a@b.c' }); // { value: … }
+     *
+     * // tRPC, Hono, TanStack … accept it directly:
+     * router.post('/users', validator('json', userSchema), handler);
+     */
+    public standard<K extends TypeKey>(target: K | readonly K[]): StandardValidator<TypeMap[K]>;
+    public standard<T>(target: Validator<T>): StandardValidator<T>;
+    public standard<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(target: S, options?: { strict?: boolean }): StandardValidator<Infer<S, TRegistry>>;
+    public standard<T>(target: string | readonly string[]): StandardValidator<T>;
+    public standard(target: unknown, options: { strict?: boolean } = {}): StandardValidator<unknown> {
+        // Schemas get the dedicated path: `objectOf` already compiles the
+        // checker once and reports issues without building an Error.
+        if (target !== null && typeof target === 'object' && !Array.isArray(target)) {
+            return this.objectOf(target as never, options) as StandardValidator<unknown>;
+        }
+
+        // Never decorate the function the caller handed in: attaching to it
+        // would mutate a value they own and may reuse elsewhere. Wrapping also
+        // keeps `~standard` off a validator that is passed around as a plain
+        // function.
+        const inner: Validator<unknown> = typeof target === 'function'
+            ? target as Validator<unknown>
+            : (value: unknown) => this.parse(target as never, value);
+
+        const wrapper: Validator<unknown> = (value: unknown) => inner(value);
+
+        // Reuse the inner validator's own non-throwing path when it has one,
+        // so wrapping an `objectOf` in `standard()` does not reintroduce the
+        // throw/catch round trip it was built to avoid.
+        const innerSafeRun = (inner as SafeReporting<unknown>)[SAFE_RESULT];
+        const safeRun = innerSafeRun ?? ((value: unknown) => Typer.runCatching(inner, value));
+
+        return Typer.asStandard(wrapper, safeRun);
+    }
+
+    /**
+     * Attaches the Standard Schema properties to a validator function.
+     *
+     * `~standard` is defined non-enumerable so the validator still serializes,
+     * spreads and compares like the plain function it was, and `validate` is
+     * built on the non-throwing path rather than on `try`/`catch` around the
+     * throwing one.
+     *
+     * The same non-throwing path is also stored under {@link SAFE_RESULT}, so
+     * `safeParse` can use it directly instead of catching what this validator
+     * would have thrown.
+     *
+     * @param validator - The function to decorate, returned as-is. Must be one
+     *                    Typer owns — never a function supplied by the caller.
+     * @param safeRun - Produces a `ParseResult` without throwing.
+     */
+    private static asStandard<T>(validator: Validator<T>, safeRun: (value: unknown) => ParseResult<T>): StandardValidator<T> {
+        const props: StandardSchemaV1.Props<unknown, T> = {
+            version: 1,
+            vendor: STANDARD_VENDOR,
+            validate: (value: unknown): StandardSchemaV1.Result<T> => {
+                const result = safeRun(value);
+                return result.success ? { value: result.data } : { issues: toStandardIssues(result.issues) };
+            },
+        };
+
+        Object.defineProperty(validator, '~standard', {
+            value: props,
+            enumerable: false,
+            configurable: true,
+        });
+
+        Object.defineProperty(validator, SAFE_RESULT, {
+            value: safeRun,
+            enumerable: false,
+            configurable: true,
+        });
+
+        return validator as StandardValidator<T>;
     }
 
     /**
@@ -2066,7 +2821,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isFiniteNumber(p: unknown): number {
         const num = this.isType<number>('number', p);
         if (!Number.isFinite(num)) {
-            throw new TypeError(`${p} must be a finite number.`);
+            throw issueError('invalid_format', `${p} must be a finite number.`, 'finite number');
         }
         return num;
     }
@@ -2082,7 +2837,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isSafeInteger(p: unknown): number {
         const num = this.isType<number>('number', p);
         if (!Number.isSafeInteger(num)) {
-            throw new TypeError(`${p} must be a safe integer.`);
+            throw issueError('invalid_format', `${p} must be a safe integer.`, 'safe integer');
         }
         return num;
     }
@@ -2154,7 +2909,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public matches(regex: RegExp, p: unknown): string {
         const str = this.isType<string>('string', p);
         if (!regex.test(str)) {
-            throw new TypeError(`${p} must match ${regex}.`);
+            throw issueError('invalid_format', `${p} must match ${regex}.`, String(regex));
         }
         return str;
     }
@@ -2168,20 +2923,17 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * @returns {T} The validated value
      * @throws {TypeError} If `p` is not a string/array or its length is out of range
      */
-    public isLength<T extends string | readonly unknown[]>(
-        bounds: { min?: number; max?: number },
-        p: unknown,
-    ): T {
+    public isLength<T extends string | readonly unknown[]>(bounds: { min?: number; max?: number }, p: unknown): T {
         if (typeof p !== 'string' && !Array.isArray(p)) {
             throw new TypeError(`${p} must be a string or array, is ${this.getType(p)}`);
         }
         const length = (p as string | unknown[]).length;
         const { min, max } = bounds;
         if (min !== undefined && length < min) {
-            throw new TypeError(`length must be >= ${min}, is ${length}`);
+            throw issueError('too_small', `length must be >= ${min}, is ${length}`, undefined, undefined, { minimum: min });
         }
         if (max !== undefined && length > max) {
-            throw new TypeError(`length must be <= ${max}, is ${length}`);
+            throw issueError('too_big', `length must be <= ${max}, is ${length}`, undefined, undefined, { maximum: max });
         }
         return p as T;
     }
@@ -2196,19 +2948,19 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      */
     public isEmpty(p: unknown): unknown {
         if (typeof p === 'string') {
-            if (p.trim().length !== 0) throw new TypeError(`string must be empty.`);
+            if (p.trim().length !== 0) throw issueError('too_big', `string must be empty.`, undefined, undefined, { maximum: 0 });
             return p;
         }
         if (Array.isArray(p)) {
-            if (p.length !== 0) throw new TypeError(`array must be empty.`);
+            if (p.length !== 0) throw issueError('too_big', `array must be empty.`, undefined, undefined, { maximum: 0 });
             return p;
         }
         if (p instanceof Map || p instanceof Set) {
-            if (p.size !== 0) throw new TypeError(`${p.constructor.name} must be empty.`);
+            if (p.size !== 0) throw issueError('too_big', `${p.constructor.name} must be empty.`, undefined, undefined, { maximum: 0 });
             return p;
         }
         if (p !== null && typeof p === 'object') {
-            if (Object.keys(p).length !== 0) throw new TypeError(`object must have no own keys.`);
+            if (Object.keys(p).length !== 0) throw issueError('too_big', `object must have no own keys.`, undefined, undefined, { maximum: 0 });
             return p;
         }
         throw new TypeError(`${p} is not a container that can be checked for emptiness.`);
@@ -2225,19 +2977,19 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      */
     public isNonEmpty<T = unknown>(p: unknown): T {
         if (typeof p === 'string') {
-            if (p.trim().length === 0) throw new TypeError(`string must be non-empty.`);
+            if (p.trim().length === 0) throw issueError('too_small', `string must be non-empty.`, undefined, undefined, { minimum: 1 });
             return p as T;
         }
         if (Array.isArray(p)) {
-            if (p.length === 0) throw new TypeError(`array must be non-empty.`);
+            if (p.length === 0) throw issueError('too_small', `array must be non-empty.`, undefined, undefined, { minimum: 1 });
             return p as T;
         }
         if (p instanceof Map || p instanceof Set) {
-            if (p.size === 0) throw new TypeError(`${p.constructor.name} must be non-empty.`);
+            if (p.size === 0) throw issueError('too_small', `${p.constructor.name} must be non-empty.`, undefined, undefined, { minimum: 1 });
             return p as T;
         }
         if (p !== null && typeof p === 'object') {
-            if (Object.keys(p).length === 0) throw new TypeError(`object must have at least one own key.`);
+            if (Object.keys(p).length === 0) throw issueError('too_small', `object must have at least one own key.`, undefined, undefined, { minimum: 1 });
             return p as T;
         }
         throw new TypeError(`${p} is not a container that can be checked for non-emptiness.`);
@@ -2253,7 +3005,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isUUID(p: unknown): string {
         const str = this.isType<string>('string', p);
         if (!Patterns.UUID.test(str)) {
-            throw new TypeError(`${p} must be a valid UUID.`);
+            throw issueError('invalid_format', `${p} must be a valid UUID.`, 'uuid');
         }
         return str;
     }
@@ -2269,16 +3021,16 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         const str = this.isType<string>('string', p);
         const parts = str.split('.');
         if (parts.length !== 4) {
-            throw new TypeError(`${p} must be a valid IPv4 address.`);
+            throw issueError('invalid_format', `${p} must be a valid IPv4 address.`, 'ipv4');
         }
         for (const part of parts) {
             if (!Patterns.DIGITS.test(part)) {
-                throw new TypeError(`${p} must be a valid IPv4 address.`);
+                throw issueError('invalid_format', `${p} must be a valid IPv4 address.`, 'ipv4');
             }
             const n = Number(part);
             // reject leading zeros (except the single "0") and out-of-range octets
             if (n < 0 || n > 255 || (part.length > 1 && part.startsWith('0'))) {
-                throw new TypeError(`${p} must be a valid IPv4 address.`);
+                throw issueError('invalid_format', `${p} must be a valid IPv4 address.`, 'ipv4');
             }
         }
         return str;
@@ -2305,7 +3057,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
                 throw new Error();
             }
         } catch {
-            throw new TypeError(`${p} must be a valid IPv6 address.`);
+            throw issueError('invalid_format', `${p} must be a valid IPv6 address.`, 'ipv6');
         }
         return str;
     }
@@ -2321,7 +3073,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isHexColor(p: unknown): string {
         const str = this.isType<string>('string', p);
         if (!Patterns.HEX_COLOR.test(str)) {
-            throw new TypeError(`${p} must be a valid hex color.`);
+            throw issueError('invalid_format', `${p} must be a valid hex color.`, 'hex color');
         }
         return str;
     }
@@ -2339,11 +3091,11 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         const str = this.isType<string>('string', p);
         // Require at least YYYY-MM-DD; allow time and timezone parts.
         if (!Patterns.ISO_DATE.test(str)) {
-            throw new TypeError(`${p} must be a valid ISO 8601 date string.`);
+            throw issueError('invalid_format', `${p} must be a valid ISO 8601 date string.`, 'iso date');
         }
         const date = new Date(str);
         if (Number.isNaN(date.getTime())) {
-            throw new TypeError(`${p} must be a valid ISO 8601 date string.`);
+            throw issueError('invalid_format', `${p} must be a valid ISO 8601 date string.`, 'iso date');
         }
         return date;
     }
@@ -2366,7 +3118,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             ? new RegExp(`^(?:${charClass}{4})*(?:${charClass}{2}==|${charClass}{3}=|${charClass}{4})$`)
             : new RegExp(`^(?:${charClass}{4})*(?:${charClass}{2,4}={0,2})?$`);
         if (str.length === 0 || !padded.test(str)) {
-            throw new TypeError(`${p} must be a valid Base64 string.`);
+            throw issueError('invalid_format', `${p} must be a valid Base64 string.`, 'base64');
         }
         return str;
     }
@@ -2391,7 +3143,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         try {
             return this.isIPv6(str);
         } catch {
-            throw new TypeError(`${p} must be a valid IP address.`);
+            throw issueError('invalid_format', `${p} must be a valid IP address.`, 'ip');
         }
     }
 
@@ -2409,7 +3161,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isSemver(p: unknown): string {
         const str = this.isType<string>('string', p);
         if (!Patterns.SEMVER.test(str)) {
-            throw new TypeError(`${p} must be a valid semver string.`);
+            throw issueError('invalid_format', `${p} must be a valid semver string.`, 'semver');
         }
         return str;
     }
@@ -2427,7 +3179,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isSlug(p: unknown): string {
         const str = this.isType<string>('string', p);
         if (!Patterns.SLUG.test(str)) {
-            throw new TypeError(`${p} must be a valid slug.`);
+            throw issueError('invalid_format', `${p} must be a valid slug.`, 'slug');
         }
         return str;
     }
@@ -2445,9 +3197,10 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      */
     public isPort(p: unknown): number {
         const num = this.isInteger(p);
-        if (num < 1 || num > 65535) {
-            throw new TypeError(`${p} must be a valid port number (1-65535).`);
-        }
+        const message = `${p} must be a valid port number (1-65535).`;
+        const bounds = { minimum: 1, maximum: 65535 };
+        if (num < 1) throw issueError('too_small', message, undefined, undefined, bounds);
+        if (num > 65535) throw issueError('too_big', message, undefined, undefined, bounds);
         return num;
     }
 
@@ -2465,7 +3218,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isJWT(p: unknown): string {
         const str = this.isType<string>('string', p);
         if (!Patterns.JWT.test(str)) {
-            throw new TypeError(`${p} must be a valid JWT.`);
+            throw issueError('invalid_format', `${p} must be a valid JWT.`, 'jwt');
         }
         return str;
     }
@@ -2483,7 +3236,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isMACAddress(p: unknown): string {
         const str = this.isType<string>('string', p);
         if (!Patterns.MAC_ADDRESS.test(str)) {
-            throw new TypeError(`${p} must be a valid MAC address.`);
+            throw issueError('invalid_format', `${p} must be a valid MAC address.`, 'mac address');
         }
         return str;
     }
@@ -2666,5 +3419,8 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
 // ---------------------------------------------------------------------------
 
 export { TyperError } from "./Errors/TyperError";
+export { STANDARD_VENDOR } from "./Types/StandardSchema";
 
-export type { BoundValidators, Infer, IssueCode, KnownAlias, ParseResult, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperExpectTypes, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from "./Types/Typer";
+export type { StandardSchemaV1 } from "./Types/StandardSchema";
+export type { JSONSchemaDocument, JSONSchemaFragment, ToJSONSchemaOptions, UnrepresentablePolicy } from "./Types/JSONSchema";
+export type { BoundValidators, Coercions, DiscriminatedUnion, Infer, IssueMeta, IssueCode, KnownAlias, MergeSchema, OmitSchema, OptionalSlot, ParseResult, PartialSchema, PickSchema, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperExpectTypes, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from "./Types/Typer";

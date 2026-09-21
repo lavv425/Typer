@@ -14,9 +14,11 @@ Typer is a comprehensive TypeScript validation library that provides robust type
 - **🎯 Type-checked schemas**: `Infer<typeof schema>` derives the static type from the runtime schema, and a typo like `'nubmer'` is a **compile error**, not a runtime surprise *(4.0+)*
 - **🧩 Composable validators**: `literal`, `arrayOf`, `record`, `tuple`, `refine`, `transform`, `withDefault`, `lazy`, `objectOf` — all nest freely *(4.0+)*
 - **🔎 Structured errors**: every failure carries `code`, `path`, `expected` and `received`, so you branch on data instead of parsing strings *(4.0+)*
+- **🤝 [Standard Schema](https://standardschema.dev)**: `typer.standard(schema)` is accepted by tRPC, Hono, TanStack Form and Router, Nuxt and the rest — no adapter *(4.1+)*
 - **📋 Schema Validation**: Complex nested object structure validation with strict mode
 - **🔧 Extensible Architecture**: Register custom types with `extend()` and keep full type inference
-- **⚡ High Performance**: Closure-compiled, cached schemas with a predicate fast-path — see [Performance](#-performance)
+- **🪶 Small and instant**: under 10 KB gzip, and building a schema costs ~1.1 µs — the lowest setup cost of the three libraries measured. See [Performance](#-performance) for where it wins and where it does not
+- **📐 JSON Schema output**: `toJSONSchema()` for OpenAPI and Swagger tooling *(4.1+)*
 - **🛡️ Runtime Safety**: Catch type errors at runtime with detailed error messages
 - **📱 Phone Number Validation**: International phone number validation (ITU-T E.164 standard)
 - **📧 Advanced Validations**: Email, URL, UUID, IP, semver, slug, JWT, MAC and more
@@ -149,9 +151,38 @@ if (!result.success) {
 }
 ```
 
-`code` is one of `invalid_type`, `missing_key`, `unknown_type`,
-`invalid_schema`, `unexpected_key`, `custom`. Paths use dotted and indexed
-notation (`address.city`, `tags[2]`).
+Paths use dotted and indexed notation (`address.city`, `tags[2]`). `code` is
+one of:
+
+| Code | Meaning | Extra fields |
+|---|---|---|
+| `invalid_type` | present, but not one of the expected types | `expected`, `received` |
+| `missing_key` | a required key was absent | `expected` |
+| `unknown_type` | the schema named an alias that is not registered | `expected` |
+| `invalid_schema` | the schema itself is malformed | `expected`, `received` |
+| `unexpected_key` | strict mode: a key the schema does not declare | |
+| `too_small` | below a lower bound — too short, too few, too small *(4.1+)* | `minimum` |
+| `too_big` | above an upper bound — too long, too many, too large *(4.1+)* | `maximum` |
+| `invalid_format` | right type, wrong shape: not an email, not a UUID, not an integer *(4.1+)* | `expected` |
+| `dangerous_key` | an unsafe key could not be stripped *(4.1+)* | |
+| `custom` | a validator in the schema threw without reporting a reason | |
+
+Constraint validators carry their code all the way out, whether called directly
+or from inside a schema — which is what makes "too short" tellable from "out of
+range" without reading the message:
+
+```typescript
+const result = typer.safeParse({
+    name: (v) => typer.isLength({ min: 3, max: 50 }, v),
+    pin:  (v) => typer.isInRange(1000, 9999, v),
+}, { name: 'ab', pin: 42 });
+
+result.issues;
+// [
+//   { code: 'too_small', path: 'name', minimum: 3,    message: '…' },
+//   { code: 'too_small', path: 'pin',  minimum: 1000, maximum: 9999, message: '…' },
+// ]
+```
 
 `parse` throws a `TyperError`, which extends `TypeError` — existing
 `instanceof TypeError` handling keeps working:
@@ -173,6 +204,194 @@ try {
 > constructing an `Error` — whose stack capture costs more than the validation
 > itself.
 
+### 📐 JSON Schema output *(4.1+)*
+
+`toJSONSchema()` turns a schema into the document OpenAPI and Swagger tooling
+expects:
+
+```typescript
+typer.toJSONSchema({ id: 'number', email: typer.validators.isEmail, note: 'string?' });
+// {
+//   $schema: 'https://json-schema.org/draft/2020-12/schema',
+//   type: 'object',
+//   properties: {
+//     id:    { type: 'number' },
+//     email: { type: 'string', format: 'email' },
+//     note:  { type: ['string', 'null'] },
+//   },
+//   required: ['id', 'email'],
+// }
+```
+
+Type strings, `?` markers, `|` unions, arrays and nested objects have exact
+equivalents. Validators do not — a validator is an opaque function — so Typer's
+own validators and combinators carry the fragment they correspond to:
+
+| Slot | Emitted |
+|---|---|
+| `typer.validators.isEmail` | `{ type: 'string', format: 'email' }` |
+| `typer.literal('a', 'b')` | `{ enum: ['a', 'b'] }` |
+| `typer.arrayOf(v, { min: 1 })` | `{ type: 'array', items: …, minItems: 1 }` |
+| `typer.tuple([a, b])` | `{ type: 'array', prefixItems: […], minItems: 2, maxItems: 2 }` |
+| `typer.record(v)` | `{ type: 'object', additionalProperties: … }` |
+| `typer.optional(v)` | the inner fragment, key dropped from `required` |
+| `typer.withDefault(v, 10)` | the inner fragment plus `default: 10` |
+| `typer.discriminatedUnion(k, …)` | `{ oneOf: […], discriminator: { propertyName: k } }` |
+
+A validator *you* wrote becomes `{}` — which accepts anything — as do the
+aliases JSON cannot carry (`symbol`, `function`, `map`, `set`, `regexp`, the
+buffer types) and anything registered with `extend`. Pass
+`{ unrepresentable: 'throw' }` in a build step to be told about those instead of
+shipping a schema that quietly accepts anything at those keys:
+
+```typescript
+typer.toJSONSchema(schema, { unrepresentable: 'throw' });
+// TyperError: Cannot convert to JSON Schema: 1 slot(s) have no equivalent — session
+```
+
+`{ strict: true }` emits `additionalProperties: false`, and `{ $schema: false }`
+omits the dialect keyword for embedding in a larger document.
+
+### 🔁 Coercion *(4.1+)*
+
+Query strings, form data and environment variables arrive as strings. Without
+coercion, every handler rewrites the conversion by hand — which is where the
+mistakes are:
+
+```typescript
+const query = typer.parse({
+    page:     typer.coerce.number,
+    archived: typer.coerce.boolean,
+    since:    typer.coerce.date,
+}, req.query);
+// { page: 2, archived: false, since: Date }
+```
+
+The converted value replaces the original in place, so what comes out of
+`parse` holds numbers and dates rather than the strings that arrived.
+
+These reject what they cannot convert instead of inventing a value, which is the
+whole difference from the `Number()` / `Boolean()` they replace:
+
+| Input | `Number()` / `Boolean()` | `typer.coerce.*` |
+|---|---|---|
+| `''` | `0` | rejected |
+| `'   '` | `0` | rejected |
+| `null` | `0` | rejected |
+| `[]` | `0` | rejected |
+| `'abc'` | `NaN` | rejected |
+| `'false'` | `true` | `false` |
+| `'0'` | `true` | `false` |
+
+`coerce.boolean` reads `true`/`1`/`yes`/`on` and `false`/`0`/`no`/`off`, in any
+case and with surrounding whitespace; anything else is rejected rather than
+guessed at.
+
+### 🧬 Deriving schemas from schemas *(4.1+)*
+
+Real applications derive shapes from each other constantly. Writing the second
+copy by hand means the two diverge at the first change:
+
+```typescript
+const userSchema = typer.schema({
+    id: 'number',
+    name: 'string',
+    email: 'string',
+    password: 'string',
+});
+
+const publicUser = typer.pick(userSchema, ['id', 'name']);
+const createUser = typer.omit(userSchema, ['id']);
+const patchUser  = typer.partial(typer.omit(userSchema, ['id', 'password']));
+const timestamped = typer.merge(userSchema, { createdAt: 'date' });
+
+type PatchUser = Infer<typeof patchUser>;
+// → { name?: string | null; email?: string | null }
+```
+
+All four return a plain new schema and leave the sources untouched, so the
+result parses, infers and composes like any other. `merge` lets the second
+schema win on overlapping keys.
+
+> `partial` gives a type-string slot the `?` marker it already understands.
+> Slots with no marker of their own — a validator, an array, a nested schema —
+> are rebuilt as `optional(...)` validators instead, so a *made-optional* nested
+> slot reports its failures as one `custom` issue at the slot's path rather than
+> one per field. Pass the keys you need if that matters:
+> `typer.partial(schema, ['name', 'email'])`.
+
+### 🛡️ Validated means safe to merge *(4.1+)*
+
+Typer validates in place and returns the same reference it was given. That is
+what makes it fast, and it used to mean that keys the schema never declared —
+including `__proto__` and `constructor` from a `JSON.parse` payload — survived
+a `success: true`:
+
+```typescript
+const payload = JSON.parse('{"id":1,"__proto__":{"admin":true}}');
+typer.parse({ id: 'number' }, payload);
+
+Object.keys(payload);        // ['id']  — was ['id', '__proto__'] before 4.1
+{ ...payload }.admin;        // undefined — the spread that used to matter
+```
+
+`__proto__`, `constructor` and `prototype` are now removed from every validated
+object unless the schema declares them as fields of its own, in which case they
+are ordinary keys and are validated like any other. Nothing else about extra
+keys changes: use `strict` mode if you want *all* undeclared keys rejected.
+
+If the object is frozen and the key cannot be removed, validation fails with a
+`dangerous_key` issue rather than passing an object it could not make safe.
+
+The check costs ~2.5 ns per object: a cheap probe that only falls through to the
+exact `hasOwnProperty` test when an object is not a plain, unpolluted one.
+
+### 🤝 Standard Schema *(4.1+)*
+
+[Standard Schema](https://standardschema.dev) is the common contract that lets a
+validation library be accepted by tRPC, Hono, TanStack Form and Router, Nuxt and
+dozens of others without a per-library adapter. `standard()` produces it from a
+schema, a validator, or a type alias:
+
+```typescript
+import typer from '@illavv/run_typer';
+
+const userSchema = typer.standard({ id: 'number', email: 'string' });
+
+// Any Standard Schema consumer accepts it as-is:
+app.post('/users', validator('json', userSchema), handler);       // Hono
+publicProcedure.input(userSchema).mutation(({ input }) => …);     // tRPC
+```
+
+The result is still an ordinary `Validator`, so it keeps working everywhere a
+validator does — including nested inside another schema:
+
+```typescript
+userSchema({ id: 1, email: 'a@b.co' });        // returns the value, throws on failure
+typer.arrayOf(userSchema);                      // composes like any other validator
+```
+
+`objectOf()` carries the contract as well, so an existing `typer.objectOf(...)`
+is already a Standard Schema.
+
+Issue paths follow the spec's segment form, while keeping Typer's machine-readable
+`code`:
+
+```typescript
+userSchema['~standard'].validate({ id: 'one', email: 'a@b.co' });
+// {
+//   issues: [{
+//     code: 'invalid_type',
+//     path: ['id'],                            // segments, not 'id'
+//     message: 'Expected "id" to be number, got string',
+//     expected: 'number',
+//     received: 'string',
+//   }]
+// }
+```
+
+Validation is synchronous: `validate` never returns a Promise.
+
 ### 🧩 Combinators *(4.0+)*
 
 All of these return a `Validator<T>`, so they compose with each other and slot
@@ -192,6 +411,36 @@ const orderSchema = typer.schema({
     lines:    typer.arrayOf(typer.objectOf({ sku: 'string', qty: 'number' })),
 });
 ```
+
+`discriminatedUnion` covers the payload shape most APIs actually use — a union
+told apart by one key *(4.1+)*:
+
+```typescript
+const event = typer.discriminatedUnion('type', {
+    created: { id: 'string', at: 'date' },
+    renamed: { id: 'string', name: 'string' },
+    deleted: { id: 'string' },
+});
+
+type Event = ReturnType<typeof event>;
+// → { type: 'created'; id: string; at: Date }
+//  | { type: 'renamed'; id: string; name: string }
+//  | { type: 'deleted'; id: string }
+```
+
+Unlike `union`, which tries each variant in turn, this reads the discriminant
+once and goes straight to the only variant that can match — in constant time,
+however many there are — and reports against that variant alone:
+
+```typescript
+typer.safeParse(event, { type: 'renamed', id: 'x', name: 42 }).issues;
+// [{ code: 'invalid_type', path: 'name', expected: 'string', received: 'number' }]
+// not "none of the 3 variants matched, here is why each one failed"
+```
+
+Variants are keyed by discriminant value, so the mapping is exact by
+construction. Each member carries its own tag as a literal type, so it narrows
+on `type` the way a hand-written union does.
 
 `lazy` makes recursive shapes expressible:
 
@@ -546,6 +795,9 @@ Wraps a validator so `undefined` is also accepted.
 #### `union<T extends readonly unknown[]>(...validators): Validator<T[number]>`
 Tries each validator in order; succeeds on the first match.
 
+#### `discriminatedUnion<Key, V>(key: Key, variants: V, options?: { strict?: boolean }): StandardValidator<…>` *(4.1+)*
+A union told apart by one key. Selects the variant in constant time on the discriminant value and reports against that variant alone. Variants are keyed by discriminant value; each member carries its tag as a literal type.
+
 #### `literal<T>(...values): Validator<T[number]>`
 Accepts only the listed literal values, narrowing to their union. *(4.0+)*
 
@@ -573,11 +825,17 @@ Defers construction, which is what makes recursive shapes expressible. Runs the 
 #### `instanceOf<T>(ctor): Validator<T>`
 Composable form of `isInstanceOf`. *(4.0+)*
 
-#### `objectOf<S>(schema: S, options?: { strict?: boolean }): Validator<Infer<S>>`
-Turns a schema into a validator, so object shapes nest inside the other combinators. *(4.0+)*
+#### `objectOf<S>(schema: S, options?: { strict?: boolean }): StandardValidator<Infer<S>>`
+Turns a schema into a validator, so object shapes nest inside the other combinators. The result also carries `~standard`. *(4.0+, Standard Schema in 4.1+)*
+
+#### `standard<S>(target: S, options?: { strict?: boolean }): StandardValidator<T>`
+Wraps a schema, validator or type alias as a [Standard Schema](https://standardschema.dev), so it is accepted by tRPC, Hono, TanStack Form and Router, Nuxt and others with no adapter. The result stays a callable `Validator`. *(4.1+)*
 
 #### `validators`
 The `is*` / `as*` validators, pre-bound to the instance, so they can be passed as values without losing `this`. Built on first access and cached. *(4.0+)*
+
+#### `coerce`
+`coerce.number`, `coerce.boolean`, `coerce.date` — validators that convert before validating, for query strings, form data and environment variables. They reject what they cannot convert (`''`, `null`, `[]`, `'abc'`) instead of producing `0`, and read `'false'` as `false`. *(4.1+)*
 
 ### Non-throwing API *(3.1+)*
 
@@ -601,6 +859,21 @@ schemas) or `TypeMap[K]` (for type aliases).
 #### `safeParse<S>(schemaOrTypeOrValidator, value): ParseResult<T>` *(3.2+ for schema overload)*
 Non-throwing variant. Returns
 `{ success: true, data } | { success: false, error: TypeError }`.
+
+#### `toJSONSchema<S>(schema: S, options?: ToJSONSchemaOptions): JSONSchemaDocument` *(4.1+)*
+Converts a schema into a JSON Schema document (draft 2020-12 by default), for OpenAPI and Swagger tooling. Options: `$schema` (dialect, or `false` to omit), `id`, `title`, `description`, `strict` (emits `additionalProperties: false`), and `unrepresentable` (`'any'` by default, `'throw'` to fail on slots with no JSON Schema equivalent).
+
+#### `pick<S, K>(schema: S, keys: readonly K[]): PickSchema<S, K>` *(4.1+)*
+Derives a schema keeping only the listed keys. Returns a new schema; the source is untouched.
+
+#### `omit<S, K>(schema: S, keys: readonly K[]): OmitSchema<S, K>` *(4.1+)*
+Derives a schema without the listed keys — the complement of `pick`.
+
+#### `merge<A, B>(base: A, extension: B): MergeSchema<A, B>` *(4.1+)*
+Combines two schemas. Keys of `extension` win where the two overlap.
+
+#### `partial<S, K>(schema: S, keys?: readonly K[]): PartialSchema<S, K>` *(4.1+)*
+Makes every key optional, or only the listed ones. Type-string slots gain the `?` marker; validator, array and nested-schema slots are rebuilt as `optional(...)` validators and report failures as a single `custom` issue at the slot path.
 
 #### `schema<const S>(definition: S): S` *(3.2+)*
 Identity helper that preserves literal types of a schema declared in a
@@ -655,6 +928,56 @@ Logs warning if type assertion fails.
 **Aliases**: Short forms like `s`/`str` for `string`, `n`/`num` for `number`, etc.
 
 ## ⚡ Performance
+
+### Where Typer wins, and where it does not
+
+Validation libraries are usually sold on speed. Typer's honest position is
+narrower and worth stating plainly, because a library that says where it loses
+is easier to trust on where it wins.
+
+From the 4.0.0 audit, against `zod` 4.6.5 and `@sinclair/typebox` 0.34.52 on
+Node 26 / darwin arm64, each library measured in its own equivalent-work lane:
+
+| Scenario | Typer | Zod | TypeBox JIT | |
+| --- | ---: | ---: | ---: | --- |
+| Schema setup | **1.13 µs** | 5.74 µs | 3.43 µs | 🥇 |
+| Bundle (gzip) | **7.0 KB** | 92 KB | 22.4 KB | 🥈 * |
+| Flat object, valid | 90 ns | 68 ns | 3.3 ns | 🥉 |
+| Nested object, 25 items | 1.74 µs | 807 ns | 191 ns | 🥉 |
+| Flat object, invalid | 404 ns | 354 ns | 1.05 µs | 🥈 |
+| Deep nested, invalid | 2.07 µs | 1.27 µs | 15.19 µs | 🥈 |
+
+<sub>* behind `zod/mini` at 4.8 KB. Those bundle figures are 4.0.0's; 4.1 added
+Standard Schema, schema composition, coercion, discriminated unions and JSON
+Schema output, and `npm run size` now reports **9.7 KB gzip** for the full ESM
+bundle. None of it can be tree-shaken away by a consumer who does not use it,
+because the API hangs off a class instance — which is what the 5.0
+modularization is for.</sub>
+
+**On the hot path Typer is slower than Zod, and about nine times slower than a
+compiled TypeBox.** That is not a problem in itself — 90 ns is far below the
+point where validation is visible inside an HTTP handler — but it is not the
+reason to choose Typer either. The three real wins are **instant setup**, a
+**small bundle**, and **schemas that read like the shape they describe**.
+
+### Hoist your schemas
+
+Compiled checkers are cached by schema **object identity**. A schema literal
+written inside a handler is a new object on every call, so it is recompiled
+every time — about an order of magnitude slower, and silent, because the code
+looks perfectly ordinary:
+
+```typescript
+const userSchema = typer.schema({ id: 'number' });          // compiled once
+app.post('/u', (req) => typer.parse(userSchema, req.body)); // 78 ns
+
+app.post('/u', (req) => typer.parse({ id: 'number' }, req.body)); // 873 ns
+```
+
+It is a cost, not a leak: the cache is a `WeakMap`, so the throwaway schema is
+collected normally.
+
+### How it is fast where it is
 
 Schemas are compiled to closures once and cached by schema identity; every
 type name, optional marker and union alternative is resolved at compile time,
