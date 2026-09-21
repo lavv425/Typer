@@ -1,13 +1,46 @@
 import { Typer } from '../src/Typer';
 import { compare } from './helpers/measure';
 
+/** The shape used by the compiler tests below. */
+const definition = () => ({
+    id: 'number',
+    name: 'string',
+    email: 'string?',
+    role: 'string|number',
+    tags: ['string'],
+    address: {
+        street: 'string',
+        city: 'string',
+        zip: 'string?',
+    },
+});
+
+const payload = {
+    id: 1,
+    name: 'Mike',
+    email: 'mike@example.com',
+    role: 'admin',
+    tags: ['a', 'b', 'c'],
+    address: { street: '1 Way', city: 'Rome', zip: '00100' },
+};
+
 /**
- * Smoke test for the closure-based compiler. The compiled `parse()` path is
- * expected to outperform calling `checkStructure` directly on every iteration
- * because schema walk + string parsing is done only once per schema literal.
+ * Smoke tests for the closure-based compiler.
  *
- * The threshold is intentionally loose (just "not slower") to avoid CI
- * flakes; on a modern machine the compiled path is typically 2–8× faster.
+ * There used to be a test here asserting that `parse()` was not slower than
+ * `checkStructure()`. It was meaningful in 3.x, when `checkStructure` was a
+ * separate recursive walker — but 4.0 made it share the schema compiler, so
+ * since then the two have been the *same code* reached through two entry
+ * points. Measured outside jest they agree to within 1% (109 ns against
+ * 107 ns), which meant the assertion was really asking two identical things to
+ * differ by less than 20% through an instrumented runtime. It failed and
+ * passed at random, and no regression could make it fail for a reason worth
+ * knowing about.
+ *
+ * What replaced it: the invariant that actually holds (they agree, because
+ * they share the compiler), and the ratio that is actually large (a cached
+ * schema against one recompiled on every call — measured 3.4–4.6× under jest,
+ * asserted at 2×).
  */
 describe('Typer - parse() compiled path performance', () => {
     let typer: Typer;
@@ -16,40 +49,49 @@ describe('Typer - parse() compiled path performance', () => {
         typer = new Typer();
     });
 
-    it('compiled parse() is at least as fast as raw checkStructure', () => {
-        const schema = typer.schema({
-            id: 'number',
-            name: 'string',
-            email: 'string?',
-            role: 'string|number',
-            tags: ['string'],
-            address: {
-                street: 'string',
-                city: 'string',
-                zip: 'string?',
-            },
-        });
-
-        const payload = {
-            id: 1,
-            name: 'Mike',
-            email: 'mike@example.com',
-            role: 'admin',
-            tags: ['a', 'b', 'c'],
-            address: { street: '1 Way', city: 'Rome', zip: '00100' },
+    it('parse() and checkStructure() agree, because they share the compiled checker', () => {
+        const schema = typer.schema(definition());
+        const bad = {
+            id: 'one',
+            role: true,
+            tags: ['a', 2],
+            address: { street: 1 },
         };
 
-        const { compiled, raw } = compare([
-            { label: 'compiled', run: () => { typer.parse(schema, payload); } },
-            { label: 'raw', run: () => { typer.checkStructure(schema as Record<string, unknown>, payload); } },
+        const viaSafeParse = typer.safeParse(schema, bad);
+        const viaCheckStructure = typer.checkStructure(schema as Record<string, unknown>, bad);
+
+        expect(viaSafeParse.success).toBe(false);
+        if (viaSafeParse.success) return;
+
+        expect(viaCheckStructure.isValid).toBe(false);
+        expect(viaCheckStructure.issues).toEqual(viaSafeParse.issues);
+    });
+
+    it('agrees on a valid payload too', () => {
+        const schema = typer.schema(definition());
+
+        expect(typer.safeParse(schema, payload).success).toBe(true);
+        expect(typer.checkStructure(schema as Record<string, unknown>, payload).isValid).toBe(true);
+    });
+
+    it('a hoisted schema is much faster than one rebuilt on every call', () => {
+        // The cache is keyed on schema object identity, so a literal written
+        // inside a handler recompiles every time. This is the gap that makes
+        // hoisting worth documenting — and unlike the comparison it replaced,
+        // the two sides really are different work, so the ratio is large and
+        // the threshold has room to spare.
+        const hoisted = typer.schema(definition());
+
+        const { cached, recompiled } = compare([
+            { label: 'cached', run: () => { typer.parse(hoisted, payload); } },
+            { label: 'recompiled', run: () => { typer.parse(definition() as never, payload); } },
         ]);
 
-        // Loose threshold to keep CI happy across machines/load.
-        expect(compiled).toBeLessThanOrEqual(raw * 1.2);
+        expect(recompiled).toBeGreaterThan(cached * 2);
 
-        // Diagnostic — visible only when --verbose / on failure.
         // eslint-disable-next-line no-console
-        console.log(`[perf] parse(compiled): ${compiled.toFixed(0)}ns — checkStructure: ${raw.toFixed(0)}ns — speedup: ${(raw / compiled).toFixed(2)}×`);
+        console.log(`[perf] cached schema: ${cached.toFixed(0)}ns — recompiled every call: ${recompiled.toFixed(0)}ns — ${(recompiled / cached).toFixed(1)}×`);
     });
 
     it('reusing the same schema literal hits the compile cache', () => {
