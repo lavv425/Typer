@@ -7,7 +7,7 @@ import { TyperError } from "./Errors/TyperError";
 import { constraintOf, formatIssues, issueError, issueMessages, makeIssue, toStandardIssues } from "./Utils/Issues";
 import * as Patterns from "./Constants/Patterns";
 import { STANDARD_VENDOR } from "./Types/StandardSchema";
-import { describing, JSON_SCHEMA, SAFE_RESULT } from "./Constants/Symbols";
+import { describing, describingLazy, JSON_SCHEMA, SAFE_RESULT } from "./Constants/Symbols";
 import type { SafeReporting, SelfDescribing } from "./Constants/Symbols";
 import type { JSONSchemaDocument, JSONSchemaFragment, ToJSONSchemaOptions } from "./Types/JSONSchema";
 import { OPTIONAL_MARKER, toJSONSchema } from "./Utils/JSONSchema";
@@ -2254,7 +2254,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             if (value === null) return null;
             return validator(value);
         };
-        return describing(wrapped, nullableFragment(describedFragment(validator)));
+        return describingLazy(wrapped, () => nullableFragment(describedFragment(validator)));
     }
 
     /**
@@ -2274,7 +2274,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             if (value === undefined) return undefined;
             return validator(value);
         };
-        return describing(wrapped, { ...describedFragment(validator), [OPTIONAL_MARKER]: true });
+        return describingLazy(wrapped, () => ({ ...describedFragment(validator), [OPTIONAL_MARKER]: true }));
     }
 
     /**
@@ -2381,7 +2381,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             return value as Out;
         };
 
-        describing(validator, {
+        describingLazy(validator, () => ({
             oneOf: tags.map((tag) => {
                 const variant = toJSONSchema(variants[tag], { $schema: false, strict }) as {
                     properties?: Record<string, unknown>;
@@ -2396,7 +2396,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
                 };
             }),
             discriminator: { propertyName: key },
-        });
+        }));
 
         return Typer.asStandard(validator, (value) => {
             const issues = run(value);
@@ -2475,10 +2475,12 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             return out;
         };
 
-        const fragment: JSONSchemaFragment = { type: 'array', items: describedFragment(element) };
-        if (min !== undefined) fragment.minItems = min;
-        if (max !== undefined) fragment.maxItems = max;
-        return describing(validator, fragment);
+        return describingLazy(validator, () => {
+            const fragment: JSONSchemaFragment = { type: 'array', items: describedFragment(element) };
+            if (min !== undefined) fragment.minItems = min;
+            if (max !== undefined) fragment.maxItems = max;
+            return fragment;
+        });
     }
 
     /**
@@ -2520,7 +2522,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             return out;
         };
 
-        return describing(validator, { type: 'object', additionalProperties: describedFragment(value) });
+        return describingLazy(validator, () => ({ type: 'object', additionalProperties: describedFragment(value) }));
     }
 
     /**
@@ -2561,12 +2563,12 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             return out as Out;
         };
 
-        return describing(validator, {
+        return describingLazy(validator, () => ({
             type: 'array',
             prefixItems: validators.map((v) => describedFragment(v)),
             minItems: validators.length,
             maxItems: validators.length,
-        });
+        }));
     }
 
     /**
@@ -2627,11 +2629,13 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             return typeof fallback === 'function' ? (fallback as () => T)() : fallback;
         };
 
-        const fragment: JSONSchemaFragment = { ...describedFragment(validator), [OPTIONAL_MARKER]: true };
-        // A factory's result is produced per call, so there is no single
-        // literal to advertise as the schema's default.
-        if (typeof fallback !== 'function') fragment.default = fallback;
-        return describing(wrapped, fragment);
+        return describingLazy(wrapped, () => {
+            const fragment: JSONSchemaFragment = { ...describedFragment(validator), [OPTIONAL_MARKER]: true };
+            // A factory's result is produced per call, so there is no single
+            // literal to advertise as the schema's default.
+            if (typeof fallback !== 'function') fragment.default = fallback;
+            return fragment;
+        });
     }
 
     /**
@@ -2696,7 +2700,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             return value as Infer<S, TRegistry>;
         };
 
-        describing(validator, toJSONSchema(schema as Record<string, unknown>, {
+        describingLazy(validator, () => toJSONSchema(schema as Record<string, unknown>, {
             $schema: false,
             strict: options.strict === true,
         }));

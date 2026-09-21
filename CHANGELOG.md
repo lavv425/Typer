@@ -57,6 +57,13 @@ Work from the 4.0.0 adoption roadmap, in the order that audit recommended.
   turns those into an error naming every path, so a build step can refuse
   rather than publish a schema that quietly accepts anything.
 
+  Those fragments are built on first read, not at construction: setup cost is
+  the benchmark Typer clearly wins, and most callers never ask for a JSON
+  Schema. Building them eagerly cost `objectOf` 42% of its setup time; lazily
+  it is 15% (1.21 µs to 1.39 µs, measured interleaved), which leaves the
+  margin over Zod's 5.74 µs and TypeBox's 3.43 µs intact. `schema()` and
+  `parse()` on a schema literal are untouched.
+
 - **`discriminatedUnion(key, variants)`.** `union` tries each variant in turn,
   so its cost grows with the number of variants and its error lists every
   variant's failure — for the `{ type: 'a' | 'b' }` payloads that dominate real
