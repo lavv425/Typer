@@ -150,9 +150,38 @@ if (!result.success) {
 }
 ```
 
-`code` is one of `invalid_type`, `missing_key`, `unknown_type`,
-`invalid_schema`, `unexpected_key`, `custom`. Paths use dotted and indexed
-notation (`address.city`, `tags[2]`).
+Paths use dotted and indexed notation (`address.city`, `tags[2]`). `code` is
+one of:
+
+| Code | Meaning | Extra fields |
+|---|---|---|
+| `invalid_type` | present, but not one of the expected types | `expected`, `received` |
+| `missing_key` | a required key was absent | `expected` |
+| `unknown_type` | the schema named an alias that is not registered | `expected` |
+| `invalid_schema` | the schema itself is malformed | `expected`, `received` |
+| `unexpected_key` | strict mode: a key the schema does not declare | |
+| `too_small` | below a lower bound — too short, too few, too small *(4.1+)* | `minimum` |
+| `too_big` | above an upper bound — too long, too many, too large *(4.1+)* | `maximum` |
+| `invalid_format` | right type, wrong shape: not an email, not a UUID, not an integer *(4.1+)* | `expected` |
+| `dangerous_key` | an unsafe key could not be stripped *(4.1+)* | |
+| `custom` | a validator in the schema threw without reporting a reason | |
+
+Constraint validators carry their code all the way out, whether called directly
+or from inside a schema — which is what makes "too short" tellable from "out of
+range" without reading the message:
+
+```typescript
+const result = typer.safeParse({
+    name: (v) => typer.isLength({ min: 3, max: 50 }, v),
+    pin:  (v) => typer.isInRange(1000, 9999, v),
+}, { name: 'ab', pin: 42 });
+
+result.issues;
+// [
+//   { code: 'too_small', path: 'name', minimum: 3,    message: '…' },
+//   { code: 'too_small', path: 'pin',  minimum: 1000, maximum: 9999, message: '…' },
+// ]
+```
 
 `parse` throws a `TyperError`, which extends `TypeError` — existing
 `instanceof TypeError` handling keeps working:

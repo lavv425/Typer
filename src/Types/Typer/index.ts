@@ -52,6 +52,22 @@ export type IssueCode =
     | 'invalid_schema'
     /** Strict mode only: the object carried a key the schema does not declare. */
     | 'unexpected_key'
+    /**
+     * The value was below a lower bound — too short, too few elements, or
+     * numerically too small. `minimum` carries the bound that was violated.
+     */
+    | 'too_small'
+    /**
+     * The value was above an upper bound — too long, too many elements, or
+     * numerically too large. `maximum` carries the bound that was violated.
+     */
+    | 'too_big'
+    /**
+     * The value had the right type but the wrong shape: not an email, not a
+     * UUID, not an integer, no match for the given pattern. `expected` names
+     * the format.
+     */
+    | 'invalid_format'
     /** A `Validator` function supplied in the schema threw. */
     | 'custom'
     /**
@@ -82,6 +98,29 @@ export type ValidationIssue = {
     expected?: string;
     /** What was actually found, when meaningful (e.g. `"string"`). */
     received?: string;
+    /**
+     * The lower bound that was violated, on a `too_small` issue — the minimum
+     * length, element count or numeric value the constraint allows.
+     */
+    minimum?: number;
+    /**
+     * The upper bound that was violated, on a `too_big` issue — the maximum
+     * length, element count or numeric value the constraint allows.
+     */
+    maximum?: number;
+};
+
+/**
+ * The bound carried by a `too_small` / `too_big` issue.
+ *
+ * Kept as a separate object so {@link ValidationIssue}'s optional fields stay
+ * out of the positional argument list of every other issue.
+ */
+export type IssueBounds = {
+    /** The minimum the constraint allows, on a `too_small` issue. */
+    minimum?: number;
+    /** The maximum the constraint allows, on a `too_big` issue. */
+    maximum?: number;
 };
 
 /**

@@ -31,6 +31,38 @@ Work from the 4.0.0 adoption roadmap, in the order that audit recommended.
   footprint at `tslib` alone. `STANDARD_VENDOR` (`'typer'`) is exported for
   consumers that attribute issues by vendor.
 
+- **Constraint failures carry a machine-readable code.** Three new
+  `IssueCode`s — `too_small`, `too_big`, `invalid_format` — plus `minimum` and
+  `maximum` on the issue itself.
+
+  Every constraint used to report `code: 'custom'`, so "too short" and "out of
+  range" were indistinguishable unless you read the message — the exact thing
+  the structured errors exist to avoid, and a promise the README was making
+  only for type errors:
+
+  ```typescript
+  typer.safeParse({
+      name: (v) => typer.isLength({ min: 3, max: 50 }, v),
+      pin:  (v) => typer.isInRange(1000, 9999, v),
+  }, { name: 'ab', pin: 42 }).issues;
+  // before: both code: 'custom'
+  // after:  { code: 'too_small', minimum: 3 }
+  //         { code: 'too_small', minimum: 1000, maximum: 9999 }
+  ```
+
+  Covers the bounds validators (`isInRange`, `isLength`, `isPort`, the
+  positive/negative and empty/non-empty family, `arrayOf` bounds, `tuple`
+  length) and the format validators (`isEmail`, `isURL`, `isUUID`, `isIP*`,
+  `isSemver`, `isSlug`, `isJWT`, `isMACAddress`, `isHexColor`, `isISODate`,
+  `isBase64`, `isPhoneNumber`, `isInteger`, `isFiniteNumber`, `isSafeInteger`,
+  `matches`).
+
+  Messages are unchanged, including the `Validation failed at "path": …`
+  wrapping inside a schema. Constraint validators now throw a `TyperError`
+  rather than a bare `TypeError` — it still extends `TypeError`, so existing
+  `catch` blocks and `instanceof` checks are unaffected. A validator that
+  throws without reporting a reason still produces `custom`.
+
 - **Bundle-size budget check.** `npm run size` gzips each built artifact and
   fails when it grows past its budget. A small bundle is one of the three
   things the library actually wins on, so a regression in it now fails the
@@ -75,6 +107,11 @@ Work from the 4.0.0 adoption roadmap, in the order that audit recommended.
 - **`record()` drops dangerous keys instead of copying them.** It builds a new
   object, and `out['__proto__'] = value` sets the result's prototype rather
   than a field — a distinct hole from the one above, in the opposite direction.
+
+### 🐛 Fixed
+
+- **`isNegativeInteger` reported the wrong message.** A copy-paste: it said
+  `must be a positive integer`. It now says `must be a negative integer`.
 
 ### 🔧 Changed
 

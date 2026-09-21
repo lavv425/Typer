@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from "../../Types/StandardSchema";
-import type { IssueCode, ValidationIssue } from "../../Types/Typer";
+import type { IssueBounds, IssueCode, ValidationIssue } from "../../Types/Typer";
+import { TyperError } from "../../Errors/TyperError";
 import { splitPath } from "../Path";
 
 /**
@@ -15,7 +16,49 @@ import { splitPath } from "../Path";
  * @param expected - What the schema asked for, when meaningful.
  * @param received - What was actually found, when meaningful.
  */
-export const makeIssue = (code: IssueCode, path: string, message: string, expected?: string, received?: string): ValidationIssue => ({ code, path, message, expected, received });
+export const makeIssue = (code: IssueCode, path: string, message: string, expected?: string, received?: string, bounds?: IssueBounds): ValidationIssue =>
+    bounds === undefined
+        ? { code, path, message, expected, received }
+        : { code, path, message, expected, received, minimum: bounds.minimum, maximum: bounds.maximum };
+
+/**
+ * Builds the error a constraint validator throws.
+ *
+ * Constraint validators (`isLength`, `isInRange`, `isEmail`, …) used to throw a
+ * bare `TypeError`, which the schema compiler could only report as
+ * `code: 'custom'` — so "too short" and "out of range" were indistinguishable
+ * without reading the message, the one thing the structured errors exist to
+ * avoid. Throwing a `TyperError` carrying a single, properly coded issue lets
+ * that code survive all the way out, whether the validator was called directly
+ * or from inside a schema.
+ *
+ * The issue's `path` is empty: the validator knows what went wrong, not where
+ * it sits in the caller's schema. The compiler fills the path in.
+ *
+ * @param code - The machine-readable reason.
+ * @param message - The human-readable description, reused as the error message.
+ * @param expected - The format or type the constraint asked for.
+ * @param received - What was found, when it is safe to report.
+ * @param bounds - The violated bound, for `too_small` / `too_big`.
+ */
+export const issueError = (code: IssueCode, message: string, expected?: string, received?: string, bounds?: IssueBounds): TyperError => new TyperError(message, [makeIssue(code, '', message, expected, received, bounds)]);
+
+/**
+ * Reads the constraint metadata off an error thrown by a validator, so a
+ * schema slot can report `too_small` instead of a flat `custom`.
+ *
+ * Only a `TyperError` carrying exactly one root-level issue qualifies — that
+ * is the shape {@link issueError} produces. A validator that failed for several
+ * reasons, or at a path of its own (a nested `objectOf`), keeps the aggregated
+ * `custom` reporting it had.
+ *
+ * @param error - The value thrown by the validator.
+ */
+export const constraintOf = (error: unknown): ValidationIssue | undefined => {
+    if (!(error instanceof TyperError) || error.issues.length !== 1) return undefined;
+    const issue = error.issues[0];
+    return issue.path === '' ? issue : undefined;
+};
 
 /**
  * Renders issues into the aggregated message used by `parse`'s thrown error.

@@ -4,7 +4,7 @@ import type { Error } from "./Types/Globals";
 import type { StandardSchemaV1 } from "./Types/StandardSchema";
 import type { BoundValidators, FieldChecker, Infer, KnownAlias, ParseResult, Schema, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TyperExpectTypes, TyperReturn, TypeRegistry, TypeSlot, ValidateSchema, ValidationIssue, Validator, ValueChecker } from "./Types/Typer";
 import { TyperError } from "./Errors/TyperError";
-import { formatIssues, issueMessages, makeIssue, toStandardIssues } from "./Utils/Issues";
+import { constraintOf, formatIssues, issueError, issueMessages, makeIssue, toStandardIssues } from "./Utils/Issues";
 import * as Patterns from "./Constants/Patterns";
 import { STANDARD_VENDOR } from "./Types/StandardSchema";
 import { SAFE_RESULT } from "./Constants/Symbols";
@@ -722,7 +722,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isEmail(p: unknown): string {
         const str = this.isType<string>('string', p);
         if (!Patterns.EMAIL.test(str)) {
-            throw new TypeError(`${p} must be a valid email address.`);
+            throw issueError('invalid_format', `${p} must be a valid email address.`, 'email');
         }
         return str;
     }
@@ -740,9 +740,11 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      */
     public isInRange(min: number, max: number, p: unknown): number {
         const num = this.isType<number>('number', p);
-        if (num < min || num > max) {
-            throw new TypeError(`${p} must be between ${min} and ${max}, is ${num}`);
-        }
+        // Split so the issue says which end of the range was missed; the
+        // message is unchanged.
+        const message = `${p} must be between ${min} and ${max}, is ${num}`;
+        if (num < min) throw issueError('too_small', message, undefined, undefined, { minimum: min, maximum: max });
+        if (num > max) throw issueError('too_big', message, undefined, undefined, { minimum: min, maximum: max });
         return num;
     }
 
@@ -758,7 +760,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isInteger(p: unknown): number {
         const num = this.isType<number>('number', p);
         if (!Number.isInteger(num)) {
-            throw new TypeError(`${p} must be an integer.`);
+            throw issueError('invalid_format', `${p} must be an integer.`, 'integer');
         }
         return num;
     }
@@ -776,7 +778,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isNonEmptyArray<T = unknown>(p: unknown): T[] {
         const arr = this.isType<T[]>('array', p);
         if (arr.length === 0) {
-            throw new TypeError(`${p} must be a non-empty array.`);
+            throw issueError('too_small', `${p} must be a non-empty array.`, undefined, undefined, { minimum: 1 });
         }
         return arr;
     }
@@ -793,7 +795,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isNonEmptyString(p: unknown): string {
         const str = this.isType<string>('string', p);
         if (str.trim().length === 0) {
-            throw new TypeError(`${p} must be a non-empty string.`);
+            throw issueError('too_small', `${p} must be a non-empty string.`, undefined, undefined, { minimum: 1 });
         }
         return str;
     }
@@ -834,14 +836,14 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
 
         // Check if empty after cleaning
         if (digitsOnly.length === 0) {
-            throw new TypeError(`${p} must be a valid phone number.`);
+            throw issueError('invalid_format', `${p} must be a valid phone number.`, 'phone');
         }
 
         // More restrictive regex for phone number validation
         // Allows: +country code, parentheses, spaces, hyphens, and periods
         // Requires at least 7 digits, max 15 (international standard)
         if (!Patterns.PHONE.test(str)) {
-            throw new TypeError(`${p} must be a valid phone number.`);
+            throw issueError('invalid_format', `${p} must be a valid phone number.`, 'phone');
         }
 
         // Count actual digits (excluding + sign)
@@ -849,12 +851,12 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
 
         // Validate digit count (7-15 digits for international numbers)
         if (digitCount < 7 || digitCount > 15) {
-            throw new TypeError(`${p} must be a valid phone number with 7-15 digits.`);
+            throw issueError('invalid_format', `${p} must be a valid phone number with 7-15 digits.`, 'phone');
         }
 
         // Check for invalid patterns
         if (str.includes('..') || str.includes('--') || str.includes('  ')) {
-            throw new TypeError(`${p} must be a valid phone number.`);
+            throw issueError('invalid_format', `${p} must be a valid phone number.`, 'phone');
         }
 
         return str;
@@ -872,7 +874,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isPositiveNumber(p: unknown): number {
         const num = this.isType<number>('number', p);
         if (num < 0) {
-            throw new TypeError(`${p} must be a positive number.`);
+            throw issueError('too_small', `${p} must be a positive number.`, undefined, undefined, { minimum: 0 });
         }
         return num;
     }
@@ -889,7 +891,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isPositiveInteger(p: unknown): number {
         const num = this.isInteger(p);
         if (num < 0) {
-            throw new TypeError(`${p} must be a positive integer.`);
+            throw issueError('too_small', `${p} must be a positive integer.`, undefined, undefined, { minimum: 0 });
         }
         return num;
     }
@@ -906,7 +908,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isNegativeNumber(p: unknown): number {
         const num = this.isType<number>('number', p);
         if (num >= 0) {
-            throw new TypeError(`${p} must be a negative number.`);
+            throw issueError('too_big', `${p} must be a negative number.`);
         }
         return num;
     }
@@ -923,7 +925,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isNegativeInteger(p: unknown): number {
         const num = this.isInteger(p);
         if (num >= 0) {
-            throw new TypeError(`${p} must be a positive integer.`);
+            throw issueError('too_big', `${p} must be a negative integer.`, undefined, undefined, { maximum: -1 });
         }
         return num;
     }
@@ -1045,7 +1047,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         try {
             new URL(str);
         } catch (_) {
-            throw new TypeError(`${p} must be a valid URL.`);
+            throw issueError('invalid_format', `${p} must be a valid URL.`, 'url');
         }
         return str;
     }
@@ -1437,9 +1439,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
                 try {
                     validator(obj[key]);
                 } catch (e) {
-                    const msg = e instanceof Error ? e.message : String(e);
-                    const path = joinPath(parentPath, key);
-                    issues.push(makeIssue('custom', path, `Validation failed at "${path}": ${msg}`));
+                    issues.push(Typer.slotIssue(e, joinPath(parentPath, key)));
                 }
             };
         }
@@ -1471,6 +1471,35 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
                 expectedType,
             ));
         };
+    }
+
+    /**
+     * Builds the issue for a validator that threw inside a schema slot.
+     *
+     * The message keeps the `Validation failed at "path": …` wrapping it has
+     * always had — it is what names the offending key — while `code` and the
+     * constraint metadata are taken from the validator when it reported them.
+     * Without this every constraint failure arrives as `code: 'custom'`, and
+     * "too short" cannot be told from "out of range" except by reading prose.
+     *
+     * @param error - The value the validator threw.
+     * @param path - Dotted path of the slot that failed.
+     */
+    private static slotIssue(error: unknown, path: string): ValidationIssue {
+        const message = error instanceof Error ? error.message : String(error);
+        const wrapped = `Validation failed at "${path}": ${message}`;
+
+        const constraint = constraintOf(error);
+        if (constraint === undefined) return makeIssue('custom', path, wrapped);
+
+        return makeIssue(
+            constraint.code,
+            path,
+            wrapped,
+            constraint.expected,
+            constraint.received,
+            { minimum: constraint.minimum, maximum: constraint.maximum },
+        );
     }
 
     /**
@@ -1664,9 +1693,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
                 try {
                     validator(value);
                 } catch (e) {
-                    const msg = e instanceof Error ? e.message : String(e);
-                    const path = indexPath(arrayPath, index);
-                    issues.push(makeIssue('custom', path, `Validation failed at "${path}": ${msg}`));
+                    issues.push(Typer.slotIssue(e, indexPath(arrayPath, index)));
                 }
             };
         }
@@ -1873,10 +1900,10 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
                 throw new TypeError(`${String(value)} must be an array, is ${this.getType(value)}`);
             }
             if (min !== undefined && value.length < min) {
-                throw new TypeError(`array length must be >= ${min}, is ${value.length}`);
+                throw issueError('too_small', `array length must be >= ${min}, is ${value.length}`, undefined, undefined, { minimum: min });
             }
             if (max !== undefined && value.length > max) {
-                throw new TypeError(`array length must be <= ${max}, is ${value.length}`);
+                throw issueError('too_big', `array length must be <= ${max}, is ${value.length}`, undefined, undefined, { maximum: max });
             }
 
             const out: T[] = new Array(value.length);
@@ -1953,7 +1980,9 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
                 throw new TypeError(`${String(value)} must be an array, is ${this.getType(value)}`);
             }
             if (value.length !== validators.length) {
-                throw new TypeError(`tuple must have exactly ${validators.length} elements, has ${value.length}`);
+                const message = `tuple must have exactly ${validators.length} elements, has ${value.length}`;
+                const bounds = { minimum: validators.length, maximum: validators.length };
+                throw issueError(value.length < validators.length ? 'too_small' : 'too_big', message, undefined, undefined, bounds);
             }
 
             const out = new Array(validators.length);
@@ -2209,7 +2238,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isFiniteNumber(p: unknown): number {
         const num = this.isType<number>('number', p);
         if (!Number.isFinite(num)) {
-            throw new TypeError(`${p} must be a finite number.`);
+            throw issueError('invalid_format', `${p} must be a finite number.`, 'finite number');
         }
         return num;
     }
@@ -2225,7 +2254,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isSafeInteger(p: unknown): number {
         const num = this.isType<number>('number', p);
         if (!Number.isSafeInteger(num)) {
-            throw new TypeError(`${p} must be a safe integer.`);
+            throw issueError('invalid_format', `${p} must be a safe integer.`, 'safe integer');
         }
         return num;
     }
@@ -2297,7 +2326,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public matches(regex: RegExp, p: unknown): string {
         const str = this.isType<string>('string', p);
         if (!regex.test(str)) {
-            throw new TypeError(`${p} must match ${regex}.`);
+            throw issueError('invalid_format', `${p} must match ${regex}.`, String(regex));
         }
         return str;
     }
@@ -2318,10 +2347,10 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         const length = (p as string | unknown[]).length;
         const { min, max } = bounds;
         if (min !== undefined && length < min) {
-            throw new TypeError(`length must be >= ${min}, is ${length}`);
+            throw issueError('too_small', `length must be >= ${min}, is ${length}`, undefined, undefined, { minimum: min });
         }
         if (max !== undefined && length > max) {
-            throw new TypeError(`length must be <= ${max}, is ${length}`);
+            throw issueError('too_big', `length must be <= ${max}, is ${length}`, undefined, undefined, { maximum: max });
         }
         return p as T;
     }
@@ -2336,19 +2365,19 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      */
     public isEmpty(p: unknown): unknown {
         if (typeof p === 'string') {
-            if (p.trim().length !== 0) throw new TypeError(`string must be empty.`);
+            if (p.trim().length !== 0) throw issueError('too_big', `string must be empty.`, undefined, undefined, { maximum: 0 });
             return p;
         }
         if (Array.isArray(p)) {
-            if (p.length !== 0) throw new TypeError(`array must be empty.`);
+            if (p.length !== 0) throw issueError('too_big', `array must be empty.`, undefined, undefined, { maximum: 0 });
             return p;
         }
         if (p instanceof Map || p instanceof Set) {
-            if (p.size !== 0) throw new TypeError(`${p.constructor.name} must be empty.`);
+            if (p.size !== 0) throw issueError('too_big', `${p.constructor.name} must be empty.`, undefined, undefined, { maximum: 0 });
             return p;
         }
         if (p !== null && typeof p === 'object') {
-            if (Object.keys(p).length !== 0) throw new TypeError(`object must have no own keys.`);
+            if (Object.keys(p).length !== 0) throw issueError('too_big', `object must have no own keys.`, undefined, undefined, { maximum: 0 });
             return p;
         }
         throw new TypeError(`${p} is not a container that can be checked for emptiness.`);
@@ -2365,19 +2394,19 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      */
     public isNonEmpty<T = unknown>(p: unknown): T {
         if (typeof p === 'string') {
-            if (p.trim().length === 0) throw new TypeError(`string must be non-empty.`);
+            if (p.trim().length === 0) throw issueError('too_small', `string must be non-empty.`, undefined, undefined, { minimum: 1 });
             return p as T;
         }
         if (Array.isArray(p)) {
-            if (p.length === 0) throw new TypeError(`array must be non-empty.`);
+            if (p.length === 0) throw issueError('too_small', `array must be non-empty.`, undefined, undefined, { minimum: 1 });
             return p as T;
         }
         if (p instanceof Map || p instanceof Set) {
-            if (p.size === 0) throw new TypeError(`${p.constructor.name} must be non-empty.`);
+            if (p.size === 0) throw issueError('too_small', `${p.constructor.name} must be non-empty.`, undefined, undefined, { minimum: 1 });
             return p as T;
         }
         if (p !== null && typeof p === 'object') {
-            if (Object.keys(p).length === 0) throw new TypeError(`object must have at least one own key.`);
+            if (Object.keys(p).length === 0) throw issueError('too_small', `object must have at least one own key.`, undefined, undefined, { minimum: 1 });
             return p as T;
         }
         throw new TypeError(`${p} is not a container that can be checked for non-emptiness.`);
@@ -2393,7 +2422,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isUUID(p: unknown): string {
         const str = this.isType<string>('string', p);
         if (!Patterns.UUID.test(str)) {
-            throw new TypeError(`${p} must be a valid UUID.`);
+            throw issueError('invalid_format', `${p} must be a valid UUID.`, 'uuid');
         }
         return str;
     }
@@ -2409,16 +2438,16 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         const str = this.isType<string>('string', p);
         const parts = str.split('.');
         if (parts.length !== 4) {
-            throw new TypeError(`${p} must be a valid IPv4 address.`);
+            throw issueError('invalid_format', `${p} must be a valid IPv4 address.`, 'ipv4');
         }
         for (const part of parts) {
             if (!Patterns.DIGITS.test(part)) {
-                throw new TypeError(`${p} must be a valid IPv4 address.`);
+                throw issueError('invalid_format', `${p} must be a valid IPv4 address.`, 'ipv4');
             }
             const n = Number(part);
             // reject leading zeros (except the single "0") and out-of-range octets
             if (n < 0 || n > 255 || (part.length > 1 && part.startsWith('0'))) {
-                throw new TypeError(`${p} must be a valid IPv4 address.`);
+                throw issueError('invalid_format', `${p} must be a valid IPv4 address.`, 'ipv4');
             }
         }
         return str;
@@ -2445,7 +2474,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
                 throw new Error();
             }
         } catch {
-            throw new TypeError(`${p} must be a valid IPv6 address.`);
+            throw issueError('invalid_format', `${p} must be a valid IPv6 address.`, 'ipv6');
         }
         return str;
     }
@@ -2461,7 +2490,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isHexColor(p: unknown): string {
         const str = this.isType<string>('string', p);
         if (!Patterns.HEX_COLOR.test(str)) {
-            throw new TypeError(`${p} must be a valid hex color.`);
+            throw issueError('invalid_format', `${p} must be a valid hex color.`, 'hex color');
         }
         return str;
     }
@@ -2479,11 +2508,11 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         const str = this.isType<string>('string', p);
         // Require at least YYYY-MM-DD; allow time and timezone parts.
         if (!Patterns.ISO_DATE.test(str)) {
-            throw new TypeError(`${p} must be a valid ISO 8601 date string.`);
+            throw issueError('invalid_format', `${p} must be a valid ISO 8601 date string.`, 'iso date');
         }
         const date = new Date(str);
         if (Number.isNaN(date.getTime())) {
-            throw new TypeError(`${p} must be a valid ISO 8601 date string.`);
+            throw issueError('invalid_format', `${p} must be a valid ISO 8601 date string.`, 'iso date');
         }
         return date;
     }
@@ -2506,7 +2535,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             ? new RegExp(`^(?:${charClass}{4})*(?:${charClass}{2}==|${charClass}{3}=|${charClass}{4})$`)
             : new RegExp(`^(?:${charClass}{4})*(?:${charClass}{2,4}={0,2})?$`);
         if (str.length === 0 || !padded.test(str)) {
-            throw new TypeError(`${p} must be a valid Base64 string.`);
+            throw issueError('invalid_format', `${p} must be a valid Base64 string.`, 'base64');
         }
         return str;
     }
@@ -2531,7 +2560,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         try {
             return this.isIPv6(str);
         } catch {
-            throw new TypeError(`${p} must be a valid IP address.`);
+            throw issueError('invalid_format', `${p} must be a valid IP address.`, 'ip');
         }
     }
 
@@ -2549,7 +2578,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isSemver(p: unknown): string {
         const str = this.isType<string>('string', p);
         if (!Patterns.SEMVER.test(str)) {
-            throw new TypeError(`${p} must be a valid semver string.`);
+            throw issueError('invalid_format', `${p} must be a valid semver string.`, 'semver');
         }
         return str;
     }
@@ -2567,7 +2596,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isSlug(p: unknown): string {
         const str = this.isType<string>('string', p);
         if (!Patterns.SLUG.test(str)) {
-            throw new TypeError(`${p} must be a valid slug.`);
+            throw issueError('invalid_format', `${p} must be a valid slug.`, 'slug');
         }
         return str;
     }
@@ -2585,9 +2614,10 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      */
     public isPort(p: unknown): number {
         const num = this.isInteger(p);
-        if (num < 1 || num > 65535) {
-            throw new TypeError(`${p} must be a valid port number (1-65535).`);
-        }
+        const message = `${p} must be a valid port number (1-65535).`;
+        const bounds = { minimum: 1, maximum: 65535 };
+        if (num < 1) throw issueError('too_small', message, undefined, undefined, bounds);
+        if (num > 65535) throw issueError('too_big', message, undefined, undefined, bounds);
         return num;
     }
 
@@ -2605,7 +2635,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isJWT(p: unknown): string {
         const str = this.isType<string>('string', p);
         if (!Patterns.JWT.test(str)) {
-            throw new TypeError(`${p} must be a valid JWT.`);
+            throw issueError('invalid_format', `${p} must be a valid JWT.`, 'jwt');
         }
         return str;
     }
@@ -2623,7 +2653,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public isMACAddress(p: unknown): string {
         const str = this.isType<string>('string', p);
         if (!Patterns.MAC_ADDRESS.test(str)) {
-            throw new TypeError(`${p} must be a valid MAC address.`);
+            throw issueError('invalid_format', `${p} must be a valid MAC address.`, 'mac address');
         }
         return str;
     }
