@@ -14,9 +14,9 @@ import { indexPath, joinPath } from "./Utils/Path";
 
 /**
  * Class representing a type checker.
- * Version: 3.2.3
+ * Version: 4.0.0
  * @author Michael Lavigna - <https://michaellavigna.com> - <michael.lavigna@hotmail.it>
- * @since 3.2.3
+ * @since 4.0.0
  */
 export class Typer<TRegistry extends TypeRegistry = {}> {
     /**
