@@ -171,14 +171,83 @@ it simply stops being the only way in. Importing the class still pulls
 everything — that is inherent, and it becomes the opt-out rather than the
 default.
 
-### 3.4 Risks
+### 3.4 Spike result — the typing works
 
-- **Type inference is the hard part, not the runtime.** `Infer`,
-  `ValidateSchema` and `KnownAlias` currently thread `TRegistry` through the
-  class's type parameter. With a free `parse`, the registry has to come from
-  the `options` argument, so `parse(schema, value, { registry })` must infer
-  the alias map from `typeof registry`. This needs a spike before anything
-  else is committed; the existing type-level test suite is the safety net.
+**Done, and it resolves open question 2.** The spike compiled three candidate
+signatures under `--strict`, with `@ts-expect-error` on every case that must
+fail, so a check that silently stopped working would have shown up as an unused
+directive rather than passing quietly.
+
+**The one real failure, and the fix.** The obvious signature
+
+```ts
+function parse<R extends TypeRegistry, const S extends ValidateSchema<S, KnownAlias<R>>>(
+    schema: S, value: unknown, options?: { registry: Registry<R> }): Infer<S, R>
+```
+
+**silently loses the typo check whenever no registry is passed** — the common
+case. With `options` omitted there is nothing to infer `R` from, so it falls
+back to its constraint `TypeRegistry` = `Record<string, unknown>`; `KnownAlias<R>`
+then widens to `string`, and `parse({ id: 'nubmer' }, payload)` compiles
+cleanly. That is a worse failure than not compiling: 4.0's headline feature
+would have quietly stopped working.
+
+Defaulting the registry parameter to `{}` fixes it, and putting the schema
+first avoids needing a junk default on `S`:
+
+```ts
+function parse<const S extends ValidateSchema<S, KnownAlias<R>>, R extends TypeRegistry = {}>(
+    schema: S, value: unknown, options?: { registry: Registry<R> }): Infer<S, R>
+```
+
+`S`'s constraint forward-references `R`, which was the part in doubt — it
+works. Verified: built-in aliases with no registry, custom aliases resolving to
+their produced types, typos rejected with and without a registry, an alias from
+a *different* registry rejected, built-ins alongside custom aliases, nested
+schemas and arrays, and the same through `safeParse` and the `schema()` helper.
+
+**`Infer` reads the registry value, not a hand-written map.** Today custom
+aliases must be repeated by hand — `Infer<typeof s, { positive: number }>`.
+They can be recovered from the registry's own type:
+
+```ts
+type TypesOf<Reg> = Reg extends Registry<infer R> ? R : {};
+type InferWith<S, Reg> = Infer<S, TypesOf<Reg>>;
+
+type Order = InferWith<typeof orderSchema, typeof registry>;   // { qty: number }
+```
+
+**Open question 2 answered: keep the registry, and bind it.** Passing
+`{ registry }` on every call is the real cost of losing the instance. A bound
+factory removes it without giving up tree-shaking, because a consumer
+destructures only what they use:
+
+```ts
+const { parse, schema } = createTyper({ positive: (v) => … });
+
+const orderSchema = schema({ qty: 'positive' });   // alias-checked
+parse(orderSchema, payload);                        // { qty: number }
+```
+
+This reads like today's instance API, keeps every compile-time check, and never
+reaches `toJSONSchema` or the format validators unless they are imported. So
+the surface becomes:
+
+- `parse(schema, value)` — free function, no registry, fully tree-shakable;
+- `parse(schema, value, { registry })` — explicit, for one-off use;
+- `createTyper(aliases)` — bound, for codebases that lean on custom aliases;
+- `new Typer()` — unchanged, the compatibility path.
+
+### 3.5 Remaining risks
+
+- **Two ways to do everything** is a documentation cost. The README has to lead
+  with one — the free functions — and present the class as the compatibility
+  path.
+- **The bundle-size budget must be re-expressed per entry point**, otherwise
+  `npm run size` measures a bundle nobody ships any more.
+- **The runtime split is now the work.** The typing is settled; what remains is
+  moving ~3,400 lines without changing behaviour, which the 668-test suite and
+  the type-level tests are there to hold.
 - **Two ways to do everything** is a documentation cost. The README has to lead
   with one — the free functions — and present the class as the compatibility
   path.
@@ -274,7 +343,7 @@ Also worth deciding for 5.0 (all breaking, all optional):
 
 | Step | Work | Breaking |
 | --- | --- | --- |
-| 1 | Type-level spike: registry through `options`, not a class type parameter | no |
+| 1 | ~~Type-level spike: registry through `options`~~ — **done, see §3.4** | no |
 | 2 | Move the compiler and entry points to `core/`, class becomes a facade | no |
 | 3 | Split validators and combinators into modules, one export each | no |
 | 4 | Re-express the size budget per entry point; document the free-function API as primary | no |
@@ -293,10 +362,9 @@ agreed — worth considering, because the bundle win is the whole point.
 
 1. **Does the class stay forever, or is it deprecated on a timetable?** The
    plan assumes forever. Deprecating it would let 6.0 delete the facade.
-2. **Is `createRegistry` the right shape**, or should custom aliases be dropped
-   in favour of plain validator functions in schema slots? Slots already accept
-   validators, so the registry may be redundant surface — and dropping it would
-   remove the hardest part of the type-level work.
+2. ~~**Is `createRegistry` the right shape?**~~ **Answered by the spike (§3.4):**
+   keep it, and pair it with `createTyper(aliases)` so the registry is bound
+   once instead of passed on every call.
 3. **Ship steps 1–4 as 4.2**, or hold everything for one 5.0?
 4. **Is `parseAsync` wanted at all**, or is the service layer the right home?
 
