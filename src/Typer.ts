@@ -13,6 +13,8 @@ import type { JSONSchemaDocument, JSONSchemaFragment, ToJSONSchemaOptions } from
 import { OPTIONAL_MARKER, toJSONSchema } from "./Utils/JSONSchema";
 import { DANGEROUS_KEYS, stripDangerousKeys } from "./Utils/Sanitize";
 import { indexPath, joinPath } from "./Utils/Path";
+import { BUILTIN_PREDICATES, getType } from "./Core/Predicates";
+import type { Predicate } from "./Core/Predicates";
 
 /**
  * Own-property test that does not go through the object being tested, so a
@@ -123,7 +125,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * have no predicate here and fall back to a wrapped checker via
      * `predCache`.
      */
-    private builtinPredicates!: Record<string, (value: unknown) => boolean>;
+    private builtinPredicates!: Readonly<Record<string, Predicate>>;
 
     /**
      * @private
@@ -204,7 +206,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             'void': this.tUndefined,
         };
 
-        this.builtinPredicates = this.buildBuiltinPredicates();
+        this.builtinPredicates = BUILTIN_PREDICATES;
         this.builtinCheckers = { ...this.typesMap };
     }
 
@@ -266,79 +268,6 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         return this.boundValidators;
     }
 
-    /**
-     * Builds the fast-path boolean predicate map for built-in aliases.
-     * Each predicate is a small closure with no throw on the happy or miss
-     * path — `is()` and `isType()` use these to skip the throw/catch dance
-     * required by the legacy checker functions in `typesMap`.
-     */
-    private buildBuiltinPredicates(): Record<string, (value: unknown) => boolean> {
-        const map: Record<string, (value: unknown) => boolean> = Object.create(null);
-
-        const isString = (v: unknown): boolean => typeof v === 'string';
-        for (const k of ['s', 'str', 'string']) map[k] = isString;
-
-        const isNumber = (v: unknown): boolean => typeof v === 'number';
-        for (const k of ['n', 'num', 'number']) map[k] = isNumber;
-
-        const isBoolean = (v: unknown): boolean => typeof v === 'boolean';
-        for (const k of ['b', 'bool', 'boolean']) map[k] = isBoolean;
-
-        const isBigint = (v: unknown): boolean => typeof v === 'bigint';
-        for (const k of ['bi', 'bint', 'bigint']) map[k] = isBigint;
-
-        const isSymbol = (v: unknown): boolean => typeof v === 'symbol';
-        for (const k of ['sym', 'symbol']) map[k] = isSymbol;
-
-        const isUndefined = (v: unknown): boolean => typeof v === 'undefined';
-        for (const k of ['u', 'undef', 'undefined', 'void']) map[k] = isUndefined;
-
-        const isFunction = (v: unknown): boolean => typeof v === 'function';
-        for (const k of ['f', 'funct', 'function']) map[k] = isFunction;
-
-        map['null'] = (v: unknown): boolean => v === null;
-
-        const isArrayPred: (v: unknown) => boolean = Array.isArray;
-        for (const k of ['a', 'arr', 'array']) map[k] = isArrayPred;
-
-        // Matches tObject: typeof === 'object' && !Array.isArray (null passes,
-        // matching legacy behavior documented in the test suite).
-        const isObjectPred = (v: unknown): boolean => typeof v === 'object' && !Array.isArray(v);
-        for (const k of ['o', 'obj', 'object']) map[k] = isObjectPred;
-
-        const isDate = (v: unknown): boolean => v instanceof Date && !Number.isNaN(v.getTime());
-        for (const k of ['dt', 'date']) map[k] = isDate;
-
-        const isRegex = (v: unknown): boolean => v instanceof RegExp;
-        for (const k of ['reg', 'regex', 'regexp']) map[k] = isRegex;
-
-        map['map'] = (v: unknown): boolean => v instanceof Map;
-        map['set'] = (v: unknown): boolean => v instanceof Set;
-
-        const isAB = (v: unknown): boolean => v instanceof ArrayBuffer;
-        for (const k of ['ab', 'arr_buff', 'array_buffer']) map[k] = isAB;
-
-        const isDV = (v: unknown): boolean => v instanceof DataView;
-        for (const k of ['dv', 'dt_v', 'data_view']) map[k] = isDV;
-
-        const isTA = (v: unknown): boolean => ArrayBuffer.isView(v) && !(v instanceof DataView);
-        for (const k of ['ta', 'typ_arr', 'typed_array']) map[k] = isTA;
-
-        // DOM predicate guards typeof to avoid ReferenceError in Node. On miss
-        // in `isType()`, the legacy throwing checker is still used to surface
-        // the original "HTMLElement is not defined" message (see test suite).
-        const isDom = (v: unknown): boolean =>
-            typeof HTMLElement !== 'undefined' && v instanceof HTMLElement;
-        for (const k of ['dom', 'domel', 'domelement']) map[k] = isDom;
-
-        const isJSON = (v: unknown): boolean => {
-            if (typeof v !== 'string') return false;
-            try { JSON.parse(v); return true; } catch { return false; }
-        };
-        for (const k of ['j', 'json']) map[k] = isJSON;
-
-        return map;
-    }
 
     /**
      * Resolves and caches a predicate for the given raw type string.
@@ -771,15 +700,6 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         return p;
     }
 
-    private getType(value: unknown): string {
-        if (value === null) return "null";
-        if (Array.isArray(value)) return "array";
-        if (value instanceof Date) return "date";
-        if (value instanceof RegExp) return "regexp";
-        if (value instanceof Map) return "map";
-        if (value instanceof Set) return "set";
-        return typeof value;
-    }
 
     /**
      * Checks if the provided parameter is an array of a specified type.
@@ -1354,7 +1274,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         }
 
         // `Number(null)`, `Number([])` and `Number([7])` are 0, 0 and 7.
-        throw issueError('invalid_type', `${String(value)} cannot be coerced to a number.`, 'number', this.getType(value));
+        throw issueError('invalid_type', `${String(value)} cannot be coerced to a number.`, 'number', getType(value));
     }
 
     /**
@@ -1378,7 +1298,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         if (value === 1) return true;
         if (value === 0) return false;
 
-        throw issueError('invalid_type', `${String(value)} cannot be coerced to a boolean.`, 'boolean', this.getType(value));
+        throw issueError('invalid_type', `${String(value)} cannot be coerced to a boolean.`, 'boolean', getType(value));
     }
 
     /**
@@ -1406,7 +1326,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             return date;
         }
 
-        throw issueError('invalid_type', `${String(value)} cannot be coerced to a date.`, 'date', this.getType(value));
+        throw issueError('invalid_type', `${String(value)} cannot be coerced to a date.`, 'date', getType(value));
     }
 
     /**
@@ -1804,7 +1724,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         const wrapper = (value: unknown, rootPath: string): ValidationIssue[] => {
             const issues: ValidationIssue[] = [];
             if (value === null || typeof value !== "object" || Array.isArray(value)) {
-                const received = this.getType(value);
+                const received = getType(value);
                 issues.push(makeIssue(
                     'invalid_type',
                     rootPath,
@@ -2034,7 +1954,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
                 issues.push(makeIssue('unknown_type', path, `Unknown type: ${unknownType}`, unknownType));
                 return;
             }
-            const received = this.getType(value);
+            const received = getType(value);
             issues.push(makeIssue(
                 'invalid_type',
                 path,
@@ -2087,7 +2007,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             }
             if (!Array.isArray(value)) {
                 const path = joinPath(parentPath, key);
-                const received = this.getType(value);
+                const received = getType(value);
                 issues.push(makeIssue('invalid_type', path, `Expected "${path}" to be an array, got ${received}`, 'array', received));
                 return;
             }
@@ -2120,7 +2040,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
                 return;
             }
             if (value === null || typeof value !== "object" || Array.isArray(value)) {
-                const received = this.getType(value);
+                const received = getType(value);
                 issues.push(makeIssue('invalid_type', path, `Expected "${path}" to be an object, got ${received}`, 'object', received));
                 return;
             }
@@ -2184,7 +2104,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
                     issues.push(makeIssue('unknown_type', path, `Unknown type: ${unknownType}`, unknownType));
                     return;
                 }
-                const received = this.getType(value);
+                const received = getType(value);
                 issues.push(makeIssue(
                     'invalid_type',
                     path,
@@ -2212,7 +2132,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
                 const value = array[index];
                 const path = indexPath(arrayPath, index);
                 if (value === null || typeof value !== "object" || Array.isArray(value)) {
-                    const received = this.getType(value);
+                    const received = getType(value);
                     issues.push(makeIssue('invalid_type', path, `Expected "${path}" to be an object, got ${received}`, 'object', received));
                     return;
                 }
@@ -2358,7 +2278,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
 
         const run = (value: unknown): ValidationIssue[] => {
             if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-                const received = this.getType(value);
+                const received = getType(value);
                 return [makeIssue('invalid_type', '', `Invalid object: must be a non-null object, got ${received}`, 'object', received)];
             }
 
@@ -2369,7 +2289,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
 
             const checker = typeof tag === 'string' ? checkers.get(tag) : undefined;
             if (checker === undefined) {
-                return [makeIssue('invalid_type', key, `Expected "${key}" to be ${expected}, got ${String(tag)}`, expected, this.getType(tag))];
+                return [makeIssue('invalid_type', key, `Expected "${key}" to be ${expected}, got ${String(tag)}`, expected, getType(tag))];
             }
 
             return checker(value, '');
@@ -2451,7 +2371,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         const { min, max } = bounds;
         const validator = (value: unknown): T[] => {
             if (!Array.isArray(value)) {
-                throw new TypeError(`${String(value)} must be an array, is ${this.getType(value)}`);
+                throw new TypeError(`${String(value)} must be an array, is ${getType(value)}`);
             }
             if (min !== undefined && value.length < min) {
                 throw issueError('too_small', `array length must be >= ${min}, is ${value.length}`, undefined, undefined, { minimum: min });
@@ -2504,7 +2424,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public record<T>(value: Validator<T>): Validator<Record<string, T>> {
         const validator = (input: unknown): Record<string, T> => {
             if (input === null || typeof input !== 'object' || Array.isArray(input)) {
-                throw new TypeError(`${String(input)} must be an object, is ${this.getType(input)}`);
+                throw new TypeError(`${String(input)} must be an object, is ${getType(input)}`);
             }
 
             const out: Record<string, T> = {};
@@ -2540,7 +2460,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         type Out = { -readonly [K in keyof T]: T[K] extends Validator<infer U> ? U : never };
         const validator = (value: unknown): Out => {
             if (!Array.isArray(value)) {
-                throw new TypeError(`${String(value)} must be an array, is ${this.getType(value)}`);
+                throw new TypeError(`${String(value)} must be an array, is ${getType(value)}`);
             }
             if (value.length !== validators.length) {
                 const message = `tuple must have exactly ${validators.length} elements, has ${value.length}`;
@@ -2925,7 +2845,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      */
     public isLength<T extends string | readonly unknown[]>(bounds: { min?: number; max?: number }, p: unknown): T {
         if (typeof p !== 'string' && !Array.isArray(p)) {
-            throw new TypeError(`${p} must be a string or array, is ${this.getType(p)}`);
+            throw new TypeError(`${p} must be a string or array, is ${getType(p)}`);
         }
         const length = (p as string | unknown[]).length;
         const { min, max } = bounds;
