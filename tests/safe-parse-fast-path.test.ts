@@ -1,4 +1,5 @@
 import { Typer, TyperError } from '../src/Typer';
+import { compare } from './helpers/measure';
 
 const typer = new Typer();
 
@@ -90,17 +91,11 @@ describe('safeParse through objectOf reports without throwing', () => {
         // far below the order of magnitude that was there before.
         const wrapped = typer.objectOf(schema);
         const payload = structuredClone(bad);
-        const ITERATIONS = 2_000;
 
-        const time = (run: () => void): number => {
-            for (let i = 0; i < 200; i++) run(); // warm up
-            const start = process.hrtime.bigint();
-            for (let i = 0; i < ITERATIONS; i++) run();
-            return Number(process.hrtime.bigint() - start) / ITERATIONS;
-        };
-
-        const direct = time(() => { typer.safeParse(schema, payload); });
-        const viaObjectOf = time(() => { typer.safeParse(wrapped, payload); });
+        const { direct, viaObjectOf } = compare([
+            { label: 'direct', run: () => { typer.safeParse(schema, payload); } },
+            { label: 'viaObjectOf', run: () => { typer.safeParse(wrapped, payload); } },
+        ]);
 
         expect(viaObjectOf).toBeLessThan(direct * 3);
     });

@@ -1,4 +1,5 @@
 import { Typer, TyperError } from '../src/Typer';
+import { compare } from './helpers/measure';
 
 const typer = new Typer();
 
@@ -99,15 +100,10 @@ describe('discriminatedUnion', () => {
         );
         const wide = typer.discriminatedUnion('kind', many);
 
-        const time = (payload: unknown): number => {
-            for (let i = 0; i < 2_000; i++) wide(payload);
-            const start = process.hrtime.bigint();
-            for (let i = 0; i < 20_000; i++) wide(payload);
-            return Number(process.hrtime.bigint() - start) / 20_000;
-        };
-
-        const first = time({ kind: 'v0', value: 1 });
-        const last = time({ kind: 'v49', value: 1 });
+        const { first, last } = compare([
+            { label: 'first', run: () => { wide({ kind: 'v0', value: 1 }); } },
+            { label: 'last', run: () => { wide({ kind: 'v49', value: 1 }); } },
+        ]);
 
         // Loose bound so it holds on a loaded CI runner; a linear scan would
         // make the last variant ~50x the first.
