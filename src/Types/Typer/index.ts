@@ -108,19 +108,32 @@ export type ValidationIssue = {
      * length, element count or numeric value the constraint allows.
      */
     maximum?: number;
+    /**
+     * The offending value itself, when the constraint is about the value
+     * rather than a property of it.
+     *
+     * **Treat as sensitive.** A numeric bound is exactly what guards PINs,
+     * one-time codes and amounts, so the value is deliberately kept out of
+     * `message` and out of the Standard Schema output — the two places an
+     * issue is most likely to be logged or forwarded wholesale. Read it
+     * explicitly when you want to show it.
+     */
+    value?: unknown;
 };
 
 /**
- * The bound carried by a `too_small` / `too_big` issue.
+ * The extra detail a constraint issue can carry.
  *
  * Kept as a separate object so {@link ValidationIssue}'s optional fields stay
  * out of the positional argument list of every other issue.
  */
-export type IssueBounds = {
+export type IssueMeta = {
     /** The minimum the constraint allows, on a `too_small` issue. */
     minimum?: number;
     /** The maximum the constraint allows, on a `too_big` issue. */
     maximum?: number;
+    /** The offending value. Sensitive — see {@link ValidationIssue.value}. */
+    value?: unknown;
 };
 
 /**

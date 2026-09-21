@@ -65,6 +65,54 @@ describe('constraint validators report a code, not just prose', () => {
         });
     });
 
+    describe('isInRange keeps the failing value out of the message', () => {
+        it('does not name the value, which may be a PIN, an OTP or an amount', () => {
+            const issue = issueOf(() => typer.isInRange(1000, 9999, 424242));
+
+            expect(issue.message).toBe('value must be between 1000 and 9999');
+            expect(issue.message).not.toContain('424242');
+        });
+
+        it('puts it on the issue instead, for callers that want to show it', () => {
+            const issue = issueOf(() => typer.isInRange(1000, 9999, 42));
+            expect(issue.value).toBe(42);
+        });
+
+        it('keeps it out of the aggregated error message too', () => {
+            try {
+                typer.parse({ pin: (v: unknown) => typer.isInRange(1000, 9999, v) }, { pin: 424242 });
+            } catch (e) {
+                expect((e as Error).message).not.toContain('424242');
+                return;
+            }
+            throw new Error('expected a throw');
+        });
+
+        it('keeps it out of the Standard Schema output, which frameworks log whole', () => {
+            const schema = typer.standard({ pin: (v: unknown) => typer.isInRange(1000, 9999, v) });
+            const result = schema['~standard'].validate({ pin: 424242 }) as { issues: Array<Record<string, unknown>> };
+
+            expect(JSON.stringify(result)).not.toContain('424242');
+            expect(result.issues[0]).not.toHaveProperty('value');
+            expect(result.issues[0].code).toBe('too_big');
+        });
+
+        it('carries the value through a schema slot', () => {
+            const result = typer.safeParse({ pin: (v: unknown) => typer.isInRange(1000, 9999, v) }, { pin: 42 });
+
+            expect(result.success).toBe(false);
+            if (result.success) return;
+            expect(result.issues[0].value).toBe(42);
+        });
+
+        it('leaves isLength alone, which already reported only the length', () => {
+            const issue = issueOf(() => typer.isLength({ min: 3 }, 'ab'));
+
+            expect(issue.message).toBe('length must be >= 3, is 2');
+            expect(issue.message).not.toContain('ab');
+        });
+    });
+
     it('still extends TypeError, so existing catch blocks keep working', () => {
         expect(() => typer.isEmail('nope')).toThrow(TypeError);
         expect(() => typer.isEmail('nope')).toThrow('must be a valid email address');

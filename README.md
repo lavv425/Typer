@@ -17,7 +17,7 @@ Typer is a comprehensive TypeScript validation library that provides robust type
 - **🤝 [Standard Schema](https://standardschema.dev)**: `typer.standard(schema)` is accepted by tRPC, Hono, TanStack Form and Router, Nuxt and the rest — no adapter *(4.1+)*
 - **📋 Schema Validation**: Complex nested object structure validation with strict mode
 - **🔧 Extensible Architecture**: Register custom types with `extend()` and keep full type inference
-- **⚡ High Performance**: Closure-compiled, cached schemas with a predicate fast-path — see [Performance](#-performance)
+- **🪶 Tiny and instant**: 7 KB gzip, and building a schema costs ~1.1 µs — the lowest setup cost of the three libraries measured. See [Performance](#-performance) for where it wins and where it does not
 - **🛡️ Runtime Safety**: Catch type errors at runtime with detailed error messages
 - **📱 Phone Number Validation**: International phone number validation (ITU-T E.164 standard)
 - **📧 Advanced Validations**: Email, URL, UUID, IP, semver, slug, JWT, MAC and more
@@ -876,6 +876,51 @@ Logs warning if type assertion fails.
 **Aliases**: Short forms like `s`/`str` for `string`, `n`/`num` for `number`, etc.
 
 ## ⚡ Performance
+
+### Where Typer wins, and where it does not
+
+Validation libraries are usually sold on speed. Typer's honest position is
+narrower and worth stating plainly, because a library that says where it loses
+is easier to trust on where it wins.
+
+From the 4.0.0 audit, against `zod` 4.6.5 and `@sinclair/typebox` 0.34.52 on
+Node 26 / darwin arm64, each library measured in its own equivalent-work lane:
+
+| Scenario | Typer | Zod | TypeBox JIT | |
+| --- | ---: | ---: | ---: | --- |
+| Schema setup | **1.13 µs** | 5.74 µs | 3.43 µs | 🥇 |
+| Bundle (gzip) | **7.0 KB** | 92 KB | 22.4 KB | 🥈 * |
+| Flat object, valid | 90 ns | 68 ns | 3.3 ns | 🥉 |
+| Nested object, 25 items | 1.74 µs | 807 ns | 191 ns | 🥉 |
+| Flat object, invalid | 404 ns | 354 ns | 1.05 µs | 🥈 |
+| Deep nested, invalid | 2.07 µs | 1.27 µs | 15.19 µs | 🥈 |
+
+<sub>* behind `zod/mini` at 4.8 KB.</sub>
+
+**On the hot path Typer is slower than Zod, and about nine times slower than a
+compiled TypeBox.** That is not a problem in itself — 90 ns is far below the
+point where validation is visible inside an HTTP handler — but it is not the
+reason to choose Typer either. The three real wins are **instant setup**, a
+**small bundle**, and **schemas that read like the shape they describe**.
+
+### Hoist your schemas
+
+Compiled checkers are cached by schema **object identity**. A schema literal
+written inside a handler is a new object on every call, so it is recompiled
+every time — about an order of magnitude slower, and silent, because the code
+looks perfectly ordinary:
+
+```typescript
+const userSchema = typer.schema({ id: 'number' });          // compiled once
+app.post('/u', (req) => typer.parse(userSchema, req.body)); // 78 ns
+
+app.post('/u', (req) => typer.parse({ id: 'number' }, req.body)); // 873 ns
+```
+
+It is a cost, not a leak: the cache is a `WeakMap`, so the throwaway schema is
+collected normally.
+
+### How it is fast where it is
 
 Schemas are compiled to closures once and cached by schema identity; every
 type name, optional marker and union alternative is resolved at compile time,

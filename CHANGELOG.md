@@ -205,6 +205,37 @@ Work from the 4.0.0 adoption roadmap, in the order that audit recommended.
 
 ### 🔧 Changed
 
+- **`isInRange` no longer puts the failing value in its message.** A numeric
+  range is exactly what guards PINs, one-time codes and amounts, and the
+  message is what ends up in application logs — where the value was landing
+  twice over:
+
+  ```
+  before: '42 must be between 1000 and 9999, is 42'
+  after:  'value must be between 1000 and 9999'
+  ```
+
+  The value moves to the issue's new `value` field, so nothing is lost for
+  callers that want to show it. That field is deliberately left out of the
+  Standard Schema output, which is the boundary where an issue is handed to a
+  framework that may log or serialize it whole. `isLength` already reported
+  only the length and is unchanged.
+
+- **The schema-identity cache is documented where it bites.** Compiled checkers
+  are cached by schema *object* identity, so a literal written inside a handler
+  is a new object on every call and is recompiled every time — 78 ns hoisted
+  against 873 ns inline, and silent, because the code looks ordinary. Now
+  called out on `parse`, on `schema`, and in a dedicated README section. (It is
+  a cost, not a leak: the cache is a `WeakMap`.)
+
+- **The README no longer leads with "High Performance".** On the hot path Typer
+  is slower than Zod and about nine times slower than a compiled TypeBox, so
+  claiming speed as the headline invited exactly the comparison it loses — and
+  buried the three things it does win: instant setup (1.13 µs against 5.74 and
+  3.43), a small bundle (7.0 KB gzip), and schemas that read like the shape
+  they describe. The full comparison, wins and losses, is now a table in the
+  Performance section.
+
 - **Package metadata.** `"sideEffects": false` lets bundlers drop unused code
   with confidence, which was previously impossible to prove and cost exactly
   the selling point the bundle size is meant to make. `engines.node` declares

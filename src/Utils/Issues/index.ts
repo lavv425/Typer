@@ -1,5 +1,5 @@
 import type { StandardSchemaV1 } from "../../Types/StandardSchema";
-import type { IssueBounds, IssueCode, ValidationIssue } from "../../Types/Typer";
+import type { IssueMeta, IssueCode, ValidationIssue } from "../../Types/Typer";
 import { TyperError } from "../../Errors/TyperError";
 import { splitPath } from "../Path";
 
@@ -16,10 +16,10 @@ import { splitPath } from "../Path";
  * @param expected - What the schema asked for, when meaningful.
  * @param received - What was actually found, when meaningful.
  */
-export const makeIssue = (code: IssueCode, path: string, message: string, expected?: string, received?: string, bounds?: IssueBounds): ValidationIssue =>
-    bounds === undefined
+export const makeIssue = (code: IssueCode, path: string, message: string, expected?: string, received?: string, meta?: IssueMeta): ValidationIssue =>
+    meta === undefined
         ? { code, path, message, expected, received }
-        : { code, path, message, expected, received, minimum: bounds.minimum, maximum: bounds.maximum };
+        : { code, path, message, expected, received, minimum: meta.minimum, maximum: meta.maximum, value: meta.value };
 
 /**
  * Builds the error a constraint validator throws.
@@ -41,7 +41,7 @@ export const makeIssue = (code: IssueCode, path: string, message: string, expect
  * @param received - What was found, when it is safe to report.
  * @param bounds - The violated bound, for `too_small` / `too_big`.
  */
-export const issueError = (code: IssueCode, message: string, expected?: string, received?: string, bounds?: IssueBounds): TyperError => new TyperError(message, [makeIssue(code, '', message, expected, received, bounds)]);
+export const issueError = (code: IssueCode, message: string, expected?: string, received?: string, bounds?: IssueMeta): TyperError => new TyperError(message, [makeIssue(code, '', message, expected, received, bounds)]);
 
 /**
  * Reads the constraint metadata off an error thrown by a validator, so a
@@ -93,13 +93,17 @@ export const issueMessages = (issues: ValidationIssue[]): string[] => {
  * extra properties — consumers that only read `message`/`path` are unaffected,
  * and the ones that know about Typer keep the machine-readable reason.
  *
+ * `value` is the one field deliberately left behind: it carries the offending
+ * value, and this is the boundary where an issue is handed to a framework that
+ * may log or serialize it whole.
+ *
  * @param issues - The issues to convert.
  */
 export const toStandardIssues = (issues: ValidationIssue[]): StandardSchemaV1.Issue[] => {
     const out: StandardSchemaV1.Issue[] = new Array(issues.length);
     for (let i = 0; i < issues.length; i++) {
-        const issue = issues[i];
-        out[i] = { ...issue, path: splitPath(issue.path) };
+        const { value: _omitted, ...issue } = issues[i];
+        out[i] = { ...issue, path: splitPath(issues[i].path) };
     }
     return out;
 };
