@@ -219,6 +219,21 @@ export type ParseResult<T> =
 export type Validator<T> = (value: unknown) => T;
 
 /**
+ * The coercing validators exposed by `Typer#coerce`.
+ *
+ * Each is an ordinary `Validator`, so it slots into a schema, nests in a
+ * combinator, and is passed around like any other.
+ */
+export type Coercions = {
+    /** Converts to a number, rejecting `''`, `null`, arrays and unparseable strings. */
+    number: Validator<number>;
+    /** Converts to a boolean by reading the value: `'false'` and `'0'` are `false`. */
+    boolean: Validator<boolean>;
+    /** Converts to a valid `Date` from a `Date`, epoch milliseconds, or a date string. */
+    date: Validator<Date>;
+};
+
+/**
  * A `Validator` that is also a Standard Schema.
  *
  * It stays callable exactly like any other validator — so it can still be

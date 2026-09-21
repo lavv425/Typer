@@ -31,6 +31,28 @@ Work from the 4.0.0 adoption roadmap, in the order that audit recommended.
   footprint at `tslib` alone. `STANDARD_VENDOR` (`'typer'`) is exported for
   consumers that attribute issues by vendor.
 
+- **Coercion: `typer.coerce.number`, `.boolean`, `.date`.** Query strings, form
+  data and environment variables arrive as strings, so every handler was
+  rewriting the conversion by hand ahead of validation — precisely where the
+  mistakes get through.
+
+  ```typescript
+  const query = typer.parse({
+      page:     typer.coerce.number,
+      archived: typer.coerce.boolean,
+      since:    typer.coerce.date,
+  }, req.query);
+  ```
+
+  The two classic traps are handled rather than inherited: `Number('')` is `0`
+  and `Boolean('false')` is `true`. These reject `''`, `'   '`, `null`,
+  `undefined`, `NaN`, arrays and objects instead of producing a number, and read
+  `'false'`/`'0'`/`'no'`/`'off'` as `false` and `'true'`/`'1'`/`'yes'`/`'on'` as
+  `true`, rejecting anything else rather than guessing. A bigint outside the
+  safe integer range is refused rather than silently losing digits, and
+  `coerce.date` rejects the `Invalid Date` the `Date` constructor would hand
+  back.
+
 - **Schema composition: `pick`, `omit`, `partial`, `merge`.** Deriving
   `CreateUserDto` from `UserDto` needed a second copy of the shape written by
   hand, and the two diverged at the first change.

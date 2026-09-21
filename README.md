@@ -203,6 +203,41 @@ try {
 > constructing an `Error` — whose stack capture costs more than the validation
 > itself.
 
+### 🔁 Coercion *(4.1+)*
+
+Query strings, form data and environment variables arrive as strings. Without
+coercion, every handler rewrites the conversion by hand — which is where the
+mistakes are:
+
+```typescript
+const query = typer.parse({
+    page:     typer.coerce.number,
+    archived: typer.coerce.boolean,
+    since:    typer.coerce.date,
+}, req.query);
+// { page: 2, archived: false, since: Date }
+```
+
+The converted value replaces the original in place, so what comes out of
+`parse` holds numbers and dates rather than the strings that arrived.
+
+These reject what they cannot convert instead of inventing a value, which is the
+whole difference from the `Number()` / `Boolean()` they replace:
+
+| Input | `Number()` / `Boolean()` | `typer.coerce.*` |
+|---|---|---|
+| `''` | `0` | rejected |
+| `'   '` | `0` | rejected |
+| `null` | `0` | rejected |
+| `[]` | `0` | rejected |
+| `'abc'` | `NaN` | rejected |
+| `'false'` | `true` | `false` |
+| `'0'` | `true` | `false` |
+
+`coerce.boolean` reads `true`/`1`/`yes`/`on` and `false`/`0`/`no`/`off`, in any
+case and with surrounding whitespace; anything else is rejected rather than
+guessed at.
+
 ### 🧬 Deriving schemas from schemas *(4.1+)*
 
 Real applications derive shapes from each other constantly. Writing the second
@@ -716,6 +751,9 @@ Wraps a schema, validator or type alias as a [Standard Schema](https://standards
 
 #### `validators`
 The `is*` / `as*` validators, pre-bound to the instance, so they can be passed as values without losing `this`. Built on first access and cached. *(4.0+)*
+
+#### `coerce`
+`coerce.number`, `coerce.boolean`, `coerce.date` — validators that convert before validating, for query strings, form data and environment variables. They reject what they cannot convert (`''`, `null`, `[]`, `'abc'`) instead of producing `0`, and read `'false'` as `false`. *(4.1+)*
 
 ### Non-throwing API *(3.1+)*
 

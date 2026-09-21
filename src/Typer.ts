@@ -2,7 +2,7 @@
 
 import type { Error } from "./Types/Globals";
 import type { StandardSchemaV1 } from "./Types/StandardSchema";
-import type { BoundValidators, FieldChecker, Infer, KnownAlias, MergeSchema, OmitSchema, ParseResult, PartialSchema, PickSchema, Schema, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TyperExpectTypes, TyperReturn, TypeRegistry, TypeSlot, ValidateSchema, ValidationIssue, Validator, ValueChecker } from "./Types/Typer";
+import type { BoundValidators, Coercions, FieldChecker, Infer, KnownAlias, MergeSchema, OmitSchema, ParseResult, PartialSchema, PickSchema, Schema, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TyperExpectTypes, TyperReturn, TypeRegistry, TypeSlot, ValidateSchema, ValidationIssue, Validator, ValueChecker } from "./Types/Typer";
 import { TyperError } from "./Errors/TyperError";
 import { constraintOf, formatIssues, issueError, issueMessages, makeIssue, toStandardIssues } from "./Utils/Issues";
 import * as Patterns from "./Constants/Patterns";
@@ -17,6 +17,15 @@ import { indexPath, joinPath } from "./Utils/Path";
  * schema carrying a `hasOwnProperty` key of its own cannot shadow it.
  */
 const hasOwnKey = (target: object, key: string): boolean => Object.prototype.hasOwnProperty.call(target, key);
+
+/**
+ * Strings `coerce.boolean` reads as `true`. Anything not listed here or in
+ * {@link FALSY_STRINGS} is rejected rather than guessed at.
+ */
+const TRUTHY_STRINGS = new Set(['true', '1', 'yes', 'on']);
+
+/** Strings `coerce.boolean` reads as `false`. */
+const FALSY_STRINGS = new Set(['false', '0', 'no', 'off']);
 
 /**
  * Class representing a type checker.
@@ -1167,6 +1176,145 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      */
     public schema<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(definition: S): S {
         return definition;
+    }
+
+    /**
+     * @private
+     * Lazily-built cache behind {@link coerce}, for the same reason as
+     * {@link boundValidators}: a field declared at construction keeps the
+     * instance shape fixed.
+     */
+    private coercions: Coercions | undefined = undefined;
+
+    /**
+     * Validators that convert before validating.
+     *
+     * Query strings, form data and environment variables arrive as strings, so
+     * without these every HTTP handler rewrites the conversion by hand — which
+     * is exactly where the mistakes are made. Each one rejects what it cannot
+     * convert rather than inventing a value, which is the difference between
+     * these and the bare `Number()` / `Boolean()` they replace:
+     *
+     * | Input | `Number()` / `Boolean()` | `typer.coerce.*` |
+     * |---|---|---|
+     * | `''` | `0` | rejected |
+     * | `'   '` | `0` | rejected |
+     * | `null` | `0` | rejected |
+     * | `[]` | `0` | rejected |
+     * | `'abc'` | `NaN` | rejected |
+     * | `'false'` | `true` | `false` |
+     * | `'0'` | `true` | `false` |
+     *
+     * In a schema slot the converted value replaces the original, so the
+     * object that comes out of `parse` holds the numbers and dates, not the
+     * strings that arrived.
+     *
+     * @example
+     * const query = typer.parse({
+     *     page:    typer.coerce.number,
+     *     perPage: typer.coerce.number,
+     *     archived: typer.coerce.boolean,
+     *     since:   typer.coerce.date,
+     * }, req.query);
+     * // { page: 2, perPage: 50, archived: false, since: Date }
+     */
+    public get coerce(): Coercions {
+        return (this.coercions ??= {
+            number: (value: unknown): number => this.coerceNumber(value),
+            boolean: (value: unknown): boolean => this.coerceBoolean(value),
+            date: (value: unknown): Date => this.coerceDate(value),
+        });
+    }
+
+    /**
+     * Converts to a number, rejecting everything `Number()` would silently turn
+     * into `0` or `NaN`.
+     *
+     * @param value - The value to convert.
+     * @throws {TyperError} When the value has no unambiguous numeric reading.
+     */
+    private coerceNumber(value: unknown): number {
+        if (typeof value === 'number') {
+            if (Number.isNaN(value)) throw issueError('invalid_type', `NaN cannot be coerced to a number.`, 'number', 'NaN');
+            return value;
+        }
+
+        if (typeof value === 'string') {
+            // `Number('')` and `Number('   ')` are 0 — the classic trap, and
+            // the reason an absent query parameter must not read as zero.
+            const trimmed = value.trim();
+            if (trimmed === '') throw issueError('invalid_type', `"" cannot be coerced to a number.`, 'number', 'string');
+
+            const parsed = Number(trimmed);
+            if (Number.isNaN(parsed)) throw issueError('invalid_type', `"${value}" cannot be coerced to a number.`, 'number', 'string');
+            return parsed;
+        }
+
+        if (typeof value === 'boolean') return value ? 1 : 0;
+
+        if (typeof value === 'bigint') {
+            // Outside the safe range the conversion would lose digits without
+            // saying so, which is worse than refusing.
+            if (value > BigInt(Number.MAX_SAFE_INTEGER) || value < BigInt(Number.MIN_SAFE_INTEGER)) {
+                throw issueError('invalid_type', `${value}n is outside the safe integer range and cannot be coerced to a number.`, 'number', 'bigint');
+            }
+            return Number(value);
+        }
+
+        // `Number(null)`, `Number([])` and `Number([7])` are 0, 0 and 7.
+        throw issueError('invalid_type', `${String(value)} cannot be coerced to a number.`, 'number', this.getType(value));
+    }
+
+    /**
+     * Converts to a boolean by reading the value, not its truthiness —
+     * `Boolean('false')` is `true`, which is never what a query string meant.
+     *
+     * @param value - The value to convert.
+     * @throws {TyperError} When the value is not a recognised boolean spelling.
+     */
+    private coerceBoolean(value: unknown): boolean {
+        if (typeof value === 'boolean') return value;
+
+        if (typeof value === 'string') {
+            const normalized = value.trim().toLowerCase();
+            if (TRUTHY_STRINGS.has(normalized)) return true;
+            if (FALSY_STRINGS.has(normalized)) return false;
+            throw issueError('invalid_type', `"${value}" cannot be coerced to a boolean.`, 'boolean', 'string');
+        }
+
+        // Only the two numbers that spell a boolean; 2 is not "true".
+        if (value === 1) return true;
+        if (value === 0) return false;
+
+        throw issueError('invalid_type', `${String(value)} cannot be coerced to a boolean.`, 'boolean', this.getType(value));
+    }
+
+    /**
+     * Converts to a valid `Date`, rejecting the `Invalid Date` that the `Date`
+     * constructor produces instead of failing.
+     *
+     * @param value - The value to convert: a `Date`, epoch milliseconds, or a parseable string.
+     * @throws {TyperError} When the value does not name a real instant.
+     */
+    private coerceDate(value: unknown): Date {
+        if (value instanceof Date) {
+            if (Number.isNaN(value.getTime())) throw issueError('invalid_type', `Invalid Date cannot be coerced to a date.`, 'date', 'date');
+            return value;
+        }
+
+        if (typeof value === 'number' || typeof value === 'string') {
+            if (typeof value === 'string' && value.trim() === '') {
+                throw issueError('invalid_type', `"" cannot be coerced to a date.`, 'date', 'string');
+            }
+            // `new Date(NaN)` and `new Date(Infinity)` are both Invalid Date.
+            const date = new Date(typeof value === 'string' ? value.trim() : value);
+            if (Number.isNaN(date.getTime())) {
+                throw issueError('invalid_type', `${String(value)} cannot be coerced to a date.`, 'date', typeof value);
+            }
+            return date;
+        }
+
+        throw issueError('invalid_type', `${String(value)} cannot be coerced to a date.`, 'date', this.getType(value));
     }
 
     /**
@@ -2990,4 +3138,4 @@ export { TyperError } from "./Errors/TyperError";
 export { STANDARD_VENDOR } from "./Types/StandardSchema";
 
 export type { StandardSchemaV1 } from "./Types/StandardSchema";
-export type { BoundValidators, Infer, IssueBounds, IssueCode, KnownAlias, MergeSchema, OmitSchema, OptionalSlot, ParseResult, PartialSchema, PickSchema, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperExpectTypes, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from "./Types/Typer";
+export type { BoundValidators, Coercions, Infer, IssueBounds, IssueCode, KnownAlias, MergeSchema, OmitSchema, OptionalSlot, ParseResult, PartialSchema, PickSchema, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperExpectTypes, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from "./Types/Typer";
