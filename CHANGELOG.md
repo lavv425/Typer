@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Work from the 4.0.0 adoption roadmap, in the order that audit recommended.
+
+### ✨ Added
+
+- **Standard Schema support.** `typer.standard(schemaOrValidatorOrAlias)` returns
+  a validator carrying the `~standard` property described by the
+  [Standard Schema](https://standardschema.dev) specification, which is what
+  tRPC, Hono, TanStack Form and Router, Nuxt and dozens of other frameworks look
+  for when they accept a validation library without a dedicated adapter.
+  `objectOf()` now carries the same property.
+
+  The wrapper is needed because a Typer schema is an inert object literal owned
+  by the caller — Typer does not mutate it to attach anything. The result is
+  still a plain `Validator`, so it composes exactly as before.
+
+  Issue paths are converted to the spec's segment form (`'items[0].qty'` becomes
+  `['items', 0, 'qty']`); `code`, `expected` and `received` ride along as extra
+  properties, so nothing machine-readable is lost on the way out.
+
+  The specification interface is vendored as `StandardSchemaV1` rather than
+  taken as a dependency on `@standard-schema/spec`, keeping the install
+  footprint at `tslib` alone. `STANDARD_VENDOR` (`'typer'`) is exported for
+  consumers that attribute issues by vendor.
+
 ## [4.0.0] - 2026-09-18
 
 Three themes: validation failures became structured data, schemas became

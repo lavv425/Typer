@@ -168,6 +168,29 @@ type _UserList = Expect<Equal<ReturnType<typeof userList>, { id: number }[]>>;
 typer.objectOf({ id: 'nubmer' });
 
 // ---------------------------------------------------------------------------
+//  Standard Schema
+// ---------------------------------------------------------------------------
+
+// A standard schema stays a callable validator, and keeps its inferred output.
+const standardUser = typer.standard({ id: 'number', name: 'string', email: 'string?' });
+type _StandardUser = Expect<Equal<ReturnType<typeof standardUser>, User>>;
+type _StandardUserVersion = Expect<Equal<(typeof standardUser)['~standard']['version'], 1>>;
+
+// objectOf() carries the contract too, so it can be handed to a framework as-is.
+type _ObjectOfIsStandard = Expect<Equal<(typeof userObject)['~standard']['vendor'], string>>;
+
+// Aliases and validators are wrapped with their own type preserved.
+const standardAlias = typer.standard('number');
+type _StandardAlias = Expect<Equal<ReturnType<typeof standardAlias>, number>>;
+
+const standardValidator = typer.standard(typer.arrayOf((v) => typer.asString(v)));
+type _StandardValidator = Expect<Equal<ReturnType<typeof standardValidator>, string[]>>;
+
+// standard() is alias-checked exactly like schema().
+// @ts-expect-error - 'nubmer' is not a known alias
+typer.standard({ id: 'nubmer' });
+
+// ---------------------------------------------------------------------------
 //  Dynamically built schemas must still be accepted
 // ---------------------------------------------------------------------------
 

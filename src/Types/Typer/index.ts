@@ -1,3 +1,5 @@
+import type { StandardSchemaV1 } from "../StandardSchema";
+
 /**
  * Defines the expected input and output types for a function.
  */
@@ -169,6 +171,18 @@ export type ParseResult<T> =
  * @template T - The narrowed value type on success
  */
 export type Validator<T> = (value: unknown) => T;
+
+/**
+ * A `Validator` that is also a Standard Schema.
+ *
+ * It stays callable exactly like any other validator — so it can still be
+ * nested in `arrayOf`, `record`, a schema slot, or called directly — while the
+ * `~standard` property makes it accepted by tRPC, Hono, TanStack Form/Router,
+ * Nuxt and every other consumer of the contract, with no adapter.
+ *
+ * @template T - The validated type on success
+ */
+export type StandardValidator<T> = Validator<T> & StandardSchemaV1<unknown, T>;
 
 // ---------------------------------------------------------------------------
 //  Schema compiler internals

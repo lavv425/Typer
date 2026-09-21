@@ -1,10 +1,12 @@
 "use strict";
 
 import type { Error } from "./Types/Globals";
-import type { BoundValidators, FieldChecker, Infer, KnownAlias, ParseResult, Schema, StructureValidationReturn, TypeKey, TypeMap, TyperExpectTypes, TyperReturn, TypeRegistry, TypeSlot, ValidateSchema, ValidationIssue, Validator, ValueChecker } from "./Types/Typer";
+import type { StandardSchemaV1 } from "./Types/StandardSchema";
+import type { BoundValidators, FieldChecker, Infer, KnownAlias, ParseResult, Schema, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TyperExpectTypes, TyperReturn, TypeRegistry, TypeSlot, ValidateSchema, ValidationIssue, Validator, ValueChecker } from "./Types/Typer";
 import { TyperError } from "./Errors/TyperError";
-import { formatIssues, issueMessages, makeIssue } from "./Utils/Issues";
+import { formatIssues, issueMessages, makeIssue, toStandardIssues } from "./Utils/Issues";
 import * as Patterns from "./Constants/Patterns";
+import { STANDARD_VENDOR } from "./Types/StandardSchema";
 import { indexPath, joinPath } from "./Utils/Path";
 
 /**
@@ -2033,10 +2035,13 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * The schema is compiled once and cached like any other, so this is as fast
      * as calling {@link parse} directly.
      *
+     * The returned validator is also a {@link https://standardschema.dev Standard Schema},
+     * so it can be handed straight to tRPC, Hono, TanStack Form and friends.
+     *
      * @template S - The schema
      * @param {S} schema - The shape to validate against.
      * @param {{ strict?: boolean }} [options] - `strict` rejects keys the schema does not declare.
-     * @returns {Validator} A validator producing `Infer<S>`.
+     * @returns {StandardValidator} A validator producing `Infer<S>`, carrying `~standard`.
      * @throws {TyperError} With one issue per problem found.
      * @example
      * const users = typer.arrayOf(typer.objectOf({ id: 'number', name: 'string' }));
@@ -2045,13 +2050,99 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public objectOf<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(
         schema: S,
         options: { strict?: boolean } = {},
-    ): Validator<Infer<S, TRegistry>> {
+    ): StandardValidator<Infer<S, TRegistry>> {
         const checker = this.getCompiledChecker(schema as Record<string, unknown>, options.strict === true);
-        return (value: unknown): Infer<S, TRegistry> => {
+
+        const validator = (value: unknown): Infer<S, TRegistry> => {
             const issues = checker(value, '');
             if (issues.length > 0) throw new TyperError(formatIssues(issues), issues);
             return value as Infer<S, TRegistry>;
         };
+
+        return Typer.asStandard(validator, (value) => {
+            const issues = checker(value, '');
+            return issues.length === 0
+                ? { success: true, data: value as Infer<S, TRegistry> }
+                : Typer.failure(issues);
+        });
+    }
+
+    /**
+     * Turns any schema, validator or type alias into a
+     * {@link https://standardschema.dev Standard Schema}.
+     *
+     * Standard Schema is the common contract that lets a validation library be
+     * accepted by tRPC, Hono, TanStack Form and Router, Nuxt and the rest,
+     * without a per-library adapter. The returned value is still a plain
+     * validator function, so it also keeps working everywhere a `Validator`
+     * does.
+     *
+     * Schema literals are the one shape that cannot carry `~standard` on their
+     * own — they are inert object literals owned by the caller, and Typer does
+     * not mutate them — which is why this wrapper exists.
+     *
+     * @template S - The schema
+     * @param {S} target - A schema object, a `Validator`, or a type alias (or array of aliases).
+     * @param {{ strict?: boolean }} [options] - Schema objects only: `strict` rejects undeclared keys.
+     * @returns {StandardValidator} The validator, carrying `~standard`.
+     * @example
+     * const userSchema = typer.standard({ id: 'number', email: 'string' });
+     * userSchema['~standard'].validate({ id: 1, email: 'a@b.c' }); // { value: … }
+     *
+     * // tRPC, Hono, TanStack … accept it directly:
+     * router.post('/users', validator('json', userSchema), handler);
+     */
+    public standard<K extends TypeKey>(target: K | readonly K[]): StandardValidator<TypeMap[K]>;
+    public standard<T>(target: Validator<T>): StandardValidator<T>;
+    public standard<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(
+        target: S,
+        options?: { strict?: boolean },
+    ): StandardValidator<Infer<S, TRegistry>>;
+    public standard<T>(target: string | readonly string[]): StandardValidator<T>;
+    public standard(target: unknown, options: { strict?: boolean } = {}): StandardValidator<unknown> {
+        // Schemas get the dedicated path: `objectOf` already compiles the
+        // checker once and reports issues without building an Error.
+        if (target !== null && typeof target === 'object' && !Array.isArray(target)) {
+            return this.objectOf(target as never, options) as StandardValidator<unknown>;
+        }
+
+        const validator: Validator<unknown> = typeof target === 'function'
+            ? target as Validator<unknown>
+            : (value: unknown) => this.parse(target as never, value);
+
+        return Typer.asStandard(validator, (value) => this.safeParse(validator, value));
+    }
+
+    /**
+     * Attaches the Standard Schema properties to a validator function.
+     *
+     * `~standard` is defined non-enumerable so the validator still serializes,
+     * spreads and compares like the plain function it was, and `validate` is
+     * built on the non-throwing `safeParse` path rather than on `try`/`catch`
+     * around the throwing one.
+     *
+     * @param validator - The function to decorate, returned as-is.
+     * @param safeRun - Produces a `ParseResult` without throwing.
+     */
+    private static asStandard<T>(validator: Validator<T>, safeRun: (value: unknown) => ParseResult<T>): StandardValidator<T> {
+        const props: StandardSchemaV1.Props<unknown, T> = {
+            version: 1,
+            vendor: STANDARD_VENDOR,
+            validate: (value: unknown): StandardSchemaV1.Result<T> => {
+                const result = safeRun(value);
+                return result.success
+                    ? { value: result.data }
+                    : { issues: toStandardIssues(result.issues) };
+            },
+        };
+
+        Object.defineProperty(validator, '~standard', {
+            value: props,
+            enumerable: false,
+            configurable: true,
+        });
+
+        return validator as StandardValidator<T>;
     }
 
     /**
@@ -2666,5 +2757,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
 // ---------------------------------------------------------------------------
 
 export { TyperError } from "./Errors/TyperError";
+export { STANDARD_VENDOR } from "./Types/StandardSchema";
 
-export type { BoundValidators, Infer, IssueCode, KnownAlias, ParseResult, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperExpectTypes, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from "./Types/Typer";
+export type { StandardSchemaV1 } from "./Types/StandardSchema";
+export type { BoundValidators, Infer, IssueCode, KnownAlias, ParseResult, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperExpectTypes, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from "./Types/Typer";

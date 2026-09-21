@@ -14,6 +14,7 @@ Typer is a comprehensive TypeScript validation library that provides robust type
 - **🎯 Type-checked schemas**: `Infer<typeof schema>` derives the static type from the runtime schema, and a typo like `'nubmer'` is a **compile error**, not a runtime surprise *(4.0+)*
 - **🧩 Composable validators**: `literal`, `arrayOf`, `record`, `tuple`, `refine`, `transform`, `withDefault`, `lazy`, `objectOf` — all nest freely *(4.0+)*
 - **🔎 Structured errors**: every failure carries `code`, `path`, `expected` and `received`, so you branch on data instead of parsing strings *(4.0+)*
+- **🤝 [Standard Schema](https://standardschema.dev)**: `typer.standard(schema)` is accepted by tRPC, Hono, TanStack Form and Router, Nuxt and the rest — no adapter *(4.1+)*
 - **📋 Schema Validation**: Complex nested object structure validation with strict mode
 - **🔧 Extensible Architecture**: Register custom types with `extend()` and keep full type inference
 - **⚡ High Performance**: Closure-compiled, cached schemas with a predicate fast-path — see [Performance](#-performance)
@@ -172,6 +173,52 @@ try {
 > `result.error` is built on first access. Reading only `result.issues` skips
 > constructing an `Error` — whose stack capture costs more than the validation
 > itself.
+
+### 🤝 Standard Schema *(4.1+)*
+
+[Standard Schema](https://standardschema.dev) is the common contract that lets a
+validation library be accepted by tRPC, Hono, TanStack Form and Router, Nuxt and
+dozens of others without a per-library adapter. `standard()` produces it from a
+schema, a validator, or a type alias:
+
+```typescript
+import typer from '@illavv/run_typer';
+
+const userSchema = typer.standard({ id: 'number', email: 'string' });
+
+// Any Standard Schema consumer accepts it as-is:
+app.post('/users', validator('json', userSchema), handler);       // Hono
+publicProcedure.input(userSchema).mutation(({ input }) => …);     // tRPC
+```
+
+The result is still an ordinary `Validator`, so it keeps working everywhere a
+validator does — including nested inside another schema:
+
+```typescript
+userSchema({ id: 1, email: 'a@b.co' });        // returns the value, throws on failure
+typer.arrayOf(userSchema);                      // composes like any other validator
+```
+
+`objectOf()` carries the contract as well, so an existing `typer.objectOf(...)`
+is already a Standard Schema.
+
+Issue paths follow the spec's segment form, while keeping Typer's machine-readable
+`code`:
+
+```typescript
+userSchema['~standard'].validate({ id: 'one', email: 'a@b.co' });
+// {
+//   issues: [{
+//     code: 'invalid_type',
+//     path: ['id'],                            // segments, not 'id'
+//     message: 'Expected "id" to be number, got string',
+//     expected: 'number',
+//     received: 'string',
+//   }]
+// }
+```
+
+Validation is synchronous: `validate` never returns a Promise.
 
 ### 🧩 Combinators *(4.0+)*
 
@@ -573,8 +620,11 @@ Defers construction, which is what makes recursive shapes expressible. Runs the 
 #### `instanceOf<T>(ctor): Validator<T>`
 Composable form of `isInstanceOf`. *(4.0+)*
 
-#### `objectOf<S>(schema: S, options?: { strict?: boolean }): Validator<Infer<S>>`
-Turns a schema into a validator, so object shapes nest inside the other combinators. *(4.0+)*
+#### `objectOf<S>(schema: S, options?: { strict?: boolean }): StandardValidator<Infer<S>>`
+Turns a schema into a validator, so object shapes nest inside the other combinators. The result also carries `~standard`. *(4.0+, Standard Schema in 4.1+)*
+
+#### `standard<S>(target: S, options?: { strict?: boolean }): StandardValidator<T>`
+Wraps a schema, validator or type alias as a [Standard Schema](https://standardschema.dev), so it is accepted by tRPC, Hono, TanStack Form and Router, Nuxt and others with no adapter. The result stays a callable `Validator`. *(4.1+)*
 
 #### `validators`
 The `is*` / `as*` validators, pre-bound to the instance, so they can be passed as values without losing `this`. Built on first access and cached. *(4.0+)*
