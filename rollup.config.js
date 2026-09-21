@@ -59,6 +59,25 @@ export default [
         external: []
     },
     {
+        input: 'src/validators.ts',
+        output: [
+            {
+                file: 'dist/validators.esm.mjs',
+                format: 'es',
+                sourcemap: true,
+                plugins: [terser()]
+            },
+            {
+                file: 'dist/validators.cjs.min.js',
+                format: 'cjs',
+                sourcemap: true,
+                plugins: [terser()]
+            }
+        ],
+        plugins: [resolve(), commonjs(), compile(false)],
+        external: []
+    },
+    {
         input: 'src/core.ts',
         output: [
             {

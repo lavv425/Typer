@@ -15,6 +15,10 @@ import { DANGEROUS_KEYS, stripDangerousKeys } from "./Utils/Sanitize";
 import { indexPath, joinPath } from "./Utils/Path";
 import { BUILTIN_PREDICATES, getType } from "./Core/Predicates";
 import { BUILTIN_CHECKERS } from "./Core/Checkers";
+import * as Strings from "./Validators/Strings";
+import * as Numbers from "./Validators/Numbers";
+import * as Sizes from "./Validators/Sizes";
+import * as Guards from "./Validators/Guards";
 import { createContext, getCompiledChecker, slotIssue } from "./Core/Compile";
 import type { CompiledChecker, CompileContext } from "./Core/Compile";
 import type { Predicate } from "./Core/Predicates";
@@ -403,352 +407,251 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         return arr;
     }
 
-    /**
-     * Checks if the provided parameter is a valid email address.
-     * 
-     * @param {unknown} p - The parameter to check.
-     * @returns {string} The validated email string
-     * @throws {TypeError} Throws if the parameter is not a valid email address.
-     * @example
-     * const email = typer.isEmail("test@example.com"); // email: string
-     */
+    // -----------------------------------------------------------------------
+    //  Validators, delegating to `Validators/*`
+    //
+    //  The implementations moved out so they can be imported one at a time;
+    //  these keep the instance API working unchanged. `validators` still
+    //  binds them, so passing `typer.validators.isEmail` around behaves
+    //  exactly as before.
+    // -----------------------------------------------------------------------
+
+    /** @see {@link Strings.isEmail} — moved to `Validators/Strings`, kept here for the instance API. */
     public isEmail(p: unknown): string {
-        const str = this.isType<string>('string', p);
-        if (!Patterns.EMAIL.test(str)) {
-            throw issueError('invalid_format', `${p} must be a valid email address.`, 'email');
-        }
-        return str;
+        return Strings.isEmail(p);
     }
 
-    /**
-     * Checks if the provided parameter is a number within a specified range.
-     * 
-     * @param {number} min - The minimum value.
-     * @param {number} max - The maximum value.
-     * The failing value is **not** in the error message: a numeric range is
-     * exactly what guards PINs, one-time codes and amounts, and the message is
-     * what ends up in application logs. It is on the issue's `value` field
-     * instead, for callers that want to show it.
-     *
-     * @param {unknown} p - The parameter to check.
-     * @returns {number} The validated number
-     * @throws {TyperError} Throws if the parameter is not a number within the specified range.
-     * @example
-     * const age = typer.isInRange(18, 65, 25); // age: number
-     */
-    public isInRange(min: number, max: number, p: unknown): number {
-        const num = this.isType<number>('number', p);
-        // Split so the issue says which end of the range was missed.
-        const message = `value must be between ${min} and ${max}`;
-        const meta = { minimum: min, maximum: max, value: num };
-        if (num < min) throw issueError('too_small', message, `${min}..${max}`, 'number', meta);
-        if (num > max) throw issueError('too_big', message, `${min}..${max}`, 'number', meta);
-        return num;
-    }
-
-    /**
-     * Checks if the provided parameter is an integer.
-     * 
-     * @param {unknown} p - The parameter to check.
-     * @returns {number} The validated integer
-     * @throws {TypeError} Throws if the parameter is not an integer.
-     * @example
-     * const count = typer.isInteger(42); // count: number
-     */
-    public isInteger(p: unknown): number {
-        const num = this.isType<number>('number', p);
-        if (!Number.isInteger(num)) {
-            throw issueError('invalid_format', `${p} must be an integer.`, 'integer');
-        }
-        return num;
-    }
-
-    /**
-     * Checks if the provided parameter is a non-empty array.
-     * 
-     * @template T - The expected element type
-     * @param {unknown} p - The parameter to check.
-     * @returns {T[]} The validated non-empty array
-     * @throws {TypeError} Throws if the parameter is not a non-empty array.
-     * @example
-     * const items = typer.isNonEmptyArray<string>(["a", "b"]); // items: string[]
-     */
-    public isNonEmptyArray<T = unknown>(p: unknown): T[] {
-        const arr = this.isType<T[]>('array', p);
-        if (arr.length === 0) {
-            throw issueError('too_small', `${p} must be a non-empty array.`, undefined, undefined, { minimum: 1 });
-        }
-        return arr;
-    }
-
-    /**
-     * Checks if the provided parameter is a non-empty string.
-     * 
-     * @param {unknown} p - The parameter to check.
-     * @returns {string} The validated non-empty string
-     * @throws {TypeError} Throws if the parameter is not a non-empty string.
-     * @example
-     * const name = typer.isNonEmptyString("Hello"); // name: string
-     */
-    public isNonEmptyString(p: unknown): string {
-        const str = this.isType<string>('string', p);
-        if (str.trim().length === 0) {
-            throw issueError('too_small', `${p} must be a non-empty string.`, undefined, undefined, { minimum: 1 });
-        }
-        return str;
-    }
-
-    /**
-     * Checks if the provided parameter is one of the specified values.
-     * 
-     * @template T - The expected type of the values
-     * @param {T[]} values - The values to check against.
-     * @param {unknown} p - The parameter to check.
-     * @returns {T} The validated value
-     * @throws {TypeError} Throws if the parameter is not one of the specified values.
-     * @example
-     * const color = typer.isOneOf(["red", "blue", "green"] as const, "blue"); // color: "red" | "blue" | "green"
-     */
-    public isOneOf<T>(values: readonly T[], p: unknown): T {
-        if (!values.includes(p as T)) {
-            throw new TypeError(`${p} must be one of [${values.join(', ')}], is ${p}`);
-        }
-        return p as T;
-    }
-
-    /**
-     * Checks if the provided parameter is a valid phone number.
-     * 
-     * @param {unknown} p - The parameter to check.
-     * @returns {string} The validated phone number string
-     * @throws {TypeError} Throws if the parameter is not a valid phone number.
-     * @example
-     * const phone = typer.isPhoneNumber("+1234567890"); // phone: string
-     * const phone2 = typer.isPhoneNumber("(555) 123-4567"); // phone2: string
-     */
-    public isPhoneNumber(p: unknown): string {
-        const str = this.isType<string>('string', p);
-
-        // Remove all non-digit characters except + for counting
-        const digitsOnly = str.replace(/[^\d+]/g, '');
-
-        // Check if empty after cleaning
-        if (digitsOnly.length === 0) {
-            throw issueError('invalid_format', `${p} must be a valid phone number.`, 'phone');
-        }
-
-        // More restrictive regex for phone number validation
-        // Allows: +country code, parentheses, spaces, hyphens, and periods
-        // Requires at least 7 digits, max 15 (international standard)
-        if (!Patterns.PHONE.test(str)) {
-            throw issueError('invalid_format', `${p} must be a valid phone number.`, 'phone');
-        }
-
-        // Count actual digits (excluding + sign)
-        const digitCount = digitsOnly.replace(Patterns.LEADING_PLUS, '').length;
-
-        // Validate digit count (7-15 digits for international numbers)
-        if (digitCount < 7 || digitCount > 15) {
-            throw issueError('invalid_format', `${p} must be a valid phone number with 7-15 digits.`, 'phone');
-        }
-
-        // Check for invalid patterns
-        if (str.includes('..') || str.includes('--') || str.includes('  ')) {
-            throw issueError('invalid_format', `${p} must be a valid phone number.`, 'phone');
-        }
-
-        return str;
-    }
-
-    /**
-     * Checks if the provided parameter is a positive number.
-     * 
-     * @param {unknown} p - The parameter to check.
-     * @returns {number} The validated positive number
-     * @throws {TypeError} Throws if the parameter is not a positive number.
-     * @example
-     * const value = typer.isPositiveNumber(10); // value: number
-     */
-    public isPositiveNumber(p: unknown): number {
-        const num = this.isType<number>('number', p);
-        if (num < 0) {
-            throw issueError('too_small', `${p} must be a positive number.`, undefined, undefined, { minimum: 0 });
-        }
-        return num;
-    }
-
-    /**
-     * Checks if the provided parameter is a positive integer.
-     * 
-     * @param {unknown} p - The parameter to check.
-     * @returns {number} The validated positive integer
-     * @throws {TypeError} Throws if the parameter is not a positive integer.
-     * @example
-     * const count = typer.isPositiveInteger(42); // count: number
-     */
-    public isPositiveInteger(p: unknown): number {
-        const num = this.isInteger(p);
-        if (num < 0) {
-            throw issueError('too_small', `${p} must be a positive integer.`, undefined, undefined, { minimum: 0 });
-        }
-        return num;
-    }
-
-    /**
-     * Checks if the provided parameter is a negative number.
-     * 
-     * @param {unknown} p - The parameter to check.
-     * @returns {number} The validated negative number
-     * @throws {TypeError} Throws if the parameter is not a negative number.
-     * @example
-     * const value = typer.isNegativeNumber(-10); // value: number
-     */
-    public isNegativeNumber(p: unknown): number {
-        const num = this.isType<number>('number', p);
-        if (num >= 0) {
-            throw issueError('too_big', `${p} must be a negative number.`);
-        }
-        return num;
-    }
-
-    /**
-     * Checks if the provided parameter is a negative integer.
-     * 
-     * @param {unknown} p - The parameter to check.
-     * @returns {number} The validated negative integer
-     * @throws {TypeError} Throws if the parameter is not a negative integer.
-     * @example
-     * const count = typer.isNegativeInteger(-42); // count: number
-     */
-    public isNegativeInteger(p: unknown): number {
-        const num = this.isInteger(p);
-        if (num >= 0) {
-            throw issueError('too_big', `${p} must be a negative integer.`, undefined, undefined, { maximum: -1 });
-        }
-        return num;
-    }
-
-    /**
-     * Type-safe string validation
-     * @param {unknown} value - The value to check
-     * @returns {value is string} Type guard for string
-     */
-    public isString(value: unknown): value is string {
-        return typeof value === 'string';
-    }
-
-    /**
-     * Type-safe number validation
-     * @param {unknown} value - The value to check
-     * @returns {value is number} Type guard for number
-     */
-    public isNumber(value: unknown): value is number {
-        return typeof value === 'number';
-    }
-
-    /**
-     * Type-safe boolean validation
-     * @param {unknown} value - The value to check
-     * @returns {value is boolean} Type guard for boolean
-     */
-    public isBoolean(value: unknown): value is boolean {
-        return typeof value === 'boolean';
-    }
-
-    /**
-     * Type-safe array validation
-     * @template T - The expected element type
-     * @param {unknown} value - The value to check
-     * @returns {value is T[]} Type guard for array
-     */
-    public isArray<T = unknown>(value: unknown): value is T[] {
-        return Array.isArray(value);
-    }
-
-    /**
-     * Type-safe object validation
-     * @template T - The expected object type
-     * @param {unknown} value - The value to check
-     * @returns {value is T} Type guard for object
-     */
-    public isObject<T extends Record<string, unknown> = Record<string, unknown>>(value: unknown): value is T {
-        // Mirrors the 'object' alias exactly, including the long-standing quirk
-        // that `null` passes because `typeof null === 'object'`. Use
-        // `isPlainObject` when you need `null` (and class instances) rejected.
-        return typeof value === 'object' && !Array.isArray(value);
-    }
-
-    /**
-     * Validates and returns a string
-     * @param {unknown} value - The value to validate
-     * @returns {string} The validated string
-     * @throws {TypeError} If not a string
-     */
-    public asString(value: unknown): string {
-        return this.isType<string>('string', value);
-    }
-
-    /**
-     * Validates and returns a number
-     * @param {unknown} value - The value to validate
-     * @returns {number} The validated number
-     * @throws {TypeError} If not a number
-     */
-    public asNumber(value: unknown): number {
-        return this.isType<number>('number', value);
-    }
-
-    /**
-     * Validates and returns a boolean
-     * @param {unknown} value - The value to validate
-     * @returns {boolean} The validated boolean
-     * @throws {TypeError} If not a boolean
-     */
-    public asBoolean(value: unknown): boolean {
-        return this.isType<boolean>('boolean', value);
-    }
-
-    /**
-     * Validates and returns an array
-     * @template T - The expected element type
-     * @param {unknown} value - The value to validate
-     * @returns {T[]} The validated array
-     * @throws {TypeError} If not an array
-     */
-    public asArray<T = unknown>(value: unknown): T[] {
-        return this.isType<T[]>('array', value);
-    }
-
-    /**
-     * Validates and returns an object
-     * @template T - The expected object type
-     * @param {unknown} value - The value to validate
-     * @returns {T} The validated object
-     * @throws {TypeError} If not an object
-     */
-    public asObject<T extends Record<string, unknown> = Record<string, unknown>>(value: unknown): T {
-        return this.isType<T>('object', value);
-    }
-
-    /**
-     * Checks if the provided parameter is a valid URL.
-     * 
-     * @param {unknown} p - The parameter to check.
-     * @returns {String|Void}
-     * @throws {TypeError} Throws if the parameter is not a valid URL.
-     * @example
-     * console.log(Typer.isURL("https://example.com")); // true
-     * console.log(Typer.isURL("invalid-url")); // false
-     */
+    /** @see {@link Strings.isURL} — moved to `Validators/Strings`, kept here for the instance API. */
     public isURL(p: unknown): string {
-        const str = this.isType<string>('string', p);
-        try {
-            new URL(str);
-        } catch (_) {
-            throw issueError('invalid_format', `${p} must be a valid URL.`, 'url');
-        }
-        return str;
+        return Strings.isURL(p);
     }
+
+    /** @see {@link Strings.isUUID} — moved to `Validators/Strings`, kept here for the instance API. */
+    public isUUID(p: unknown): string {
+        return Strings.isUUID(p);
+    }
+
+    /** @see {@link Strings.isIPv4} — moved to `Validators/Strings`, kept here for the instance API. */
+    public isIPv4(p: unknown): string {
+        return Strings.isIPv4(p);
+    }
+
+    /** @see {@link Strings.isIPv6} — moved to `Validators/Strings`, kept here for the instance API. */
+    public isIPv6(p: unknown): string {
+        return Strings.isIPv6(p);
+    }
+
+    /** @see {@link Strings.isIP} — moved to `Validators/Strings`, kept here for the instance API. */
+    public isIP(p: unknown): string {
+        return Strings.isIP(p);
+    }
+
+    /** @see {@link Strings.isSemver} — moved to `Validators/Strings`, kept here for the instance API. */
+    public isSemver(p: unknown): string {
+        return Strings.isSemver(p);
+    }
+
+    /** @see {@link Strings.isSlug} — moved to `Validators/Strings`, kept here for the instance API. */
+    public isSlug(p: unknown): string {
+        return Strings.isSlug(p);
+    }
+
+    /** @see {@link Strings.isJWT} — moved to `Validators/Strings`, kept here for the instance API. */
+    public isJWT(p: unknown): string {
+        return Strings.isJWT(p);
+    }
+
+    /** @see {@link Strings.isMACAddress} — moved to `Validators/Strings`, kept here for the instance API. */
+    public isMACAddress(p: unknown): string {
+        return Strings.isMACAddress(p);
+    }
+
+    /** @see {@link Strings.isHexColor} — moved to `Validators/Strings`, kept here for the instance API. */
+    public isHexColor(p: unknown): string {
+        return Strings.isHexColor(p);
+    }
+
+    /** @see {@link Strings.isISODate} — moved to `Validators/Strings`, kept here for the instance API. */
+    public isISODate(p: unknown): Date {
+        return Strings.isISODate(p);
+    }
+
+    /** @see {@link Strings.isBase64} — moved to `Validators/Strings`, kept here for the instance API. */
+    public isBase64(p: unknown, opts: { urlSafe?: boolean; requirePadding?: boolean } = {}): string {
+        return Strings.isBase64(p, opts);
+    }
+
+    /** @see {@link Strings.isPhoneNumber} — moved to `Validators/Strings`, kept here for the instance API. */
+    public isPhoneNumber(p: unknown): string {
+        return Strings.isPhoneNumber(p);
+    }
+
+    /** @see {@link Strings.matches} — moved to `Validators/Strings`, kept here for the instance API. */
+    public matches(regex: RegExp, p: unknown): string {
+        return Strings.matches(regex, p);
+    }
+
+    /** @see {@link Strings.isNonEmptyString} — moved to `Validators/Strings`, kept here for the instance API. */
+    public isNonEmptyString(p: unknown): string {
+        return Strings.isNonEmptyString(p);
+    }
+
+    /** @see {@link Numbers.isInteger} — moved to `Validators/Numbers`, kept here for the instance API. */
+    public isInteger(p: unknown): number {
+        return Numbers.isInteger(p);
+    }
+
+    /** @see {@link Numbers.isInRange} — moved to `Validators/Numbers`, kept here for the instance API. */
+    public isInRange(min: number, max: number, p: unknown): number {
+        return Numbers.isInRange(min, max, p);
+    }
+
+    /** @see {@link Numbers.isPositiveNumber} — moved to `Validators/Numbers`, kept here for the instance API. */
+    public isPositiveNumber(p: unknown): number {
+        return Numbers.isPositiveNumber(p);
+    }
+
+    /** @see {@link Numbers.isPositiveInteger} — moved to `Validators/Numbers`, kept here for the instance API. */
+    public isPositiveInteger(p: unknown): number {
+        return Numbers.isPositiveInteger(p);
+    }
+
+    /** @see {@link Numbers.isNegativeNumber} — moved to `Validators/Numbers`, kept here for the instance API. */
+    public isNegativeNumber(p: unknown): number {
+        return Numbers.isNegativeNumber(p);
+    }
+
+    /** @see {@link Numbers.isNegativeInteger} — moved to `Validators/Numbers`, kept here for the instance API. */
+    public isNegativeInteger(p: unknown): number {
+        return Numbers.isNegativeInteger(p);
+    }
+
+    /** @see {@link Numbers.isFiniteNumber} — moved to `Validators/Numbers`, kept here for the instance API. */
+    public isFiniteNumber(p: unknown): number {
+        return Numbers.isFiniteNumber(p);
+    }
+
+    /** @see {@link Numbers.isSafeInteger} — moved to `Validators/Numbers`, kept here for the instance API. */
+    public isSafeInteger(p: unknown): number {
+        return Numbers.isSafeInteger(p);
+    }
+
+    /** @see {@link Numbers.isPort} — moved to `Validators/Numbers`, kept here for the instance API. */
+    public isPort(p: unknown): number {
+        return Numbers.isPort(p);
+    }
+
+    /** @see {@link Sizes.isLength} — moved to `Validators/Sizes`, kept here for the instance API. */
+    public isLength<T extends string | readonly unknown[]>(bounds: { min?: number; max?: number }, p: unknown): T {
+        return Sizes.isLength<T>(bounds, p);
+    }
+
+    /** @see {@link Sizes.isEmpty} — moved to `Validators/Sizes`, kept here for the instance API. */
+    public isEmpty(p: unknown): unknown {
+        return Sizes.isEmpty(p);
+    }
+
+    /** @see {@link Sizes.isNonEmpty} — moved to `Validators/Sizes`, kept here for the instance API. */
+    public isNonEmpty<T = unknown>(p: unknown): T {
+        return Sizes.isNonEmpty<T>(p);
+    }
+
+    /** @see {@link Sizes.isNonEmptyArray} — moved to `Validators/Sizes`, kept here for the instance API. */
+    public isNonEmptyArray<T = unknown>(p: unknown): T[] {
+        return Sizes.isNonEmptyArray<T>(p);
+    }
+
+    /** @see {@link Sizes.isOneOf} — moved to `Validators/Sizes`, kept here for the instance API. */
+    public isOneOf<T>(values: readonly T[], p: unknown): T {
+        return Sizes.isOneOf<T>(values, p);
+    }
+
+    /** @see {@link Guards.isString} — moved to `Validators/Guards`, kept here for the instance API. */
+    public isString(value: unknown): value is string {
+        return Guards.isString(value);
+    }
+
+    /** @see {@link Guards.isNumber} — moved to `Validators/Guards`, kept here for the instance API. */
+    public isNumber(value: unknown): value is number {
+        return Guards.isNumber(value);
+    }
+
+    /** @see {@link Guards.isBoolean} — moved to `Validators/Guards`, kept here for the instance API. */
+    public isBoolean(value: unknown): value is boolean {
+        return Guards.isBoolean(value);
+    }
+
+    /** @see {@link Guards.isArray} — moved to `Validators/Guards`, kept here for the instance API. */
+    public isArray<T = unknown>(value: unknown): value is T[] {
+        return Guards.isArray<T>(value);
+    }
+
+    /** @see {@link Guards.isObject} — moved to `Validators/Guards`, kept here for the instance API. */
+    public isObject<T extends Record<string, unknown> = Record<string, unknown>>(value: unknown): value is T {
+        return Guards.isObject<T>(value);
+    }
+
+    /** @see {@link Guards.asString} — moved to `Validators/Guards`, kept here for the instance API. */
+    public asString(value: unknown): string {
+        return Guards.asString(value);
+    }
+
+    /** @see {@link Guards.asNumber} — moved to `Validators/Guards`, kept here for the instance API. */
+    public asNumber(value: unknown): number {
+        return Guards.asNumber(value);
+    }
+
+    /** @see {@link Guards.asBoolean} — moved to `Validators/Guards`, kept here for the instance API. */
+    public asBoolean(value: unknown): boolean {
+        return Guards.asBoolean(value);
+    }
+
+    /** @see {@link Guards.asArray} — moved to `Validators/Guards`, kept here for the instance API. */
+    public asArray<T = unknown>(value: unknown): T[] {
+        return Guards.asArray<T>(value);
+    }
+
+    /** @see {@link Guards.asObject} — moved to `Validators/Guards`, kept here for the instance API. */
+    public asObject<T extends Record<string, unknown> = Record<string, unknown>>(value: unknown): T {
+        return Guards.asObject<T>(value);
+    }
+
+    /** @see {@link Guards.isPlainObject} — moved to `Validators/Guards`, kept here for the instance API. */
+    public isPlainObject<T extends Record<string, unknown> = Record<string, unknown>>(p: unknown): T {
+        return Guards.isPlainObject<T>(p);
+    }
+
+    /** @see {@link Guards.isPromise} — moved to `Validators/Guards`, kept here for the instance API. */
+    public isPromise<T = unknown>(p: unknown): Promise<T> {
+        return Guards.isPromise<T>(p);
+    }
+
+    /** @see {@link Guards.isInstanceOf} — moved to `Validators/Guards`, kept here for the instance API. */
+    public isInstanceOf<T>(ctor: new (...args: never[]) => T, p: unknown): T {
+        return Guards.isInstanceOf<T>(ctor, p);
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     /**
      * Check if the parameter matches one of the specified types.
@@ -1952,437 +1855,26 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         return validator as StandardValidator<T>;
     }
 
-    /**
-     * Checks that the parameter is a finite number (rejects `NaN` and `Infinity`).
-     * Stricter than `isType("number", x)`, which accepts `NaN` for compatibility
-     * with `typeof x === "number"`.
-     *
-     * @param {unknown} p - The parameter to check
-     * @returns {number} The validated finite number
-     * @throws {TypeError} If `p` is not a finite number
-     */
-    public isFiniteNumber(p: unknown): number {
-        const num = this.isType<number>('number', p);
-        if (!Number.isFinite(num)) {
-            throw issueError('invalid_format', `${p} must be a finite number.`, 'finite number');
-        }
-        return num;
-    }
 
-    /**
-     * Checks that the parameter is a safe integer (within `Number.MIN_SAFE_INTEGER`
-     * and `Number.MAX_SAFE_INTEGER`).
-     *
-     * @param {unknown} p - The parameter to check
-     * @returns {number} The validated safe integer
-     * @throws {TypeError} If `p` is not a safe integer
-     */
-    public isSafeInteger(p: unknown): number {
-        const num = this.isType<number>('number', p);
-        if (!Number.isSafeInteger(num)) {
-            throw issueError('invalid_format', `${p} must be a safe integer.`, 'safe integer');
-        }
-        return num;
-    }
 
-    /**
-     * Checks that the parameter is a plain object (object literal or
-     * `Object.create(null)`). Rejects class instances, arrays, dates, maps, etc.
-     *
-     * @template T - The expected plain object shape
-     * @param {unknown} p - The parameter to check
-     * @returns {T} The validated plain object
-     * @throws {TypeError} If `p` is not a plain object
-     */
-    public isPlainObject<T extends Record<string, unknown> = Record<string, unknown>>(p: unknown): T {
-        if (p === null || typeof p !== 'object') {
-            throw new TypeError(`${p} must be a plain object, is ${p === null ? 'null' : typeof p}`);
-        }
-        const proto = Object.getPrototypeOf(p);
-        if (proto !== null && proto !== Object.prototype) {
-            throw new TypeError(`${p} must be a plain object (no class instances).`);
-        }
-        return p as T;
-    }
 
-    /**
-     * Checks that the parameter is a Promise (or a thenable).
-     *
-     * @template T - The resolved promise type (caller-supplied)
-     * @param {unknown} p - The parameter to check
-     * @returns {Promise<T>} The validated promise
-     * @throws {TypeError} If `p` is not a Promise/thenable
-     */
-    public isPromise<T = unknown>(p: unknown): Promise<T> {
-        if (p === null || (typeof p !== 'object' && typeof p !== 'function')) {
-            throw new TypeError(`${p} must be a Promise.`);
-        }
-        const then = (p as { then?: unknown }).then;
-        if (typeof then !== 'function') {
-            throw new TypeError(`${p} must be a Promise.`);
-        }
-        return p as Promise<T>;
-    }
 
-    /**
-     * Checks that the parameter is an instance of the given constructor.
-     * Type-safe alternative to writing `value instanceof MyClass` everywhere.
-     *
-     * @template T - The instance type produced by the constructor
-     * @param {Function} ctor - The constructor to check against
-     * @param {unknown} p - The parameter to check
-     * @returns {T} The validated instance
-     * @throws {TypeError} If `p` is not an instance of `ctor`
-     */
-    public isInstanceOf<T>(ctor: new (...args: never[]) => T, p: unknown): T {
-        if (!(p instanceof ctor)) {
-            throw new TypeError(`${p} must be an instance of ${ctor.name || 'the given constructor'}.`);
-        }
-        return p;
-    }
 
-    /**
-     * Checks that the parameter is a string matching the given regular expression.
-     *
-     * @param {RegExp} regex - The pattern to match against
-     * @param {unknown} p - The parameter to check
-     * @returns {string} The validated string
-     * @throws {TypeError} If `p` is not a string or does not match
-     */
-    public matches(regex: RegExp, p: unknown): string {
-        const str = this.isType<string>('string', p);
-        if (!regex.test(str)) {
-            throw issueError('invalid_format', `${p} must match ${regex}.`, String(regex));
-        }
-        return str;
-    }
 
-    /**
-     * Checks that the length of a string or array falls within the given bounds.
-     *
-     * @template T - Either `string` or an array type
-     * @param {{ min?: number, max?: number }} bounds - Inclusive length bounds
-     * @param {unknown} p - The parameter to check (string or array)
-     * @returns {T} The validated value
-     * @throws {TypeError} If `p` is not a string/array or its length is out of range
-     */
-    public isLength<T extends string | readonly unknown[]>(bounds: { min?: number; max?: number }, p: unknown): T {
-        if (typeof p !== 'string' && !Array.isArray(p)) {
-            throw new TypeError(`${p} must be a string or array, is ${getType(p)}`);
-        }
-        const length = (p as string | unknown[]).length;
-        const { min, max } = bounds;
-        if (min !== undefined && length < min) {
-            throw issueError('too_small', `length must be >= ${min}, is ${length}`, undefined, undefined, { minimum: min });
-        }
-        if (max !== undefined && length > max) {
-            throw issueError('too_big', `length must be <= ${max}, is ${length}`, undefined, undefined, { maximum: max });
-        }
-        return p as T;
-    }
 
-    /**
-     * Checks that the parameter is "empty": empty string (after trim), empty
-     * array, empty Map/Set, or object with no own enumerable keys.
-     *
-     * @param {unknown} p - The parameter to check
-     * @returns {unknown} The validated empty value
-     * @throws {TypeError} If `p` is not empty or not a supported container
-     */
-    public isEmpty(p: unknown): unknown {
-        if (typeof p === 'string') {
-            if (p.trim().length !== 0) throw issueError('too_big', `string must be empty.`, undefined, undefined, { maximum: 0 });
-            return p;
-        }
-        if (Array.isArray(p)) {
-            if (p.length !== 0) throw issueError('too_big', `array must be empty.`, undefined, undefined, { maximum: 0 });
-            return p;
-        }
-        if (p instanceof Map || p instanceof Set) {
-            if (p.size !== 0) throw issueError('too_big', `${p.constructor.name} must be empty.`, undefined, undefined, { maximum: 0 });
-            return p;
-        }
-        if (p !== null && typeof p === 'object') {
-            if (Object.keys(p).length !== 0) throw issueError('too_big', `object must have no own keys.`, undefined, undefined, { maximum: 0 });
-            return p;
-        }
-        throw new TypeError(`${p} is not a container that can be checked for emptiness.`);
-    }
 
-    /**
-     * Inverse of `isEmpty`: checks the parameter is a non-empty string, array,
-     * Map, Set, or object.
-     *
-     * @template T - Caller-supplied container type for narrower inference
-     * @param {unknown} p - The parameter to check
-     * @returns {T} The validated non-empty value
-     * @throws {TypeError} If `p` is empty or not a supported container
-     */
-    public isNonEmpty<T = unknown>(p: unknown): T {
-        if (typeof p === 'string') {
-            if (p.trim().length === 0) throw issueError('too_small', `string must be non-empty.`, undefined, undefined, { minimum: 1 });
-            return p as T;
-        }
-        if (Array.isArray(p)) {
-            if (p.length === 0) throw issueError('too_small', `array must be non-empty.`, undefined, undefined, { minimum: 1 });
-            return p as T;
-        }
-        if (p instanceof Map || p instanceof Set) {
-            if (p.size === 0) throw issueError('too_small', `${p.constructor.name} must be non-empty.`, undefined, undefined, { minimum: 1 });
-            return p as T;
-        }
-        if (p !== null && typeof p === 'object') {
-            if (Object.keys(p).length === 0) throw issueError('too_small', `object must have at least one own key.`, undefined, undefined, { minimum: 1 });
-            return p as T;
-        }
-        throw new TypeError(`${p} is not a container that can be checked for non-emptiness.`);
-    }
 
-    /**
-     * Checks that the parameter is a valid UUID (versions 1-5, RFC 4122).
-     *
-     * @param {unknown} p - The parameter to check
-     * @returns {string} The validated UUID
-     * @throws {TypeError} If `p` is not a valid UUID
-     */
-    public isUUID(p: unknown): string {
-        const str = this.isType<string>('string', p);
-        if (!Patterns.UUID.test(str)) {
-            throw issueError('invalid_format', `${p} must be a valid UUID.`, 'uuid');
-        }
-        return str;
-    }
 
-    /**
-     * Checks that the parameter is a valid IPv4 address (dotted-quad notation).
-     *
-     * @param {unknown} p - The parameter to check
-     * @returns {string} The validated IPv4 address
-     * @throws {TypeError} If `p` is not a valid IPv4 address
-     */
-    public isIPv4(p: unknown): string {
-        const str = this.isType<string>('string', p);
-        const parts = str.split('.');
-        if (parts.length !== 4) {
-            throw issueError('invalid_format', `${p} must be a valid IPv4 address.`, 'ipv4');
-        }
-        for (const part of parts) {
-            if (!Patterns.DIGITS.test(part)) {
-                throw issueError('invalid_format', `${p} must be a valid IPv4 address.`, 'ipv4');
-            }
-            const n = Number(part);
-            // reject leading zeros (except the single "0") and out-of-range octets
-            if (n < 0 || n > 255 || (part.length > 1 && part.startsWith('0'))) {
-                throw issueError('invalid_format', `${p} must be a valid IPv4 address.`, 'ipv4');
-            }
-        }
-        return str;
-    }
 
-    /**
-     * Checks that the parameter is a valid IPv6 address.
-     * Uses the `URL` constructor as a permissive parser: any string accepted as
-     * the host portion of `http://[<addr>]/` is considered valid.
-     *
-     * @param {unknown} p - The parameter to check
-     * @returns {string} The validated IPv6 address
-     * @throws {TypeError} If `p` is not a valid IPv6 address
-     */
-    public isIPv6(p: unknown): string {
-        const str = this.isType<string>('string', p);
-        try {
-            const url = new URL(`http://[${str}]`);
-            // URL preserves the bracketed host; reject if parsing dropped digits
-            /* istanbul ignore next — Node's URL parser keeps the brackets in
-             * `hostname` for any address it accepts, so this guard fires only
-             * if a future Node version changes that contract. */
-            if (!url.hostname.startsWith('[') || !url.hostname.endsWith(']')) {
-                throw new Error();
-            }
-        } catch {
-            throw issueError('invalid_format', `${p} must be a valid IPv6 address.`, 'ipv6');
-        }
-        return str;
-    }
 
-    /**
-     * Checks that the parameter is a valid CSS hex color (`#RGB`, `#RGBA`,
-     * `#RRGGBB`, or `#RRGGBBAA`).
-     *
-     * @param {unknown} p - The parameter to check
-     * @returns {string} The validated hex color
-     * @throws {TypeError} If `p` is not a valid hex color
-     */
-    public isHexColor(p: unknown): string {
-        const str = this.isType<string>('string', p);
-        if (!Patterns.HEX_COLOR.test(str)) {
-            throw issueError('invalid_format', `${p} must be a valid hex color.`, 'hex color');
-        }
-        return str;
-    }
 
-    /**
-     * Checks that the parameter is a valid ISO 8601 date string and returns
-     * the parsed `Date`. Accepts the formats produced by `Date#toISOString`
-     * plus reasonable variants (e.g. with timezone offsets).
-     *
-     * @param {unknown} p - The parameter to check
-     * @returns {Date} The parsed date (always valid)
-     * @throws {TypeError} If `p` is not a valid ISO 8601 date string
-     */
-    public isISODate(p: unknown): Date {
-        const str = this.isType<string>('string', p);
-        // Require at least YYYY-MM-DD; allow time and timezone parts.
-        if (!Patterns.ISO_DATE.test(str)) {
-            throw issueError('invalid_format', `${p} must be a valid ISO 8601 date string.`, 'iso date');
-        }
-        const date = new Date(str);
-        if (Number.isNaN(date.getTime())) {
-            throw issueError('invalid_format', `${p} must be a valid ISO 8601 date string.`, 'iso date');
-        }
-        return date;
-    }
 
-    /**
-     * Checks that the parameter is a syntactically valid Base64 string.
-     * Supports both standard and URL-safe variants. Padding is required when
-     * `requirePadding` is true (default).
-     *
-     * @param {unknown} p - The parameter to check
-     * @param {{ urlSafe?: boolean, requirePadding?: boolean }} [opts] - Options
-     * @returns {string} The validated Base64 string
-     * @throws {TypeError} If `p` is not a valid Base64 string
-     */
-    public isBase64(p: unknown, opts: { urlSafe?: boolean; requirePadding?: boolean } = {}): string {
-        const { urlSafe = false, requirePadding = true } = opts;
-        const str = this.isType<string>('string', p);
-        const charClass = urlSafe ? '[A-Za-z0-9_-]' : '[A-Za-z0-9+/]';
-        const padded = requirePadding
-            ? new RegExp(`^(?:${charClass}{4})*(?:${charClass}{2}==|${charClass}{3}=|${charClass}{4})$`)
-            : new RegExp(`^(?:${charClass}{4})*(?:${charClass}{2,4}={0,2})?$`);
-        if (str.length === 0 || !padded.test(str)) {
-            throw issueError('invalid_format', `${p} must be a valid Base64 string.`, 'base64');
-        }
-        return str;
-    }
 
-    /**
-     * Checks that the parameter is a valid IP address, of either version.
-     *
-     * @param {unknown} p - The parameter to check
-     * @returns {string} The validated address
-     * @throws {TypeError} If `p` is neither a valid IPv4 nor a valid IPv6 address
-     * @example
-     * typer.isIP('192.168.0.1');
-     * typer.isIP('::1');
-     */
-    public isIP(p: unknown): string {
-        const str = this.isType<string>('string', p);
-        try {
-            return this.isIPv4(str);
-        } catch {
-            // Fall through: an IPv4 miss says nothing about IPv6.
-        }
-        try {
-            return this.isIPv6(str);
-        } catch {
-            throw issueError('invalid_format', `${p} must be a valid IP address.`, 'ip');
-        }
-    }
 
-    /**
-     * Checks that the parameter is a valid Semantic Versioning 2.0.0 string,
-     * including optional pre-release and build metadata.
-     *
-     * @param {unknown} p - The parameter to check
-     * @returns {string} The validated version
-     * @throws {TypeError} If `p` is not a valid semver string
-     * @example
-     * typer.isSemver('1.0.0');
-     * typer.isSemver('2.1.0-beta.1+build.5');
-     */
-    public isSemver(p: unknown): string {
-        const str = this.isType<string>('string', p);
-        if (!Patterns.SEMVER.test(str)) {
-            throw issueError('invalid_format', `${p} must be a valid semver string.`, 'semver');
-        }
-        return str;
-    }
 
-    /**
-     * Checks that the parameter is a URL-friendly slug: lowercase alphanumeric
-     * groups separated by single hyphens.
-     *
-     * @param {unknown} p - The parameter to check
-     * @returns {string} The validated slug
-     * @throws {TypeError} If `p` is not a valid slug
-     * @example
-     * typer.isSlug('hello-world');
-     */
-    public isSlug(p: unknown): string {
-        const str = this.isType<string>('string', p);
-        if (!Patterns.SLUG.test(str)) {
-            throw issueError('invalid_format', `${p} must be a valid slug.`, 'slug');
-        }
-        return str;
-    }
 
-    /**
-     * Checks that the parameter is a valid TCP/UDP port number (1–65535).
-     *
-     * Port 0 is rejected: it is reserved and never a valid destination.
-     *
-     * @param {unknown} p - The parameter to check
-     * @returns {number} The validated port
-     * @throws {TypeError} If `p` is not an integer in range
-     * @example
-     * typer.isPort(8080);
-     */
-    public isPort(p: unknown): number {
-        const num = this.isInteger(p);
-        const message = `${p} must be a valid port number (1-65535).`;
-        const bounds = { minimum: 1, maximum: 65535 };
-        if (num < 1) throw issueError('too_small', message, undefined, undefined, bounds);
-        if (num > 65535) throw issueError('too_big', message, undefined, undefined, bounds);
-        return num;
-    }
 
-    /**
-     * Checks that the parameter is structurally a JSON Web Token: three
-     * base64url segments separated by dots.
-     *
-     * This validates the shape only — it does **not** verify the signature or
-     * decode the claims, and must not be used as an authentication check.
-     *
-     * @param {unknown} p - The parameter to check
-     * @returns {string} The validated token
-     * @throws {TypeError} If `p` does not have the shape of a JWT
-     */
-    public isJWT(p: unknown): string {
-        const str = this.isType<string>('string', p);
-        if (!Patterns.JWT.test(str)) {
-            throw issueError('invalid_format', `${p} must be a valid JWT.`, 'jwt');
-        }
-        return str;
-    }
 
-    /**
-     * Checks that the parameter is a MAC address in colon- or hyphen-separated
-     * form.
-     *
-     * @param {unknown} p - The parameter to check
-     * @returns {string} The validated address
-     * @throws {TypeError} If `p` is not a valid MAC address
-     * @example
-     * typer.isMACAddress('00:1A:2B:3C:4D:5E');
-     */
-    public isMACAddress(p: unknown): string {
-        const str = this.isType<string>('string', p);
-        if (!Patterns.MAC_ADDRESS.test(str)) {
-            throw issueError('invalid_format', `${p} must be a valid MAC address.`, 'mac address');
-        }
-        return str;
-    }
 
     /**
      * Recursively validates an object against a nested schema.

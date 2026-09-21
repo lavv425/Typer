@@ -97,7 +97,7 @@ const build = (): Record<string, Predicate> => {
  * overrides a built-in with `registerType(name, fn, true)` is handled by the
  * resolver, which checks the registration before reaching for this map.
  */
-export const BUILTIN_PREDICATES: Readonly<Record<string, Predicate>> = build();
+export const BUILTIN_PREDICATES: Readonly<Record<string, Predicate>> = /*#__PURE__*/ build();
 
 /**
  * Names the runtime type of a value for an error message.

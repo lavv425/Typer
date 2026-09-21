@@ -44,6 +44,14 @@ describe('published package manifest', () => {
             });
         });
 
+        it('exposes the validators as a subpath', () => {
+            expect(manifest.exports['./validators']).toEqual({
+                types: './dist/validators.d.ts',
+                import: './dist/validators.esm.mjs',
+                require: './dist/validators.cjs.min.js',
+            });
+        });
+
         it('exposes package.json as a subpath', () => {
             // Declaring `exports` at all makes every undeclared subpath
             // unresolvable, and tooling reads `<pkg>/package.json` routinely —

@@ -234,12 +234,65 @@ export const tUndefined = (p: unknown): TyperReturn<undefined> => {
 };
 
 /**
+ * Raises the `isType` mismatch error for a value that failed a base-type
+ * assertion, reusing the checker as the single source of the message.
+ *
+ * @param p - The value that failed.
+ * @param checker - The checker whose message to raise.
+ */
+const mismatch = (p: unknown, checker: (value: unknown) => unknown): never => {
+    try {
+        checker(p);
+    } catch (e: unknown) {
+        throw new TypeError(`None of the types matched for ${p}: ${(e as Error).message}`);
+    }
+    /* istanbul ignore next — only reachable if a checker accepts a value its
+     * caller already rejected, which would be a bug in the pair. */
+    throw new TypeError(`None of the types matched for ${p}`);
+};
+
+/**
+ * Base-type assertions, equivalent to `isType('string', p)` and friends but
+ * reaching only the one checker they need.
+ *
+ * Nearly every validator in the library starts by asserting a base type. Going
+ * through {@link isType} for that would pull {@link BUILTIN_CHECKERS} — and so
+ * every checker in it — into any bundle that imports a single validator, which
+ * measured at **589 B for `isEmail` alone**. These cost what they use.
+ *
+ * The messages are identical: the checker is still what produces them.
+ */
+export const assertString = (p: unknown): string =>
+    typeof p === 'string' ? p : mismatch(p, tString);
+
+/** @see {@link assertString} */
+export const assertNumber = (p: unknown): number =>
+    typeof p === 'number' ? p : mismatch(p, tNumber);
+
+/** @see {@link assertString} */
+export const assertBoolean = (p: unknown): boolean =>
+    typeof p === 'boolean' ? p : mismatch(p, tBoolean);
+
+/** @see {@link assertString} */
+export const assertArray = <T = unknown>(p: unknown): T[] =>
+    Array.isArray(p) ? p as T[] : mismatch(p, tArray);
+
+/**
+ * @see {@link assertString}
+ *
+ * Mirrors the `'object'` alias exactly, including the long-standing quirk that
+ * `null` passes because `typeof null === 'object'`.
+ */
+export const assertObject = <T = object>(p: unknown): T =>
+    typeof p === 'object' && !Array.isArray(p) ? p as T : mismatch(p, tObject);
+
+/**
  * The alias → throwing checker map for the built-in types.
  *
  * Null-prototype, so a lookup can never resolve to an inherited
  * `Object.prototype` member: `'constructor'` must be an unknown alias.
  */
-export const BUILTIN_CHECKERS: Readonly<Record<string, (value: unknown) => unknown>> = Object.assign(
+export const BUILTIN_CHECKERS: Readonly<Record<string, (value: unknown) => unknown>> = /*#__PURE__*/ Object.assign(
     Object.create(null) as Record<string, (value: unknown) => unknown>,
     {
         'a': tArray, 'arr': tArray, 'array': tArray,
