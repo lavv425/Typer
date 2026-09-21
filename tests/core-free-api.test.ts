@@ -75,6 +75,39 @@ describe('parse (free function)', () => {
     });
 });
 
+describe('a validator passed where a schema goes', () => {
+    // `Object.keys` of a function is empty, so a validator handed to the
+    // schema path used to compile to a schema with no fields — validating
+    // nothing and reporting success. Silent acceptance is the worst failure a
+    // validation library has, so this is pinned.
+    const failing = (v: unknown): number => {
+        if (typeof v !== 'number') throw new TypeError('must be a number');
+        return v;
+    };
+
+    it('runs the validator rather than treating it as an empty schema', () => {
+        expect(() => parse(failing, 'nope')).toThrow('must be a number');
+        expect(parse(failing, 7)).toBe(7);
+    });
+
+    it('reports failure through safeParse', () => {
+        const result = safeParse(failing, 'nope');
+
+        expect(result.success).toBe(false);
+        if (result.success) return;
+        expect(result.issues[0].message).toContain('must be a number');
+    });
+
+    it('uses a combinator’s non-throwing path when it has one', () => {
+        const typer = new Typer();
+        const result = safeParse(typer.objectOf({ id: 'number' }), { id: 'x' });
+
+        expect(result.success).toBe(false);
+        if (result.success) return;
+        expect(result.issues[0]).toMatchObject({ path: 'id', code: 'invalid_type' });
+    });
+});
+
 describe('safeParse (free function)', () => {
     it('reports success without throwing', () => {
         expect(safeParse({ id: 'number' }, { id: 1 })).toEqual({ success: true, data: { id: 1 } });

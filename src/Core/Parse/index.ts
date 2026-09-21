@@ -4,6 +4,9 @@ import { BUILTIN_CONTEXT, createRegistry } from "../Registry";
 import { getCompiledChecker } from "../Compile";
 import { TyperError } from "../../Errors/TyperError";
 import { formatIssues } from "../../Utils/Issues";
+import { failure, runCatching } from "../Result";
+import type { SafeReporting } from "../../Constants/Symbols";
+import { SAFE_RESULT } from "../../Constants/Symbols";
 
 /**
  * Schema validation without an instance.
@@ -63,15 +66,18 @@ const run = <R extends TypeRegistry>(
  * const user = parse(userSchema, payload);
  * // { id: number; email: string; note?: string | null }
  */
-export const parse = <const S extends ValidateSchema<S, KnownAlias<R>>, R extends TypeRegistry = {}>(
-    schema: S,
-    value: unknown,
-    options?: ParseOptions<R>,
-): Infer<S, R> => {
-    const issues = run(schema as Record<string, unknown>, value, options);
+export function parse<T>(validator: Validator<T>, value: unknown): T;
+export function parse<const S extends ValidateSchema<S, KnownAlias<R>>, R extends TypeRegistry = {}>(schema: S, value: unknown, options?: ParseOptions<R>): Infer<S, R>;
+export function parse(schemaOrValidator: unknown, value: unknown, options?: ParseOptions<TypeRegistry>): unknown {
+    // A validator is a function, and `Object.keys` of a function is empty — so
+    // without this branch one would compile to a schema with no fields and
+    // validate nothing at all, reporting success.
+    if (typeof schemaOrValidator === 'function') return (schemaOrValidator as Validator<unknown>)(value);
+
+    const issues = run(schemaOrValidator as Record<string, unknown>, value, options);
     if (issues.length > 0) throw new TyperError(formatIssues(issues), issues);
-    return value as Infer<S, R>;
-};
+    return value;
+}
 
 /**
  * Validates without throwing. Same inputs as {@link parse}.
@@ -90,23 +96,22 @@ export const parse = <const S extends ValidateSchema<S, KnownAlias<R>>, R extend
  * if (result.success) result.data.id;
  * else result.issues.forEach((i) => console.error(i.path, i.code));
  */
-export const safeParse = <const S extends ValidateSchema<S, KnownAlias<R>>, R extends TypeRegistry = {}>(
-    schema: S,
-    value: unknown,
-    options?: ParseOptions<R>,
-): ParseResult<Infer<S, R>> => {
-    const issues = run(schema as Record<string, unknown>, value, options);
-    if (issues.length === 0) return { success: true, data: value as Infer<S, R> };
+export function safeParse<T>(validator: Validator<T>, value: unknown): ParseResult<T>;
+export function safeParse<const S extends ValidateSchema<S, KnownAlias<R>>, R extends TypeRegistry = {}>(schema: S, value: unknown, options?: ParseOptions<R>): ParseResult<Infer<S, R>>;
+export function safeParse(schemaOrValidator: unknown, value: unknown, options?: ParseOptions<TypeRegistry>): ParseResult<unknown> {
+    if (typeof schemaOrValidator === 'function') {
+        // A validator that can report without throwing carries that path;
+        // using it avoids building an Error only to unwrap it again.
+        const safeRun = (schemaOrValidator as SafeReporting<unknown>)[SAFE_RESULT];
+        if (safeRun !== undefined) return safeRun(value);
+        return runCatching(schemaOrValidator as Validator<unknown>, value);
+    }
 
-    let cached: TypeError | undefined;
-    return {
-        success: false,
-        issues,
-        get error(): TypeError {
-            return (cached ??= new TyperError(formatIssues(issues), issues));
-        },
-    };
-};
+    const issues = run(schemaOrValidator as Record<string, unknown>, value, options);
+    return issues.length === 0
+        ? { success: true, data: value }
+        : failure(issues);
+}
 
 /**
  * Identity helper that preserves a schema's literal types, so it can be

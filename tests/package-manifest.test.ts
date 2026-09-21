@@ -44,6 +44,14 @@ describe('published package manifest', () => {
             });
         });
 
+        it('exposes the combinators as a subpath', () => {
+            expect(manifest.exports['./combinators']).toEqual({
+                types: './dist/combinators.d.ts',
+                import: './dist/combinators.esm.mjs',
+                require: './dist/combinators.cjs.min.js',
+            });
+        });
+
         it('exposes the validators as a subpath', () => {
             expect(manifest.exports['./validators']).toEqual({
                 types: './dist/validators.d.ts',

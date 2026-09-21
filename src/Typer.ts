@@ -19,6 +19,10 @@ import * as Strings from "./Validators/Strings";
 import * as Numbers from "./Validators/Numbers";
 import * as Sizes from "./Validators/Sizes";
 import * as Guards from "./Validators/Guards";
+import * as Basic from "./Combinators/Basic";
+import * as Collections from "./Combinators/Collections";
+import * as Objects from "./Combinators/Objects";
+import { failure, runCatching } from "./Core/Result";
 import { createContext, getCompiledChecker, slotIssue } from "./Core/Compile";
 import type { CompiledChecker, CompileContext } from "./Core/Compile";
 import type { Predicate } from "./Core/Predicates";
@@ -1203,7 +1207,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             const issues = this.getCompiledChecker(typesOrSchemaOrValidator as Record<string, unknown>)(value, '');
             return issues.length === 0
                 ? { success: true, data: value }
-                : Typer.failure(issues);
+                : failure(issues);
         }
 
         // The same fast path, for validators that can report without throwing.
@@ -1213,53 +1217,57 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         if (typeof typesOrSchemaOrValidator === "function") {
             const safeRun = (typesOrSchemaOrValidator as SafeReporting<unknown>)[SAFE_RESULT];
             if (safeRun !== undefined) return safeRun(value);
-            return Typer.runCatching(typesOrSchemaOrValidator as Validator<unknown>, value);
+            return runCatching(typesOrSchemaOrValidator as Validator<unknown>, value);
         }
 
-        return Typer.runCatching((input: unknown) => this.parse(typesOrSchemaOrValidator as never, input), value);
+        return runCatching((input: unknown) => this.parse(typesOrSchemaOrValidator as never, input), value);
+    }
+
+    // -----------------------------------------------------------------------
+    //  Schema-backed combinators, delegating to `Combinators/Objects`
+    //
+    //  These need the compile context, which for an instance means its own
+    //  registered types. A registry is structurally just `{ context }`, so the
+    //  instance hands its context over in that shape.
+    // -----------------------------------------------------------------------
+
+    /** The instance's compile context, in the shape the free combinators take. */
+    private get asRegistry(): { context: CompileContext } {
+        return { context: this.context };
+    }
+
+    /** @see {@link Objects.objectOf} — moved to `Combinators/Objects`, kept here for the instance API. */
+    public objectOf<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(schema: S, options: { strict?: boolean } = {}): StandardValidator<Infer<S, TRegistry>> {
+        return Objects.objectOf(schema as never, { ...options, registry: this.asRegistry }) as StandardValidator<Infer<S, TRegistry>>;
+    }
+
+    /** @see {@link Objects.discriminatedUnion} — moved to `Combinators/Objects`, kept here for the instance API. */
+    public discriminatedUnion<const Key extends string, const V extends Record<string, Record<string, unknown>>>(key: Key, variants: V, options: { strict?: boolean } = {}): StandardValidator<DiscriminatedUnion<Key, V, TRegistry>> {
+        return Objects.discriminatedUnion(key, variants, { ...options, registry: this.asRegistry }) as StandardValidator<DiscriminatedUnion<Key, V, TRegistry>>;
     }
 
     /**
-     * Runs a throwing validator and reports the outcome as a {@link ParseResult}.
+     * Turns any schema, validator or type alias into a Standard Schema.
      *
-     * The fallback for everything with no non-throwing path of its own: a
-     * user-supplied validator, a type alias, an array of aliases.
-     *
-     * @param validator - The validator to run.
-     * @param value - The value to validate.
+     * @see {@link Objects.standard}
      */
-    private static runCatching<T>(validator: Validator<T>, value: unknown): ParseResult<T> {
-        try {
-            return { success: true, data: validator(value) };
-        } catch (e: unknown) {
-            if (e instanceof TyperError) return Typer.failure(e.issues, e);
-            const message = e instanceof Error ? e.message : String(e);
-            return Typer.failure([makeIssue('invalid_type', '', message)], e instanceof TypeError ? e : undefined);
+    public standard<K extends TypeKey>(target: K | readonly K[]): StandardValidator<TypeMap[K]>;
+    public standard<T>(target: Validator<T>): StandardValidator<T>;
+    public standard<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(target: S, options?: { strict?: boolean }): StandardValidator<Infer<S, TRegistry>>;
+    public standard<T>(target: string | readonly string[]): StandardValidator<T>;
+    public standard(target: unknown, options: { strict?: boolean } = {}): StandardValidator<unknown> {
+        // A bare alias has to go through this instance's `isType`, which knows
+        // the types registered on it; the free `standard` only knows built-ins.
+        if (target === null || typeof target !== 'object' || Array.isArray(target)) {
+            if (typeof target !== 'function') {
+                const inner: Validator<unknown> = (value: unknown) => this.isType(target as string | readonly string[], value);
+                return Objects.asStandard((value: unknown) => inner(value), (value) => runCatching(inner, value));
+            }
         }
+        return Objects.standard(target, { ...options, registry: this.asRegistry });
     }
 
-    /**
-     * Builds the failure half of a {@link ParseResult}.
-     *
-     * `error` is a lazy accessor: constructing an `Error` captures a stack
-     * trace, which costs more than the entire validation that produced the
-     * issues. Callers that only read `issues` — the recommended path — never
-     * pay for it, and callers that do read `error` get the same instance every
-     * time.
-     *
-     * @param issues - The failures to report. Must not be empty.
-     * @param existing - An already-built error to hand back instead of a new one.
-     */
-    private static failure(issues: ValidationIssue[], existing?: TypeError): ParseResult<never> {
-        let cached: TypeError | undefined = existing;
-        return {
-            success: false,
-            issues,
-            get error(): TypeError {
-                return (cached ??= new TyperError(formatIssues(issues), issues));
-            },
-        };
-    }
+
 
     /**
      * Alias resolution and the compiled-checker caches for this instance.
@@ -1283,577 +1291,89 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         return getCompiledChecker(this.context, schema, strictMode);
     }
 
-    /**
-     * Wraps an existing validator so that `null` is also accepted and returned as-is.
-     * Useful as a building block for nullable schema fields.
-     *
-     * @template T - The type produced by the underlying validator on success
-     * @param {Validator} validator - The validator to make nullable
-     * @returns {Validator} A new validator that accepts `T` or `null`
-     * @example
-     * const maybeStr = typer.nullable(v => typer.asString(v));
-     * maybeStr(null); // null
-     * maybeStr("hi"); // "hi"
-     */
+    // -----------------------------------------------------------------------
+    //  Combinators, delegating to `Combinators/*`
+    // -----------------------------------------------------------------------
+
+    /** @see {@link Basic.nullable} — moved to `Combinators/Basic`, kept here for the instance API. */
     public nullable<T>(validator: Validator<T>): Validator<T | null> {
-        const wrapped = (value: unknown): T | null => {
-            if (value === null) return null;
-            return validator(value);
-        };
-        return describingLazy(wrapped, () => nullableFragment(describedFragment(validator)));
+        return Basic.nullable<T>(validator);
     }
 
-    /**
-     * Wraps an existing validator so that `undefined` is also accepted.
-     * Useful for optional schema fields.
-     *
-     * @template T - The type produced by the underlying validator on success
-     * @param {Validator} validator - The validator to make optional
-     * @returns {Validator} A new validator that accepts `T` or `undefined`
-     * @example
-     * const maybeNum = typer.optional(v => typer.asNumber(v));
-     * maybeNum(undefined); // undefined
-     * maybeNum(42); // 42
-     */
+    /** @see {@link Basic.optional} — moved to `Combinators/Basic`, kept here for the instance API. */
     public optional<T>(validator: Validator<T>): Validator<T | undefined> {
-        const wrapped = (value: unknown): T | undefined => {
-            if (value === undefined) return undefined;
-            return validator(value);
-        };
-        return describingLazy(wrapped, () => ({ ...describedFragment(validator), [OPTIONAL_MARKER]: true }));
+        return Basic.optional<T>(validator);
     }
 
-    /**
-     * Combines multiple validators into one that succeeds if any of them succeeds.
-     * The first matching validator's result is returned.
-     *
-     * @template T - Tuple of types produced by each validator
-     * @param {Validator[]} validators - Validators to try in order
-     * @returns {Validator} A new validator that returns the first matching result
-     * @throws {TypeError} If none of the validators accepts the value
-     * @example
-     * const stringOrNumber = typer.union(
-     *   v => typer.asString(v),
-     *   v => typer.asNumber(v),
-     * );
-     * stringOrNumber(42); // 42
-     * stringOrNumber("hi"); // "hi"
-     */
+    /** @see {@link Basic.union} — moved to `Combinators/Basic`, kept here for the instance API. */
     public union<T extends readonly unknown[]>(
-        ...validators: { [K in keyof T]: Validator<T[K]> }
-    ): Validator<T[number]> {
-        return (value: unknown): T[number] => {
-            const errors: string[] = [];
-            for (const validator of validators) {
-                try {
-                    return validator(value) as T[number];
-                } catch (e: unknown) {
-                    errors.push(e instanceof Error ? e.message : String(e));
-                }
-            }
-            throw new TypeError(`Value did not match any union variant: ${errors.join(', ')}`);
-        };
+    ...validators: { [K in keyof T]: Validator<T[K]> }
+): Validator<T[number]> {
+        return Basic.union<T>(...validators);
     }
 
-    /**
-     * Builds a validator for a union whose members are told apart by a single
-     * key — the shape most API payloads use.
-     *
-     * {@link union} tries each variant in turn, so its cost grows with the
-     * number of variants and its error lists every variant's failure. This
-     * reads the discriminant once and goes straight to the one variant that can
-     * possibly match, in constant time, and reports against that variant alone.
-     *
-     * The variants are keyed by discriminant value, so the mapping is exact by
-     * construction — there is no literal to extract from a schema and no way to
-     * declare two variants with the same tag.
-     *
-     * @template Key - The discriminant key
-     * @template V - The variants, keyed by discriminant value
-     * @param {Key} key - The key that tells the variants apart.
-     * @param {V} variants - Schema per discriminant value.
-     * @param {{ strict?: boolean }} [options] - `strict` rejects keys the selected variant does not declare.
-     * @returns {StandardValidator} A validator producing the union of the variants.
-     * @throws {TyperError} If the discriminant is missing or unknown, or the selected variant fails.
-     * @example
-     * const shape = typer.discriminatedUnion('kind', {
-     *     circle: { radius: 'number' },
-     *     square: { side: 'number' },
-     * });
-     * shape({ kind: 'circle', radius: 2 });
-     * // → { kind: 'circle'; radius: number } | { kind: 'square'; side: number }
-     */
-    public discriminatedUnion<const Key extends string, const V extends Record<string, Record<string, unknown>>>(key: Key, variants: V, options: { strict?: boolean } = {}): StandardValidator<DiscriminatedUnion<Key, V, TRegistry>> {
-        type Out = DiscriminatedUnion<Key, V, TRegistry>;
-
-        const strict = options.strict === true;
-        const checkers = new Map<string, (value: unknown, rootPath: string) => ValidationIssue[]>();
-
-        for (const tag of Object.keys(variants)) {
-            // The discriminant is declared on the compiled schema even when the
-            // variant does not mention it, so strict mode does not flag the very
-            // key the union is selected by. Re-checking it costs one `typeof`
-            // and keeps the variant free to declare it itself.
-            const declared = variants[tag];
-            const schema = hasOwnKey(declared, key) ? declared : { [key]: 'string', ...declared };
-            checkers.set(tag, this.getCompiledChecker(schema, strict));
-        }
-
-        const tags = Object.keys(variants);
-        const expected = `one of [${tags.join(', ')}]`;
-
-        const run = (value: unknown): ValidationIssue[] => {
-            if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-                const received = getType(value);
-                return [makeIssue('invalid_type', '', `Invalid object: must be a non-null object, got ${received}`, 'object', received)];
-            }
-
-            const tag = (value as Record<string, unknown>)[key];
-            if (tag === undefined) {
-                return [makeIssue('missing_key', key, `Missing required key "${key}"`, expected, 'undefined')];
-            }
-
-            const checker = typeof tag === 'string' ? checkers.get(tag) : undefined;
-            if (checker === undefined) {
-                return [makeIssue('invalid_type', key, `Expected "${key}" to be ${expected}, got ${String(tag)}`, expected, getType(tag))];
-            }
-
-            return checker(value, '');
-        };
-
-        const validator = (value: unknown): Out => {
-            const issues = run(value);
-            if (issues.length > 0) throw new TyperError(formatIssues(issues), issues);
-            return value as Out;
-        };
-
-        describingLazy(validator, () => ({
-            oneOf: tags.map((tag) => {
-                const variant = toJSONSchema(variants[tag], { $schema: false, strict }) as {
-                    properties?: Record<string, unknown>;
-                    required?: string[];
-                };
-                // The discriminant is pinned to its own value on each branch,
-                // which is what makes the `oneOf` actually discriminating.
-                return {
-                    ...variant,
-                    properties: { [key]: { const: tag }, ...variant.properties },
-                    required: Array.from(new Set([key, ...(variant.required ?? [])])),
-                };
-            }),
-            discriminator: { propertyName: key },
-        }));
-
-        return Typer.asStandard(validator, (value) => {
-            const issues = run(value);
-            return issues.length === 0 ? { success: true, data: value as Out } : Typer.failure(issues);
-        });
-    }
-
-    /**
-     * Builds a validator accepting only the listed literal values.
-     *
-     * The returned validator narrows to the union of those literals, so it is
-     * the composable counterpart of {@link isOneOf}.
-     *
-     * @template T - Tuple of accepted literals
-     * @param {...(string|number|boolean|null)} values - The accepted values.
-     * @returns {Validator} A validator narrowing to `values[number]`.
-     * @throws {TypeError} If the value is none of them.
-     * @example
-     * const role = typer.literal('admin', 'user', 'guest');
-     * role('admin'); // 'admin' | 'user' | 'guest'
-     * typer.parse({ role: typer.literal('a', 'b') }, payload);
-     */
+    /** @see {@link Basic.literal} — moved to `Combinators/Basic`, kept here for the instance API. */
     public literal<const T extends readonly (string | number | boolean | null)[]>(
-        ...values: T
-    ): Validator<T[number]> {
-        const allowed = new Set<unknown>(values);
-        const validator = (value: unknown): T[number] => {
-            if (!allowed.has(value)) {
-                throw new TypeError(`${String(value)} must be one of [${values.join(', ')}].`);
-            }
-            return value as T[number];
-        };
-        return describing(validator, { enum: [...values] });
+    ...values: T
+): Validator<T[number]> {
+        return Basic.literal<T>(...values);
     }
 
-    /**
-     * Builds a validator for an array whose elements all satisfy `element`,
-     * optionally constraining the length.
-     *
-     * Every failing element is reported, not just the first.
-     *
-     * @template T - The element type
-     * @param {Validator} element - Validator applied to each element.
-     * @param {{ min?: number, max?: number }} [bounds] - Inclusive length bounds.
-     * @returns {Validator} A validator producing `T[]`.
-     * @throws {TypeError} If the value is not an array, is out of bounds, or has invalid elements.
-     * @example
-     * const tags = typer.arrayOf((v) => typer.asString(v), { min: 1 });
-     * tags(['a', 'b']); // string[]
-     */
-    public arrayOf<T>(element: Validator<T>, bounds: { min?: number; max?: number } = {}): Validator<T[]> {
-        const { min, max } = bounds;
-        const validator = (value: unknown): T[] => {
-            if (!Array.isArray(value)) {
-                throw new TypeError(`${String(value)} must be an array, is ${getType(value)}`);
-            }
-            if (min !== undefined && value.length < min) {
-                throw issueError('too_small', `array length must be >= ${min}, is ${value.length}`, undefined, undefined, { minimum: min });
-            }
-            if (max !== undefined && value.length > max) {
-                throw issueError('too_big', `array length must be <= ${max}, is ${value.length}`, undefined, undefined, { maximum: max });
-            }
-
-            const out: T[] = new Array(value.length);
-            const issues: ValidationIssue[] = [];
-            for (let i = 0; i < value.length; i++) {
-                try {
-                    out[i] = element(value[i]);
-                } catch (e) {
-                    const message = e instanceof Error ? e.message : String(e);
-                    const path = `[${i}]`;
-                    issues.push(makeIssue('custom', path, `Validation failed at "${path}": ${message}`));
-                }
-            }
-            if (issues.length > 0) throw new TyperError(formatIssues(issues), issues);
-            return out;
-        };
-
-        return describingLazy(validator, () => {
-            const fragment: JSONSchemaFragment = { type: 'array', items: describedFragment(element) };
-            if (min !== undefined) fragment.minItems = min;
-            if (max !== undefined) fragment.maxItems = max;
-            return fragment;
-        });
-    }
-
-    /**
-     * Builds a validator for a dictionary object: any set of keys, all values
-     * satisfying `value`.
-     *
-     * Rejects arrays and `null`, unlike the `'object'` alias.
-     *
-     * Keys that are dangerous to copy (`__proto__`, `constructor`,
-     * `prototype`) are dropped rather than written to the result: assigning
-     * `out['__proto__']` would set the output's prototype instead of a field.
-     *
-     * @template T - The value type
-     * @param {Validator} value - Validator applied to each own enumerable value.
-     * @returns {Validator} A validator producing `Record<string, T>`.
-     * @throws {TypeError} If the input is not a plain dictionary or a value fails.
-     * @example
-     * const scores = typer.record((v) => typer.asNumber(v));
-     * scores({ alice: 1, bob: 2 }); // Record<string, number>
-     */
-    public record<T>(value: Validator<T>): Validator<Record<string, T>> {
-        const validator = (input: unknown): Record<string, T> => {
-            if (input === null || typeof input !== 'object' || Array.isArray(input)) {
-                throw new TypeError(`${String(input)} must be an object, is ${getType(input)}`);
-            }
-
-            const out: Record<string, T> = {};
-            const issues: ValidationIssue[] = [];
-            for (const key of Object.keys(input)) {
-                if (DANGEROUS_KEYS.includes(key)) continue;
-                try {
-                    out[key] = value((input as Record<string, unknown>)[key]);
-                } catch (e) {
-                    const message = e instanceof Error ? e.message : String(e);
-                    issues.push(makeIssue('custom', key, `Validation failed at "${key}": ${message}`));
-                }
-            }
-            if (issues.length > 0) throw new TyperError(formatIssues(issues), issues);
-            return out;
-        };
-
-        return describingLazy(validator, () => ({ type: 'object', additionalProperties: describedFragment(value) }));
-    }
-
-    /**
-     * Builds a validator for a fixed-length, heterogeneous array.
-     *
-     * @template T - Tuple of element validators
-     * @param {Validator[]} validators - One validator per position.
-     * @returns {Validator} A validator producing the corresponding tuple type.
-     * @throws {TypeError} If the value is not an array of exactly that length, or an element fails.
-     * @example
-     * const point = typer.tuple([(v) => typer.asNumber(v), (v) => typer.asNumber(v)]);
-     * point([1, 2]); // [number, number]
-     */
-    public tuple<const T extends readonly Validator<unknown>[]>(validators: T): Validator<{ -readonly [K in keyof T]: T[K] extends Validator<infer U> ? U : never }> {
-        type Out = { -readonly [K in keyof T]: T[K] extends Validator<infer U> ? U : never };
-        const validator = (value: unknown): Out => {
-            if (!Array.isArray(value)) {
-                throw new TypeError(`${String(value)} must be an array, is ${getType(value)}`);
-            }
-            if (value.length !== validators.length) {
-                const message = `tuple must have exactly ${validators.length} elements, has ${value.length}`;
-                const bounds = { minimum: validators.length, maximum: validators.length };
-                throw issueError(value.length < validators.length ? 'too_small' : 'too_big', message, undefined, undefined, bounds);
-            }
-
-            const out = new Array(validators.length);
-            const issues: ValidationIssue[] = [];
-            for (let i = 0; i < validators.length; i++) {
-                try {
-                    out[i] = validators[i](value[i]);
-                } catch (e) {
-                    const message = e instanceof Error ? e.message : String(e);
-                    const path = `[${i}]`;
-                    issues.push(makeIssue('custom', path, `Validation failed at "${path}": ${message}`));
-                }
-            }
-            if (issues.length > 0) throw new TyperError(formatIssues(issues), issues);
-            return out as Out;
-        };
-
-        return describingLazy(validator, () => ({
-            type: 'array',
-            prefixItems: validators.map((v) => describedFragment(v)),
-            minItems: validators.length,
-            maxItems: validators.length,
-        }));
-    }
-
-    /**
-     * Adds a constraint to an existing validator without changing its type.
-     *
-     * @template T - The validated type
-     * @param {Validator} validator - The validator to run first.
-     * @param {(value: T) => boolean} predicate - Must return true for the value to be accepted.
-     * @param {string} message - Error message used when the predicate fails.
-     * @returns {Validator} A validator producing `T`.
-     * @throws {TypeError} If the base validator fails, or the predicate returns false.
-     * @example
-     * const even = typer.refine((v) => typer.asNumber(v), (n) => n % 2 === 0, 'must be even');
-     */
+    /** @see {@link Basic.refine} — moved to `Combinators/Basic`, kept here for the instance API. */
     public refine<T>(validator: Validator<T>, predicate: (value: T) => boolean, message: string): Validator<T> {
-        return (value: unknown): T => {
-            const parsed = validator(value);
-            if (!predicate(parsed)) throw new TypeError(message);
-            return parsed;
-        };
+        return Basic.refine<T>(validator, predicate, message);
     }
 
-    /**
-     * Maps a validated value to another shape. Validation runs first, so the
-     * transformer only ever sees a well-typed input.
-     *
-     * @template T - The validated type
-     * @template U - The produced type
-     * @param {Validator} validator - The validator to run first.
-     * @param {(value: T) => U} transformer - Applied to the validated value.
-     * @returns {Validator} A validator producing `U`.
-     * @example
-     * const trimmed = typer.transform((v) => typer.asString(v), (s) => s.trim());
-     */
+    /** @see {@link Basic.transform} — moved to `Combinators/Basic`, kept here for the instance API. */
     public transform<T, U>(validator: Validator<T>, transformer: (value: T) => U): Validator<U> {
-        return (value: unknown): U => transformer(validator(value));
+        return Basic.transform<T, U>(validator, transformer);
     }
 
-    /**
-     * Substitutes a default when the value is `undefined`, and validates
-     * everything else.
-     *
-     * Pass a factory (`() => T`) for object or array defaults so each call gets
-     * its own instance. A plain function default must be wrapped in a factory,
-     * since functions are treated as factories.
-     *
-     * @template T - The validated type
-     * @param {Validator} validator - Applied when the value is present.
-     * @param {T | (() => T)} fallback - Value, or factory, used when `undefined`.
-     * @returns {Validator} A validator producing `T`.
-     * @example
-     * const limit = typer.withDefault((v) => typer.asNumber(v), 10);
-     * limit(undefined); // 10
-     */
+    /** @see {@link Basic.withDefault} — moved to `Combinators/Basic`, kept here for the instance API. */
     public withDefault<T>(validator: Validator<T>, fallback: T | (() => T)): Validator<T> {
-        const wrapped = (value: unknown): T => {
-            if (value !== undefined) return validator(value);
-            return typeof fallback === 'function' ? (fallback as () => T)() : fallback;
-        };
-
-        return describingLazy(wrapped, () => {
-            const fragment: JSONSchemaFragment = { ...describedFragment(validator), [OPTIONAL_MARKER]: true };
-            // A factory's result is produced per call, so there is no single
-            // literal to advertise as the schema's default.
-            if (typeof fallback !== 'function') fragment.default = fallback;
-            return fragment;
-        });
+        return Basic.withDefault<T>(validator, fallback);
     }
 
-    /**
-     * Defers building a validator until first use, which is what makes
-     * self-referential (recursive) shapes expressible.
-     *
-     * The factory runs at most once; the result is reused.
-     *
-     * @template T - The validated type
-     * @param {() => Validator} factory - Returns the real validator.
-     * @returns {Validator} A validator producing `T`.
-     * @example
-     * type Node = { name: string; children?: Node[] };
-     * const node: Validator<Node> = typer.lazy(() => typer.objectOf({
-     *     name: 'string',
-     *     children: typer.optional(typer.arrayOf(node)),
-     * }) as Validator<Node>);
-     */
+    /** @see {@link Basic.lazy} — moved to `Combinators/Basic`, kept here for the instance API. */
     public lazy<T>(factory: () => Validator<T>): Validator<T> {
-        let resolved: Validator<T> | undefined;
-        return (value: unknown): T => (resolved ??= factory())(value);
+        return Basic.lazy<T>(factory);
     }
 
-    /**
-     * Composable form of {@link isInstanceOf}.
-     *
-     * @template T - The instance type
-     * @param {Function} ctor - The constructor to check against.
-     * @returns {Validator} A validator producing `T`.
-     * @example
-     * typer.parse({ when: typer.instanceOf(Date) }, payload);
-     */
+    /** @see {@link Basic.instanceOf} — moved to `Combinators/Basic`, kept here for the instance API. */
     public instanceOf<T>(ctor: new (...args: never[]) => T): Validator<T> {
-        return (value: unknown): T => this.isInstanceOf(ctor, value);
+        return Basic.instanceOf<T>(ctor);
     }
 
-    /**
-     * Turns a schema into a `Validator`, so object shapes can be nested inside
-     * the other combinators.
-     *
-     * The schema is compiled once and cached like any other, so this is as fast
-     * as calling {@link parse} directly.
-     *
-     * The returned validator is also a {@link https://standardschema.dev Standard Schema},
-     * so it can be handed straight to tRPC, Hono, TanStack Form and friends.
-     *
-     * @template S - The schema
-     * @param {S} schema - The shape to validate against.
-     * @param {{ strict?: boolean }} [options] - `strict` rejects keys the schema does not declare.
-     * @returns {StandardValidator} A validator producing `Infer<S>`, carrying `~standard`.
-     * @throws {TyperError} With one issue per problem found.
-     * @example
-     * const users = typer.arrayOf(typer.objectOf({ id: 'number', name: 'string' }));
-     * users(payload); // { id: number; name: string }[]
-     */
-    public objectOf<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(schema: S, options: { strict?: boolean } = {}): StandardValidator<Infer<S, TRegistry>> {
-        const checker = this.getCompiledChecker(schema as Record<string, unknown>, options.strict === true);
-
-        const validator = (value: unknown): Infer<S, TRegistry> => {
-            const issues = checker(value, '');
-            if (issues.length > 0) throw new TyperError(formatIssues(issues), issues);
-            return value as Infer<S, TRegistry>;
-        };
-
-        describingLazy(validator, () => toJSONSchema(schema as Record<string, unknown>, {
-            $schema: false,
-            strict: options.strict === true,
-        }));
-
-        return Typer.asStandard(validator, (value) => {
-            const issues = checker(value, '');
-            return issues.length === 0
-                ? { success: true, data: value as Infer<S, TRegistry> }
-                : Typer.failure(issues);
-        });
+    /** @see {@link Collections.arrayOf} — moved to `Combinators/Collections`, kept here for the instance API. */
+    public arrayOf<T>(element: Validator<T>, bounds: { min?: number; max?: number } = {}): Validator<T[]> {
+        return Collections.arrayOf<T>(element, bounds);
     }
 
-    /**
-     * Turns any schema, validator or type alias into a
-     * {@link https://standardschema.dev Standard Schema}.
-     *
-     * Standard Schema is the common contract that lets a validation library be
-     * accepted by tRPC, Hono, TanStack Form and Router, Nuxt and the rest,
-     * without a per-library adapter. The returned value is still a plain
-     * validator function, so it also keeps working everywhere a `Validator`
-     * does.
-     *
-     * Schema literals are the one shape that cannot carry `~standard` on their
-     * own — they are inert object literals owned by the caller, and Typer does
-     * not mutate them — which is why this wrapper exists.
-     *
-     * @template S - The schema
-     * @param {S} target - A schema object, a `Validator`, or a type alias (or array of aliases).
-     * @param {{ strict?: boolean }} [options] - Schema objects only: `strict` rejects undeclared keys.
-     * @returns {StandardValidator} The validator, carrying `~standard`.
-     * @example
-     * const userSchema = typer.standard({ id: 'number', email: 'string' });
-     * userSchema['~standard'].validate({ id: 1, email: 'a@b.c' }); // { value: … }
-     *
-     * // tRPC, Hono, TanStack … accept it directly:
-     * router.post('/users', validator('json', userSchema), handler);
-     */
-    public standard<K extends TypeKey>(target: K | readonly K[]): StandardValidator<TypeMap[K]>;
-    public standard<T>(target: Validator<T>): StandardValidator<T>;
-    public standard<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(target: S, options?: { strict?: boolean }): StandardValidator<Infer<S, TRegistry>>;
-    public standard<T>(target: string | readonly string[]): StandardValidator<T>;
-    public standard(target: unknown, options: { strict?: boolean } = {}): StandardValidator<unknown> {
-        // Schemas get the dedicated path: `objectOf` already compiles the
-        // checker once and reports issues without building an Error.
-        if (target !== null && typeof target === 'object' && !Array.isArray(target)) {
-            return this.objectOf(target as never, options) as StandardValidator<unknown>;
-        }
-
-        // Never decorate the function the caller handed in: attaching to it
-        // would mutate a value they own and may reuse elsewhere. Wrapping also
-        // keeps `~standard` off a validator that is passed around as a plain
-        // function.
-        const inner: Validator<unknown> = typeof target === 'function'
-            ? target as Validator<unknown>
-            : (value: unknown) => this.parse(target as never, value);
-
-        const wrapper: Validator<unknown> = (value: unknown) => inner(value);
-
-        // Reuse the inner validator's own non-throwing path when it has one,
-        // so wrapping an `objectOf` in `standard()` does not reintroduce the
-        // throw/catch round trip it was built to avoid.
-        const innerSafeRun = (inner as SafeReporting<unknown>)[SAFE_RESULT];
-        const safeRun = innerSafeRun ?? ((value: unknown) => Typer.runCatching(inner, value));
-
-        return Typer.asStandard(wrapper, safeRun);
+    /** @see {@link Collections.record} — moved to `Combinators/Collections`, kept here for the instance API. */
+    public record<T>(value: Validator<T>): Validator<Record<string, T>> {
+        return Collections.record<T>(value);
     }
 
-    /**
-     * Attaches the Standard Schema properties to a validator function.
-     *
-     * `~standard` is defined non-enumerable so the validator still serializes,
-     * spreads and compares like the plain function it was, and `validate` is
-     * built on the non-throwing path rather than on `try`/`catch` around the
-     * throwing one.
-     *
-     * The same non-throwing path is also stored under {@link SAFE_RESULT}, so
-     * `safeParse` can use it directly instead of catching what this validator
-     * would have thrown.
-     *
-     * @param validator - The function to decorate, returned as-is. Must be one
-     *                    Typer owns — never a function supplied by the caller.
-     * @param safeRun - Produces a `ParseResult` without throwing.
-     */
-    private static asStandard<T>(validator: Validator<T>, safeRun: (value: unknown) => ParseResult<T>): StandardValidator<T> {
-        const props: StandardSchemaV1.Props<unknown, T> = {
-            version: 1,
-            vendor: STANDARD_VENDOR,
-            validate: (value: unknown): StandardSchemaV1.Result<T> => {
-                const result = safeRun(value);
-                return result.success ? { value: result.data } : { issues: toStandardIssues(result.issues) };
-            },
-        };
-
-        Object.defineProperty(validator, '~standard', {
-            value: props,
-            enumerable: false,
-            configurable: true,
-        });
-
-        Object.defineProperty(validator, SAFE_RESULT, {
-            value: safeRun,
-            enumerable: false,
-            configurable: true,
-        });
-
-        return validator as StandardValidator<T>;
+    /** @see {@link Collections.tuple} — moved to `Combinators/Collections`, kept here for the instance API. */
+    public tuple<const T extends readonly Validator<unknown>[]>(validators: T): Validator<{ -readonly [K in keyof T]: T[K] extends Validator<infer U> ? U : never }> {
+        return Collections.tuple<T>(validators);
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

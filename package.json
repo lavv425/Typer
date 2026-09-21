@@ -13,6 +13,11 @@
             "import": "./dist/Typer.esm.mjs",
             "require": "./dist/Typer.cjs.min.js"
         },
+        "./combinators": {
+            "types": "./dist/combinators.d.ts",
+            "import": "./dist/combinators.esm.mjs",
+            "require": "./dist/combinators.cjs.min.js"
+        },
         "./validators": {
             "types": "./dist/validators.d.ts",
             "import": "./dist/validators.esm.mjs",
