@@ -5,6 +5,62 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Work towards 5.0 — see [ROADMAP-5.0.md](./ROADMAP-5.0.md). Everything here is
+**additive**; nothing existing changes behaviour.
+
+### ✨ Added
+
+- **`@illavv/run_typer/core` — schema validation without the class.**
+
+  ```typescript
+  import { parse, safeParse, schema } from '@illavv/run_typer/core';
+
+  const userSchema = schema({ id: 'number', email: 'string', note: 'string?' });
+  const user = parse(userSchema, payload);
+  ```
+
+  **2.86 KB gzip, against 9.67 KB for the class — 70% smaller**, and under
+  `zod/mini` (4.8 KB). The whole API hung off a class instance, so a consumer
+  validating one flat schema still shipped every format validator, every
+  combinator and the JSON Schema converter; a bundler could not prove otherwise.
+  Now it can.
+
+  `parse`, `safeParse` and `schema` behave exactly as their methods do — a
+  table test runs nine shapes through both and requires identical issues, down
+  to paths and codes.
+
+- **`createRegistry(aliases)` and `createTyper(aliases)`** for custom type
+  aliases without an instance. A registry is an ordinary value carrying its own
+  compile context, so invalidation is building a new one; `createTyper` binds
+  the entry points so the registry is supplied once rather than on every call,
+  and still tree-shakes because a consumer destructures only what they use.
+
+  `InferWith<typeof schema, typeof registry>` reads the alias map off the
+  registry value, instead of having it written out by hand.
+
+- **The size budget covers both entry points**, so the 2.86 KB is held by CI
+  rather than asserted in a changelog.
+
+### 🔧 Changed
+
+- **The schema compiler and the built-in predicates no longer live in the
+  class.** They moved to `Core/Compile` and `Core/Predicates` with their logic
+  untouched — every message is byte for byte what it was. What the compiler
+  used to take from the instance now arrives as an explicit context.
+
+  `src/Typer.ts` is down from 3,426 to 2,893 lines. The class is unchanged for
+  callers.
+
+### 🐛 Fixed
+
+- **`registerType` did not invalidate the strict-mode compile cache.**
+  `invalidateCaches` replaced only the permissive cache, so a schema already
+  compiled in strict mode kept validating against the type registry as it stood
+  before the call. Found while extracting the compiler, and pinned by a test
+  that fails against the previous implementation.
+
 ## [4.1.1] - 2026-09-21
 
 ### 🐛 Fixed

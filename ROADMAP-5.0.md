@@ -1,6 +1,8 @@
 # Typer 5.0 — plan
 
-> Status: **proposal, not committed work.** Nothing here is implemented.
+> Status: **in progress.** Steps 1–2 are done and the core entry point ships;
+> see §2.1 for what the split actually measured. The breaking steps (5, 7) are
+> not started and need the packaging question in §7 answered first.
 > Written for the maintainer and contributors, as the follow-up to item 10 of
 > the 4.0.0 audit — the two items that audit explicitly deferred:
 > **P2-7** (modularization) and **P2-4** (async validation).
@@ -63,7 +65,24 @@ incomplete — no custom type registry, no strict mode, no `is`/`isType`, no
 legacy surface — so **treat 1.72 KB as a floor, not a promise.** Restoring the
 registry and strict mode will add to it. It will not add 8 KB.
 
-### Where today's 9.69 KB goes
+### 2.1 What it actually measured, once built
+
+The prototype above predicted a floor. Here is the **shipped** entry point,
+built by `npm run build` and measured by `npm run size`:
+
+| Entry point | gzip | vs the class |
+| --- | ---: | ---: |
+| `@illavv/run_typer/core` — `parse`, `safeParse`, `schema`, registries | **2.86 KB** | **−70%** |
+| `@illavv/run_typer` — the class | 9.67 KB | — |
+| *(reference)* `zod/mini` | 4.8 KB | |
+
+2.86 KB against the prototype's 1.72 KB, and the difference is exactly what the
+prototype left out: the custom-alias registry, strict mode, unknown-alias
+reporting and the lazy-`error` `ParseResult`. **The target is met** — a schema
+consumer now ships well under `zod/mini`, and the budget in
+`scripts/check-bundle-size.mjs` holds it there.
+
+### Where the class's 9.67 KB goes
 
 By source lines in `Typer.ts`, which is the best available proxy — the minified
 bundle shares identifiers across groups, so per-group byte attribution would be
@@ -344,9 +363,9 @@ Also worth deciding for 5.0 (all breaking, all optional):
 | Step | Work | Breaking |
 | --- | --- | --- |
 | 1 | ~~Type-level spike: registry through `options`~~ — **done, see §3.4** | no |
-| 2 | Move the compiler and entry points to `core/`, class becomes a facade | no |
+| 2 | ~~Move the compiler and entry points to `core/`~~ — **done** | no |
 | 3 | Split validators and combinators into modules, one export each | no |
-| 4 | Re-express the size budget per entry point; document the free-function API as primary | no |
+| 4 | ~~Re-express the size budget per entry point~~ — **done**; document the free API as primary | no |
 | 5 | `strict` by default | **yes** |
 | 6 | Declarative constraints + the JSON Schema keywords they unlock | no |
 | 7 | Retire `validate` / `assert` / `expect` | **yes** |
