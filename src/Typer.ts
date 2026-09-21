@@ -2,7 +2,7 @@
 
 import type { Error } from "./Types/Globals";
 import type { StandardSchemaV1 } from "./Types/StandardSchema";
-import type { BoundValidators, Coercions, FieldChecker, Infer, KnownAlias, MergeSchema, OmitSchema, ParseResult, PartialSchema, PickSchema, Schema, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TyperExpectTypes, TyperReturn, TypeRegistry, TypeSlot, ValidateSchema, ValidationIssue, Validator, ValueChecker } from "./Types/Typer";
+import type { BoundValidators, Coercions, DiscriminatedUnion, FieldChecker, Infer, KnownAlias, MergeSchema, OmitSchema, ParseResult, PartialSchema, PickSchema, Schema, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TyperExpectTypes, TyperReturn, TypeRegistry, TypeSlot, ValidateSchema, ValidationIssue, Validator, ValueChecker } from "./Types/Typer";
 import { TyperError } from "./Errors/TyperError";
 import { constraintOf, formatIssues, issueError, issueMessages, makeIssue, toStandardIssues } from "./Utils/Issues";
 import * as Patterns from "./Constants/Patterns";
@@ -2151,6 +2151,84 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     }
 
     /**
+     * Builds a validator for a union whose members are told apart by a single
+     * key — the shape most API payloads use.
+     *
+     * {@link union} tries each variant in turn, so its cost grows with the
+     * number of variants and its error lists every variant's failure. This
+     * reads the discriminant once and goes straight to the one variant that can
+     * possibly match, in constant time, and reports against that variant alone.
+     *
+     * The variants are keyed by discriminant value, so the mapping is exact by
+     * construction — there is no literal to extract from a schema and no way to
+     * declare two variants with the same tag.
+     *
+     * @template Key - The discriminant key
+     * @template V - The variants, keyed by discriminant value
+     * @param {Key} key - The key that tells the variants apart.
+     * @param {V} variants - Schema per discriminant value.
+     * @param {{ strict?: boolean }} [options] - `strict` rejects keys the selected variant does not declare.
+     * @returns {StandardValidator} A validator producing the union of the variants.
+     * @throws {TyperError} If the discriminant is missing or unknown, or the selected variant fails.
+     * @example
+     * const shape = typer.discriminatedUnion('kind', {
+     *     circle: { radius: 'number' },
+     *     square: { side: 'number' },
+     * });
+     * shape({ kind: 'circle', radius: 2 });
+     * // → { kind: 'circle'; radius: number } | { kind: 'square'; side: number }
+     */
+    public discriminatedUnion<const Key extends string, const V extends Record<string, Record<string, unknown>>>(key: Key, variants: V, options: { strict?: boolean } = {}): StandardValidator<DiscriminatedUnion<Key, V, TRegistry>> {
+        type Out = DiscriminatedUnion<Key, V, TRegistry>;
+
+        const strict = options.strict === true;
+        const checkers = new Map<string, (value: unknown, rootPath: string) => ValidationIssue[]>();
+
+        for (const tag of Object.keys(variants)) {
+            // The discriminant is declared on the compiled schema even when the
+            // variant does not mention it, so strict mode does not flag the very
+            // key the union is selected by. Re-checking it costs one `typeof`
+            // and keeps the variant free to declare it itself.
+            const declared = variants[tag];
+            const schema = hasOwnKey(declared, key) ? declared : { [key]: 'string', ...declared };
+            checkers.set(tag, this.getCompiledChecker(schema, strict));
+        }
+
+        const tags = Object.keys(variants);
+        const expected = `one of [${tags.join(', ')}]`;
+
+        const run = (value: unknown): ValidationIssue[] => {
+            if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+                const received = this.getType(value);
+                return [makeIssue('invalid_type', '', `Invalid object: must be a non-null object, got ${received}`, 'object', received)];
+            }
+
+            const tag = (value as Record<string, unknown>)[key];
+            if (tag === undefined) {
+                return [makeIssue('missing_key', key, `Missing required key "${key}"`, expected, 'undefined')];
+            }
+
+            const checker = typeof tag === 'string' ? checkers.get(tag) : undefined;
+            if (checker === undefined) {
+                return [makeIssue('invalid_type', key, `Expected "${key}" to be ${expected}, got ${String(tag)}`, expected, this.getType(tag))];
+            }
+
+            return checker(value, '');
+        };
+
+        const validator = (value: unknown): Out => {
+            const issues = run(value);
+            if (issues.length > 0) throw new TyperError(formatIssues(issues), issues);
+            return value as Out;
+        };
+
+        return Typer.asStandard(validator, (value) => {
+            const issues = run(value);
+            return issues.length === 0 ? { success: true, data: value as Out } : Typer.failure(issues);
+        });
+    }
+
+    /**
      * Builds a validator accepting only the listed literal values.
      *
      * The returned validator narrows to the union of those literals, so it is
@@ -3138,4 +3216,4 @@ export { TyperError } from "./Errors/TyperError";
 export { STANDARD_VENDOR } from "./Types/StandardSchema";
 
 export type { StandardSchemaV1 } from "./Types/StandardSchema";
-export type { BoundValidators, Coercions, Infer, IssueBounds, IssueCode, KnownAlias, MergeSchema, OmitSchema, OptionalSlot, ParseResult, PartialSchema, PickSchema, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperExpectTypes, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from "./Types/Typer";
+export type { BoundValidators, Coercions, DiscriminatedUnion, Infer, IssueBounds, IssueCode, KnownAlias, MergeSchema, OmitSchema, OptionalSlot, ParseResult, PartialSchema, PickSchema, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperExpectTypes, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from "./Types/Typer";

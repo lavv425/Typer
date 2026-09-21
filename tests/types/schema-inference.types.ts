@@ -235,6 +235,38 @@ typer.omit(accountSchema, ['nope']);
 typer.partial(accountSchema, ['nope']);
 
 // ---------------------------------------------------------------------------
+//  Discriminated unions and coercion
+// ---------------------------------------------------------------------------
+
+const shapeUnion = typer.discriminatedUnion('kind', {
+    circle: { radius: 'number' },
+    square: { side: 'number' },
+});
+type _ShapeUnion = Expect<Equal<
+    ReturnType<typeof shapeUnion>,
+    { kind: 'circle'; radius: number } | { kind: 'square'; side: number }
+>>;
+
+// Each member carries its own tag as a literal, so it narrows on `kind`.
+declare const someShape: ReturnType<typeof shapeUnion>;
+const narrowed = someShape.kind === 'circle' ? someShape.radius : someShape.side;
+type _Narrowed = Expect<Equal<typeof narrowed, number>>;
+
+// A variant that declares the discriminant itself keeps the literal type.
+const taggedUnion = typer.discriminatedUnion('kind', { circle: { kind: 'string', radius: 'number' } });
+type _TaggedUnion = Expect<Equal<ReturnType<typeof taggedUnion>, { kind: 'circle'; radius: number }>>;
+
+const coercedQuery = typer.schema({
+    page: typer.coerce.number,
+    archived: typer.coerce.boolean,
+    since: typer.coerce.date,
+});
+type _CoercedQuery = Expect<Equal<
+    Infer<typeof coercedQuery>,
+    { page: number; archived: boolean; since: Date }
+>>;
+
+// ---------------------------------------------------------------------------
 //  Standard Schema
 // ---------------------------------------------------------------------------
 

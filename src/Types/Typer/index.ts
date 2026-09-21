@@ -414,6 +414,18 @@ export type OptionalSlot<V> =
 export type PartialSchema<S, K extends keyof S = keyof S> = Prettify<{[P in keyof S]: P extends K ? OptionalSlot<S[P]> : S[P]}>;
 
 /**
+ * The type produced by `discriminatedUnion`: one member per variant, each
+ * carrying its own discriminant as a literal.
+ *
+ * @template Key - The discriminant key
+ * @template V - The variants, keyed by discriminant value
+ * @template R - Custom aliases registered on the instance, if any
+ */
+export type DiscriminatedUnion<Key extends string, V, R extends TypeRegistry = {}> = {
+    [K in keyof V & string]: Prettify<{ [P in Key]: K } & Infer<V[K], R>>
+}[keyof V & string];
+
+/**
  * Element types allowed inside an array-schema slot, e.g. `tags: ['string']`
  * or `users: [userSchema]` or `ids: [validator]`.
  */

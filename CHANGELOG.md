@@ -31,6 +31,31 @@ Work from the 4.0.0 adoption roadmap, in the order that audit recommended.
   footprint at `tslib` alone. `STANDARD_VENDOR` (`'typer'`) is exported for
   consumers that attribute issues by vendor.
 
+- **`discriminatedUnion(key, variants)`.** `union` tries each variant in turn,
+  so its cost grows with the number of variants and its error lists every
+  variant's failure — for the `{ type: 'a' | 'b' }` payloads that dominate real
+  APIs, that is both the wrong cost and the wrong error.
+
+  ```typescript
+  const event = typer.discriminatedUnion('type', {
+      created: { id: 'string', at: 'date' },
+      renamed: { id: 'string', name: 'string' },
+  });
+
+  typer.safeParse(event, { type: 'renamed', id: 'x', name: 42 }).issues;
+  // [{ code: 'invalid_type', path: 'name', expected: 'string' }]
+  // rather than the failure of every variant
+  ```
+
+  The discriminant is read once and selects the one variant that can match, in
+  constant time however many there are. Variants are keyed by discriminant
+  value, so the mapping is exact by construction — there is no literal to
+  extract from a schema and no way to declare the same tag twice. Each member
+  carries its tag as a literal type, so the result narrows on the discriminant.
+
+  The discriminant key is treated as declared even when a variant does not
+  mention it, so `strict` mode does not flag the very key the union selects by.
+
 - **Coercion: `typer.coerce.number`, `.boolean`, `.date`.** Query strings, form
   data and environment variables arrive as strings, so every handler was
   rewriting the conversion by hand ahead of validation — precisely where the

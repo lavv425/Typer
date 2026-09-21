@@ -363,6 +363,36 @@ const orderSchema = typer.schema({
 });
 ```
 
+`discriminatedUnion` covers the payload shape most APIs actually use — a union
+told apart by one key *(4.1+)*:
+
+```typescript
+const event = typer.discriminatedUnion('type', {
+    created: { id: 'string', at: 'date' },
+    renamed: { id: 'string', name: 'string' },
+    deleted: { id: 'string' },
+});
+
+type Event = ReturnType<typeof event>;
+// → { type: 'created'; id: string; at: Date }
+//  | { type: 'renamed'; id: string; name: string }
+//  | { type: 'deleted'; id: string }
+```
+
+Unlike `union`, which tries each variant in turn, this reads the discriminant
+once and goes straight to the only variant that can match — in constant time,
+however many there are — and reports against that variant alone:
+
+```typescript
+typer.safeParse(event, { type: 'renamed', id: 'x', name: 42 }).issues;
+// [{ code: 'invalid_type', path: 'name', expected: 'string', received: 'number' }]
+// not "none of the 3 variants matched, here is why each one failed"
+```
+
+Variants are keyed by discriminant value, so the mapping is exact by
+construction. Each member carries its own tag as a literal type, so it narrows
+on `type` the way a hand-written union does.
+
 `lazy` makes recursive shapes expressible:
 
 ```typescript
@@ -715,6 +745,9 @@ Wraps a validator so `undefined` is also accepted.
 
 #### `union<T extends readonly unknown[]>(...validators): Validator<T[number]>`
 Tries each validator in order; succeeds on the first match.
+
+#### `discriminatedUnion<Key, V>(key: Key, variants: V, options?: { strict?: boolean }): StandardValidator<…>` *(4.1+)*
+A union told apart by one key. Selects the variant in constant time on the discriminant value and reports against that variant alone. Variants are keyed by discriminant value; each member carries its tag as a literal type.
 
 #### `literal<T>(...values): Validator<T[number]>`
 Accepts only the listed literal values, narrowing to their union. *(4.0+)*
