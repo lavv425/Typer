@@ -1,6 +1,6 @@
 {
     "name": "@illavv/run_typer",
-    "version": "4.1.0",
+    "version": "4.1.1",
     "description": "A robust TypeScript class for type checking and validation",
     "main": "dist/Typer.cjs.min.js",
     "module": "dist/Typer.esm.mjs",
@@ -12,7 +12,8 @@
             "browser": "./dist/Typer.min.js",
             "import": "./dist/Typer.esm.mjs",
             "require": "./dist/Typer.cjs.min.js"
-        }
+        },
+        "./package.json": "./package.json"
     },
     "sideEffects": false,
     "engines": {

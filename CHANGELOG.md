@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.1] - 2026-09-21
+
+### 🐛 Fixed
+
+- **`@illavv/run_typer/package.json` was not resolvable.** Declaring `exports`
+  at all makes every *undeclared* subpath unresolvable, and 4.1.0 declared only
+  `"."` — so `require('@illavv/run_typer/package.json')` failed with
+  `ERR_PACKAGE_PATH_NOT_EXPORTED`. Tooling reads that file routinely: version
+  checks, bundler plugins, some test runners. It is now declared explicitly.
+
+  This was true in 4.0.0 as well; it was found while verifying the 4.1.0
+  publish, not introduced by it.
+
+- **The 4.1.0 changelog entry had no version heading**, leaving its notes
+  attached to the preamble instead of to a release.
+
+### 🧪 Internal
+
+- **The published manifest is now covered by tests.** `exports`, `files`,
+  `sideEffects`, `engines` and the legacy `main`/`module`/`browser`/`types`
+  entries are asserted, including that `types` is listed first among the
+  conditions — after `import`/`require` it is silently ignored by TypeScript.
+  Nothing else in the suite, the build or the type tests reads the manifest, so
+  a packaging mistake was invisible until after a publish, and npm does not
+  allow republishing a version to correct one.
+
+## [4.1.0] - 2026-09-21
+
 Work from the 4.0.0 adoption roadmap, in the order that audit recommended.
 
 ### ✨ Added
