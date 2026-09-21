@@ -1,6 +1,7 @@
 # Typer 5.0 — plan
 
-> Status: **in progress.** Steps 1–2 are done and the core entry point ships;
+> Status: **in progress.** Steps 1–2 and 4 are done, step 3 is half done
+> (validators moved, combinators pending), and the split entry points ship;
 > see §2.1 for what the split actually measured. The breaking steps (5, 7) are
 > not started and need the packaging question in §7 answered first.
 > Written for the maintainer and contributors, as the follow-up to item 10 of
@@ -70,17 +71,28 @@ registry and strict mode will add to it. It will not add 8 KB.
 The prototype above predicted a floor. Here is the **shipped** entry point,
 built by `npm run build` and measured by `npm run size`:
 
-| Entry point | gzip | vs the class |
+| Consumer imports | gzip | vs the class |
 | --- | ---: | ---: |
-| `@illavv/run_typer/core` — `parse`, `safeParse`, `schema`, registries | **2.86 KB** | **−70%** |
-| `@illavv/run_typer` — the class | 9.67 KB | — |
+| `core` — `parse`, `safeParse`, `schema`, registries | **2.86 KB** | **−71%** |
+| … + `isEmail` | 2.87 KB | −71% |
+| … + 4 format validators | 3.12 KB | −68% |
+| all 44 validators, no class | 3.70 KB | −62% |
+| the class | 9.85 KB | — |
 | *(reference)* `zod/mini` | 4.8 KB | |
 
-2.86 KB against the prototype's 1.72 KB, and the difference is exactly what the
-prototype left out: the custom-alias registry, strict mode, unknown-alias
-reporting and the lazy-`error` `ParseResult`. **The target is met** — a schema
-consumer now ships well under `zod/mini`, and the budget in
-`scripts/check-bundle-size.mjs` holds it there.
+2.86 KB against the prototype's 1.72 KB, and the difference is exactly what
+the prototype left out: the custom-alias registry, strict mode, unknown-alias
+reporting and the lazy-`error` `ParseResult`. **The target is met** — a
+realistic app ships around 3 KB, well under `zod/mini`, and the budgets in
+`scripts/check-bundle-size.mjs` hold it there.
+
+**A validator costs ~11 B on top of `core`, and ~65 B each past the first** —
+better than the 100–125 B the prototype predicted. Getting there needed one
+non-obvious fix: `BUILTIN_CHECKERS` and `BUILTIN_PREDICATES` are built by a
+call expression, which rollup cannot prove side-effect-free, so importing a
+single validator retained all 19 checkers — 624 B. Both are now annotated
+`/*#__PURE__*/`. **Any future map built by a call needs the same annotation**,
+or it silently reattaches itself to every bundle.
 
 ### Where the class's 9.67 KB goes
 
@@ -364,7 +376,7 @@ Also worth deciding for 5.0 (all breaking, all optional):
 | --- | --- | --- |
 | 1 | ~~Type-level spike: registry through `options`~~ — **done, see §3.4** | no |
 | 2 | ~~Move the compiler and entry points to `core/`~~ — **done** | no |
-| 3 | Split validators and combinators into modules, one export each | no |
+| 3 | Split validators into modules — **done**; combinators still to move | no |
 | 4 | ~~Re-express the size budget per entry point~~ — **done**; document the free API as primary | no |
 | 5 | `strict` by default | **yes** |
 | 6 | Declarative constraints + the JSON Schema keywords they unlock | no |
