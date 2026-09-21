@@ -246,8 +246,11 @@ export type FieldChecker = (obj: Record<string, unknown>, issues: ValidationIssu
 /**
  * A compiled check for a value in an anonymous position — currently an array
  * element, which has an owning array path plus an index but no key of its own.
+ *
+ * The array and index are passed rather than the value, so a transforming
+ * validator can write its result back the way a field slot does.
  */
-export type ValueChecker = (value: unknown, issues: ValidationIssue[], arrayPath: string, index: number) => void;
+export type ValueChecker = (array: unknown[], index: number, issues: ValidationIssue[], arrayPath: string) => void;
 
 /**
  * Everything the hot path needs from a type-string slot (`"string"`,

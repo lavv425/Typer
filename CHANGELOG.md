@@ -132,6 +132,27 @@ Work from the 4.0.0 adoption roadmap, in the order that audit recommended.
 
 ### 🐛 Fixed
 
+- **A transforming validator in a schema slot now takes effect.** The compiled
+  checker called the validator and discarded its return value, so `transform`,
+  `withDefault` and `nullable` were inert inside a schema — including in the
+  README's own example, where `withDefault` never wrote its default and
+  `transform` never trimmed anything.
+
+  ```typescript
+  const payload = { slug: '  Hello  ' };
+  typer.parse({ slug: typer.transform((v) => typer.asString(v), (s) => s.trim()) }, payload);
+  payload.slug; // '  Hello  ' before, 'Hello' now
+  ```
+
+  A slot is written back **only when the validator returned something other
+  than what it was given**, so every `is*`/`as*` validator and `objectOf` — all
+  of which hand back their input — leave the object untouched, down to property
+  identity. Array element slots follow the same rule.
+
+  A validator declared as returning another type (`isISODate`, say) now
+  actually replaces the value, which is what `Infer` has always claimed the
+  slot holds.
+
 - **`isNegativeInteger` reported the wrong message.** A copy-paste: it said
   `must be a positive integer`. It now says `must be a negative integer`.
 

@@ -1575,7 +1575,15 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             const validator = expected as Validator<unknown>;
             return (obj, issues, parentPath) => {
                 try {
-                    validator(obj[key]);
+                    const result = validator(obj[key]);
+                    // Write back only when the validator actually produced
+                    // something else. Every `is*`/`as*` validator and
+                    // `objectOf` hand back what they were given, so the object
+                    // is not touched at all in the overwhelming majority of
+                    // slots; `coerce.*`, `transform` and `withDefault` exist to
+                    // produce a different value, and used to have that value
+                    // silently discarded.
+                    if (result !== obj[key]) obj[key] = result;
                 } catch (e) {
                     issues.push(Typer.slotIssue(e, joinPath(parentPath, key)));
                 }
@@ -1786,7 +1794,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             // checkers append `[i]` only when they actually report an issue.
             const arrayPath = joinPath(parentPath, key);
             for (let i = 0; i < length; i++) {
-                elementCheck(value[i], issues, arrayPath, i);
+                elementCheck(value, i, issues, arrayPath);
             }
         };
     }
@@ -1827,9 +1835,12 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     private compileValue(expected: unknown, strictMode: boolean): ValueChecker {
         if (typeof expected === "function") {
             const validator = expected as Validator<unknown>;
-            return (value, issues, arrayPath, index) => {
+            return (array, index, issues, arrayPath) => {
                 try {
-                    validator(value);
+                    const result = validator(array[index]);
+                    // Same write-back rule as a field slot: only a validator
+                    // that actually produced something else touches the array.
+                    if (result !== array[index]) array[index] = result;
                 } catch (e) {
                     issues.push(Typer.slotIssue(e, indexPath(arrayPath, index)));
                 }
@@ -1838,7 +1849,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
 
         if (typeof expected === "string") {
             if (expected.trim() === "") {
-                return (_v, issues, arrayPath, index) => {
+                return (_array, index, issues, arrayPath) => {
                     const path = indexPath(arrayPath, index);
                     issues.push(makeIssue('invalid_schema', path, `Empty type definition at "${path}"`));
                 };
@@ -1846,7 +1857,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
 
             const slot = this.parseTypeSlot(expected);
             if (slot === null) {
-                return (_v, issues, arrayPath, index) => {
+                return (_array, index, issues, arrayPath) => {
                     const path = indexPath(arrayPath, index);
                     issues.push(makeIssue('invalid_schema', path, `Invalid type definition "${expected}" at "${path}"`));
                 };
@@ -1855,7 +1866,8 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             const { isOptional, predicates, unknownType, description } = slot;
             const predicateCount = predicates.length;
 
-            return (value, issues, arrayPath, index) => {
+            return (array, index, issues, arrayPath) => {
+                const value = array[index];
                 if (isOptional && (value === undefined || value === null)) return;
 
                 for (let i = 0; i < predicateCount; i++) {
@@ -1883,7 +1895,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
          * unreachable. Kept as a defensive fallback for future call sites. */
         if (Array.isArray(expected)) {
             // Array-of-array isn't supported as a schema; mirror checkStructure error wording.
-            return (_v, issues, arrayPath, index) => {
+            return (_array, index, issues, arrayPath) => {
                 const path = indexPath(arrayPath, index);
                 issues.push(makeIssue('invalid_schema', path, `Array element type must be a string at "${path}"`));
             };
@@ -1891,7 +1903,8 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
 
         if (expected !== null && typeof expected === "object") {
             const compiledNested = this.compileSchema(expected as Record<string, unknown>, strictMode);
-            return (value, issues, arrayPath, index) => {
+            return (array, index, issues, arrayPath) => {
+                const value = array[index];
                 const path = indexPath(arrayPath, index);
                 if (value === null || typeof value !== "object" || Array.isArray(value)) {
                     const received = this.getType(value);
@@ -1906,7 +1919,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         // non-string/function/object element schemas before we reach this
         // branch. Kept as a defensive fallback for future call sites.
         /* istanbul ignore next */
-        return (_v, issues, arrayPath, index) => {
+        return (_array, index, issues, arrayPath) => {
             const expectedType = expected === null ? "null" : typeof expected;
             const path = indexPath(arrayPath, index);
             issues.push(makeIssue(
