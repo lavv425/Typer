@@ -47,10 +47,7 @@ const objectProto = Object.prototype;
  *
  * @param obj - The object about to be validated.
  */
-const mayCarryUnsafeKey = (obj: Record<string, unknown>): boolean =>
-    obj['__proto__'] !== objectProto
-    || obj['constructor'] !== Object
-    || obj['prototype'] !== undefined;
+const mayCarryUnsafeKey = (obj: Record<string, unknown>): boolean => obj['__proto__'] !== objectProto || obj['constructor'] !== Object || obj['prototype'] !== undefined;
 
 /**
  * Removes the given dangerous keys from an object, in place.

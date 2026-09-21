@@ -36,6 +36,22 @@ Work from the 4.0.0 adoption roadmap, in the order that audit recommended.
   things the library actually wins on, so a regression in it now fails the
   build like any other. It also runs as part of `prepublishOnly`.
 
+### ⚡ Performance
+
+- **`safeParse` no longer pays for a thrown error when the validator can report
+  without one.** `objectOf(schema)` wraps the same compiled checker `safeParse`
+  uses directly, but the failure travelled out of it as a `TyperError` —
+  constructing the error and capturing its stack — only to be caught one frame
+  later and converted back into a `ParseResult`.
+
+  Measured on the same failing payload: `safeParse(objectOf(schema), bad)` went
+  from **3.51 µs to 0.46 µs**, which is parity with `safeParse(schema, bad)`
+  (0.46 µs). It was 6× slower before.
+
+  This mattered beyond the number: `strict` mode is only reachable through
+  `objectOf`, so the safest way to validate was also the slowest one. `parse()`
+  and calling the validator directly still throw — that is what they are for.
+
 ### 🔒 Security
 
 - **Undeclared `__proto__`, `constructor` and `prototype` are stripped from

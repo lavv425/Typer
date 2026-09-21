@@ -7,6 +7,8 @@ import { TyperError } from "./Errors/TyperError";
 import { formatIssues, issueMessages, makeIssue, toStandardIssues } from "./Utils/Issues";
 import * as Patterns from "./Constants/Patterns";
 import { STANDARD_VENDOR } from "./Types/StandardSchema";
+import { SAFE_RESULT } from "./Constants/Symbols";
+import type { SafeReporting } from "./Constants/Symbols";
 import { DANGEROUS_KEYS, stripDangerousKeys } from "./Utils/Sanitize";
 import { indexPath, joinPath } from "./Utils/Path";
 
@@ -1267,9 +1269,31 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
                 : Typer.failure(issues);
         }
 
+        // The same fast path, for validators that can report without throwing.
+        // `objectOf(schema)` wraps the very checker the branch above uses, so
+        // routing it through `parse` made the wrapper cost an order of
+        // magnitude more than the schema it wraps.
+        if (typeof typesOrSchemaOrValidator === "function") {
+            const safeRun = (typesOrSchemaOrValidator as SafeReporting<unknown>)[SAFE_RESULT];
+            if (safeRun !== undefined) return safeRun(value);
+            return Typer.runCatching(typesOrSchemaOrValidator as Validator<unknown>, value);
+        }
+
+        return Typer.runCatching((input: unknown) => this.parse(typesOrSchemaOrValidator as never, input), value);
+    }
+
+    /**
+     * Runs a throwing validator and reports the outcome as a {@link ParseResult}.
+     *
+     * The fallback for everything with no non-throwing path of its own: a
+     * user-supplied validator, a type alias, an array of aliases.
+     *
+     * @param validator - The validator to run.
+     * @param value - The value to validate.
+     */
+    private static runCatching<T>(validator: Validator<T>, value: unknown): ParseResult<T> {
         try {
-            const data = this.parse(typesOrSchemaOrValidator as never, value);
-            return { success: true, data };
+            return { success: true, data: validator(value) };
         } catch (e: unknown) {
             if (e instanceof TyperError) return Typer.failure(e.issues, e);
             const message = e instanceof Error ? e.message : String(e);
@@ -2060,7 +2084,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * const users = typer.arrayOf(typer.objectOf({ id: 'number', name: 'string' }));
      * users(payload); // { id: number; name: string }[]
      */
-    public objectOf<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(schema: S, options: { strict?: boolean } = {},): StandardValidator<Infer<S, TRegistry>> {
+    public objectOf<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(schema: S, options: { strict?: boolean } = {}): StandardValidator<Infer<S, TRegistry>> {
         const checker = this.getCompiledChecker(schema as Record<string, unknown>, options.strict === true);
 
         const validator = (value: unknown): Infer<S, TRegistry> => {
@@ -2104,10 +2128,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      */
     public standard<K extends TypeKey>(target: K | readonly K[]): StandardValidator<TypeMap[K]>;
     public standard<T>(target: Validator<T>): StandardValidator<T>;
-    public standard<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(
-        target: S,
-        options?: { strict?: boolean },
-    ): StandardValidator<Infer<S, TRegistry>>;
+    public standard<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(target: S, options?: { strict?: boolean }): StandardValidator<Infer<S, TRegistry>>;
     public standard<T>(target: string | readonly string[]): StandardValidator<T>;
     public standard(target: unknown, options: { strict?: boolean } = {}): StandardValidator<unknown> {
         // Schemas get the dedicated path: `objectOf` already compiles the
@@ -2116,11 +2137,23 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             return this.objectOf(target as never, options) as StandardValidator<unknown>;
         }
 
-        const validator: Validator<unknown> = typeof target === 'function'
+        // Never decorate the function the caller handed in: attaching to it
+        // would mutate a value they own and may reuse elsewhere. Wrapping also
+        // keeps `~standard` off a validator that is passed around as a plain
+        // function.
+        const inner: Validator<unknown> = typeof target === 'function'
             ? target as Validator<unknown>
             : (value: unknown) => this.parse(target as never, value);
 
-        return Typer.asStandard(validator, (value) => this.safeParse(validator, value));
+        const wrapper: Validator<unknown> = (value: unknown) => inner(value);
+
+        // Reuse the inner validator's own non-throwing path when it has one,
+        // so wrapping an `objectOf` in `standard()` does not reintroduce the
+        // throw/catch round trip it was built to avoid.
+        const innerSafeRun = (inner as SafeReporting<unknown>)[SAFE_RESULT];
+        const safeRun = innerSafeRun ?? ((value: unknown) => Typer.runCatching(inner, value));
+
+        return Typer.asStandard(wrapper, safeRun);
     }
 
     /**
@@ -2128,10 +2161,15 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      *
      * `~standard` is defined non-enumerable so the validator still serializes,
      * spreads and compares like the plain function it was, and `validate` is
-     * built on the non-throwing `safeParse` path rather than on `try`/`catch`
-     * around the throwing one.
+     * built on the non-throwing path rather than on `try`/`catch` around the
+     * throwing one.
      *
-     * @param validator - The function to decorate, returned as-is.
+     * The same non-throwing path is also stored under {@link SAFE_RESULT}, so
+     * `safeParse` can use it directly instead of catching what this validator
+     * would have thrown.
+     *
+     * @param validator - The function to decorate, returned as-is. Must be one
+     *                    Typer owns — never a function supplied by the caller.
      * @param safeRun - Produces a `ParseResult` without throwing.
      */
     private static asStandard<T>(validator: Validator<T>, safeRun: (value: unknown) => ParseResult<T>): StandardValidator<T> {
@@ -2140,14 +2178,18 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             vendor: STANDARD_VENDOR,
             validate: (value: unknown): StandardSchemaV1.Result<T> => {
                 const result = safeRun(value);
-                return result.success
-                    ? { value: result.data }
-                    : { issues: toStandardIssues(result.issues) };
+                return result.success ? { value: result.data } : { issues: toStandardIssues(result.issues) };
             },
         };
 
         Object.defineProperty(validator, '~standard', {
             value: props,
+            enumerable: false,
+            configurable: true,
+        });
+
+        Object.defineProperty(validator, SAFE_RESULT, {
+            value: safeRun,
             enumerable: false,
             configurable: true,
         });
@@ -2269,10 +2311,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * @returns {T} The validated value
      * @throws {TypeError} If `p` is not a string/array or its length is out of range
      */
-    public isLength<T extends string | readonly unknown[]>(
-        bounds: { min?: number; max?: number },
-        p: unknown,
-    ): T {
+    public isLength<T extends string | readonly unknown[]>(bounds: { min?: number; max?: number }, p: unknown): T {
         if (typeof p !== 'string' && !Array.isArray(p)) {
             throw new TypeError(`${p} must be a string or array, is ${this.getType(p)}`);
         }
