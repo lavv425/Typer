@@ -1169,7 +1169,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             return this.isType(typesOrSchemaOrValidator as string[], value);
         }
         if (typesOrSchemaOrValidator !== null && typeof typesOrSchemaOrValidator === "object") {
-            const issues = this.getCompiledChecker(typesOrSchemaOrValidator as Record<string, unknown>)(value, '');
+            const issues = this.getCompiledChecker(typesOrSchemaOrValidator as Record<string, unknown>, true)(value, '');
             if (issues.length > 0) {
                 throw new TyperError(formatIssues(issues), issues);
             }
@@ -1204,7 +1204,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         // outcome, and building an Error — its stack capture in particular — is
         // by far the most expensive part of a failed validation.
         if (typesOrSchemaOrValidator !== null && typeof typesOrSchemaOrValidator === "object" && !Array.isArray(typesOrSchemaOrValidator)) {
-            const issues = this.getCompiledChecker(typesOrSchemaOrValidator as Record<string, unknown>)(value, '');
+            const issues = this.getCompiledChecker(typesOrSchemaOrValidator as Record<string, unknown>, true)(value, '');
             return issues.length === 0
                 ? { success: true, data: value }
                 : failure(issues);
@@ -1287,7 +1287,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * @param schema - The schema to compile.
      * @param strictMode - Whether to reject keys the schema does not declare.
      */
-    private getCompiledChecker(schema: Record<string, unknown>, strictMode = false): CompiledChecker {
+    private getCompiledChecker(schema: Record<string, unknown>, strictMode = true): CompiledChecker {
         return getCompiledChecker(this.context, schema, strictMode);
     }
 
@@ -1421,7 +1421,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * const obj = { name: "John", age: 25, hobbies: ["reading"] };
      * console.log(Typer.checkStructure(schema, obj)); // { isValid: true, errors: [], issues: [] }
      */
-    public checkStructure(schema: Record<string, unknown>, obj: Record<string, unknown>, path = '', strictMode = false): StructureValidationReturn {
+    public checkStructure(schema: Record<string, unknown>, obj: Record<string, unknown>, path = '', strictMode = true): StructureValidationReturn {
         if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
             const issues = [makeIssue('invalid_schema', path, `Invalid schema: must be a non-null object`)];
             return { isValid: false, errors: issueMessages(issues), issues };

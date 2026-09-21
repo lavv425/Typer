@@ -177,7 +177,15 @@ describe('toJSONSchema — validators describe themselves', () => {
     });
 
     it('describes objectOf() as the object it validates', () => {
+        // `additionalProperties: false` because objectOf is strict by default
+        // in 5.0 — the emitted schema has to say what validation actually does.
         expect(body({ user: typer.objectOf({ id: 'number' }) }).properties).toEqual({
+            user: { type: 'object', properties: { id: { type: 'number' } }, required: ['id'], additionalProperties: false },
+        });
+    });
+
+    it('drops additionalProperties when objectOf opts out of strict', () => {
+        expect(body({ user: typer.objectOf({ id: 'number' }, { strict: false }) }).properties).toEqual({
             user: { type: 'object', properties: { id: { type: 'number' } }, required: ['id'] },
         });
     });
@@ -228,11 +236,13 @@ describe('toJSONSchema — validators describe themselves', () => {
                         type: 'object',
                         properties: { kind: { const: 'circle' }, radius: { type: 'number' } },
                         required: ['kind', 'radius'],
+                        additionalProperties: false,
                     },
                     {
                         type: 'object',
                         properties: { kind: { const: 'square' }, side: { type: 'number' } },
                         required: ['kind', 'side'],
+                        additionalProperties: false,
                     },
                 ],
             },

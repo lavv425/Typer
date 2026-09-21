@@ -186,8 +186,14 @@ describe('Typer - structured validation errors', () => {
             expect(result.issues[0]).toMatchObject({ code: 'unexpected_key', path: 'nested.extra' });
         });
 
-        it('does not flag extra keys when strict mode is off', () => {
+        it('flags extra keys by default in 5.0', () => {
             const result = typer.checkStructure({ a: 'number' }, { a: 1, extra: true });
+            expect(result.isValid).toBe(false);
+            expect(result.issues[0]).toMatchObject({ code: 'unexpected_key', path: 'extra' });
+        });
+
+        it('does not flag them when strict mode is explicitly off', () => {
+            const result = typer.checkStructure({ a: 'number' }, { a: 1, extra: true }, '', false);
             expect(result.isValid).toBe(true);
         });
 

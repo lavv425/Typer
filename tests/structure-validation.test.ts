@@ -207,7 +207,7 @@ describe('Typer - Structure Validation', () => {
     });
 
     describe('Strict mode', () => {
-      test('should allow extra fields in non-strict mode (default)', () => {
+      test('should allow extra fields when strict mode is explicitly off', () => {
         const schema = {
           name: 'string',
           age: 'number'
@@ -220,9 +220,17 @@ describe('Typer - Structure Validation', () => {
           another: 'extra'
         };
 
-        const result = typer.checkStructure(schema, dataWithExtraFields);
+        const result = typer.checkStructure(schema, dataWithExtraFields, '', false);
         expect(result.isValid).toBe(true);
         expect(result.errors).toHaveLength(0);
+      });
+
+      test('should reject extra fields by default in 5.0', () => {
+        const schema = { name: 'string', age: 'number' };
+        const result = typer.checkStructure(schema, { name: 'John', age: 30, extra: 'field' });
+
+        expect(result.isValid).toBe(false);
+        expect(result.issues[0]).toMatchObject({ code: 'unexpected_key', path: 'extra' });
       });
 
       test('should reject extra fields in strict mode', () => {

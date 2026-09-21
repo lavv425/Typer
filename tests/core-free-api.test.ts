@@ -51,13 +51,16 @@ describe('parse (free function)', () => {
         expect(Object.keys(payload)).toEqual(['id', 'name']);
     });
 
-    it('honours strict mode', () => {
-        expect(safeParse(userSchema, { id: 1, name: 'ada', extra: true }).success).toBe(true);
+    it('rejects undeclared keys by default', () => {
+        const strict = safeParse(userSchema, { id: 1, name: 'ada', extra: true });
 
-        const strict = safeParse(userSchema, { id: 1, name: 'ada', extra: true }, { strict: true });
         expect(strict.success).toBe(false);
         if (strict.success) return;
         expect(strict.issues[0]).toMatchObject({ code: 'unexpected_key', path: 'extra' });
+    });
+
+    it('accepts them when strict is explicitly off', () => {
+        expect(safeParse(userSchema, { id: 1, name: 'ada', extra: true }, { strict: false }).success).toBe(true);
     });
 
     it('applies a transforming validator slot', () => {

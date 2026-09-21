@@ -40,7 +40,9 @@ const run = <R extends TypeRegistry>(
     options: ParseOptions<R> | undefined,
 ): ValidationIssue[] => {
     const context = options?.registry?.context ?? BUILTIN_CONTEXT;
-    return getCompiledChecker(context, schema, options?.strict === true)(value, '');
+    // Strict by default in 5.0: an undeclared key is rejected unless the
+    // caller opts out. `{ strict: false }` restores 4.x behaviour.
+    return getCompiledChecker(context, schema, options?.strict !== false)(value, '');
 };
 
 /**

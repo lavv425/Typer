@@ -94,7 +94,7 @@ export const objectOf = <const S extends ValidateSchema<S, KnownAlias<R>>, R ext
     options: ObjectOptions<R> = {},
 ): StandardValidator<Infer<S, R>> => {
     const context = options.registry?.context ?? BUILTIN_CONTEXT;
-    const checker = getCompiledChecker(context, schema as Record<string, unknown>, options.strict === true);
+    const checker = getCompiledChecker(context, schema as Record<string, unknown>, options.strict !== false);
 
     const validator = (value: unknown): Infer<S, R> => {
         const issues = checker(value, '');
@@ -104,7 +104,7 @@ export const objectOf = <const S extends ValidateSchema<S, KnownAlias<R>>, R ext
 
     describingLazy(validator, () => toJSONSchema(schema as Record<string, unknown>, {
         $schema: false,
-        strict: options.strict === true,
+        strict: options.strict !== false,
     }));
 
     return asStandard(validator, (value) => {
@@ -150,7 +150,7 @@ export const discriminatedUnion = <const Key extends string, const V extends Rec
     type Out = DiscriminatedUnion<Key, V, R>;
 
     const context = options.registry?.context ?? BUILTIN_CONTEXT;
-    const strict = options.strict === true;
+    const strict = options.strict !== false;
     const checkers = new Map<string, (value: unknown, rootPath: string) => ValidationIssue[]>();
 
     for (const tag of Object.keys(variants)) {
