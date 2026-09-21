@@ -53,7 +53,14 @@ export type IssueCode =
     /** Strict mode only: the object carried a key the schema does not declare. */
     | 'unexpected_key'
     /** A `Validator` function supplied in the schema threw. */
-    | 'custom';
+    | 'custom'
+    /**
+     * An undeclared `__proto__`, `constructor` or `prototype` own key was
+     * present and could not be removed, because the object is frozen or the
+     * property is non-configurable. On a normal object the key is stripped
+     * silently and no issue is reported.
+     */
+    | 'dangerous_key';
 
 /**
  * A single, structured validation failure.

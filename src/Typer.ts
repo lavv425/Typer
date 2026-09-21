@@ -7,6 +7,7 @@ import { TyperError } from "./Errors/TyperError";
 import { formatIssues, issueMessages, makeIssue, toStandardIssues } from "./Utils/Issues";
 import * as Patterns from "./Constants/Patterns";
 import { STANDARD_VENDOR } from "./Types/StandardSchema";
+import { DANGEROUS_KEYS, stripDangerousKeys } from "./Utils/Sanitize";
 import { indexPath, joinPath } from "./Utils/Path";
 
 /**
@@ -1259,9 +1260,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         // catching it one frame later. For safeParse a mismatch is an expected
         // outcome, and building an Error — its stack capture in particular — is
         // by far the most expensive part of a failed validation.
-        if (typesOrSchemaOrValidator !== null
-            && typeof typesOrSchemaOrValidator === "object"
-            && !Array.isArray(typesOrSchemaOrValidator)) {
+        if (typesOrSchemaOrValidator !== null && typeof typesOrSchemaOrValidator === "object" && !Array.isArray(typesOrSchemaOrValidator)) {
             const issues = this.getCompiledChecker(typesOrSchemaOrValidator as Record<string, unknown>)(value, '');
             return issues.length === 0
                 ? { success: true, data: value }
@@ -1368,8 +1367,16 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         }
         const fieldCount = fields.length;
 
+        // A schema is free to declare `constructor` as a field of its own — in
+        // that case it is an ordinary key and is validated, not stripped. Which
+        // of the three are dangerous *for this schema* is therefore known at
+        // compile time, and the hot path only walks the ones that are.
+        const unsafe = DANGEROUS_KEYS.filter(key => !keys.includes(key));
+        const unsafeCount = unsafe.length;
+
         if (!strictMode) {
             return (obj, issues, parentPath) => {
+                if (unsafeCount > 0) stripDangerousKeys(obj, unsafe, issues, parentPath);
                 for (let i = 0; i < fieldCount; i++) {
                     fields[i](obj, issues, parentPath);
                 }
@@ -1380,6 +1387,9 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         // Set lookup per key of the *input* rather than a per-call filter.
         const declared = new Set(keys);
         return (obj, issues, parentPath) => {
+            // Stripped before the extra-key sweep: an unsafe key is removed,
+            // not reported twice.
+            if (unsafeCount > 0) stripDangerousKeys(obj, unsafe, issues, parentPath);
             for (let i = 0; i < fieldCount; i++) {
                 fields[i](obj, issues, parentPath);
             }
@@ -1867,6 +1877,10 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      *
      * Rejects arrays and `null`, unlike the `'object'` alias.
      *
+     * Keys that are dangerous to copy (`__proto__`, `constructor`,
+     * `prototype`) are dropped rather than written to the result: assigning
+     * `out['__proto__']` would set the output's prototype instead of a field.
+     *
      * @template T - The value type
      * @param {Validator} value - Validator applied to each own enumerable value.
      * @returns {Validator} A validator producing `Record<string, T>`.
@@ -1884,6 +1898,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             const out: Record<string, T> = {};
             const issues: ValidationIssue[] = [];
             for (const key of Object.keys(input)) {
+                if (DANGEROUS_KEYS.includes(key)) continue;
                 try {
                     out[key] = value((input as Record<string, unknown>)[key]);
                 } catch (e) {
@@ -1907,9 +1922,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * const point = typer.tuple([(v) => typer.asNumber(v), (v) => typer.asNumber(v)]);
      * point([1, 2]); // [number, number]
      */
-    public tuple<const T extends readonly Validator<unknown>[]>(
-        validators: T,
-    ): Validator<{ -readonly [K in keyof T]: T[K] extends Validator<infer U> ? U : never }> {
+    public tuple<const T extends readonly Validator<unknown>[]>(validators: T): Validator<{ -readonly [K in keyof T]: T[K] extends Validator<infer U> ? U : never }> {
         type Out = { -readonly [K in keyof T]: T[K] extends Validator<infer U> ? U : never };
         return (value: unknown): Out => {
             if (!Array.isArray(value)) {
@@ -2047,10 +2060,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * const users = typer.arrayOf(typer.objectOf({ id: 'number', name: 'string' }));
      * users(payload); // { id: number; name: string }[]
      */
-    public objectOf<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(
-        schema: S,
-        options: { strict?: boolean } = {},
-    ): StandardValidator<Infer<S, TRegistry>> {
+    public objectOf<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(schema: S, options: { strict?: boolean } = {},): StandardValidator<Infer<S, TRegistry>> {
         const checker = this.getCompiledChecker(schema as Record<string, unknown>, options.strict === true);
 
         const validator = (value: unknown): Infer<S, TRegistry> => {

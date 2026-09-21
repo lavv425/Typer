@@ -36,6 +36,30 @@ Work from the 4.0.0 adoption roadmap, in the order that audit recommended.
   things the library actually wins on, so a regression in it now fails the
   build like any other. It also runs as part of `prepublishOnly`.
 
+### 🔒 Security
+
+- **Undeclared `__proto__`, `constructor` and `prototype` are stripped from
+  validated objects.** Typer validates in place and returns the same reference,
+  so a `JSON.parse` payload carrying those keys used to pass `success: true`
+  with them intact — harmless in the returned object itself, dangerous at the
+  first spread, `Object.assign` or ORM update downstream.
+
+  They are removed unless the schema declares them as fields of its own, in
+  which case they are ordinary keys and are validated normally. A valid payload
+  stays valid, and `strict` mode is unchanged for every other extra key.
+
+  When the object is frozen and the key cannot be removed, validation now fails
+  with the new `dangerous_key` issue code instead of returning an object it
+  could not make safe.
+
+  The hot path is unaffected (measured at 66 ns before and after, on a flat
+  four-field object): a three-read probe gates the exact `hasOwnProperty` check,
+  so a plain unpolluted object pays ~2.5 ns rather than ~15 ns.
+
+- **`record()` drops dangerous keys instead of copying them.** It builds a new
+  object, and `out['__proto__'] = value` sets the result's prototype rather
+  than a field — a distinct hole from the one above, in the opposite direction.
+
 ### 🔧 Changed
 
 - **Package metadata.** `"sideEffects": false` lets bundlers drop unused code

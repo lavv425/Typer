@@ -174,6 +174,32 @@ try {
 > constructing an `Error` — whose stack capture costs more than the validation
 > itself.
 
+### 🛡️ Validated means safe to merge *(4.1+)*
+
+Typer validates in place and returns the same reference it was given. That is
+what makes it fast, and it used to mean that keys the schema never declared —
+including `__proto__` and `constructor` from a `JSON.parse` payload — survived
+a `success: true`:
+
+```typescript
+const payload = JSON.parse('{"id":1,"__proto__":{"admin":true}}');
+typer.parse({ id: 'number' }, payload);
+
+Object.keys(payload);        // ['id']  — was ['id', '__proto__'] before 4.1
+{ ...payload }.admin;        // undefined — the spread that used to matter
+```
+
+`__proto__`, `constructor` and `prototype` are now removed from every validated
+object unless the schema declares them as fields of its own, in which case they
+are ordinary keys and are validated like any other. Nothing else about extra
+keys changes: use `strict` mode if you want *all* undeclared keys rejected.
+
+If the object is frozen and the key cannot be removed, validation fails with a
+`dangerous_key` issue rather than passing an object it could not make safe.
+
+The check costs ~2.5 ns per object: a cheap probe that only falls through to the
+exact `hasOwnProperty` test when an object is not a plain, unpolluted one.
+
 ### 🤝 Standard Schema *(4.1+)*
 
 [Standard Schema](https://standardschema.dev) is the common contract that lets a
