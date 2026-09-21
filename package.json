@@ -13,6 +13,11 @@
             "import": "./dist/Typer.esm.mjs",
             "require": "./dist/Typer.cjs.min.js"
         },
+        "./core": {
+            "types": "./dist/core.d.ts",
+            "import": "./dist/core.esm.mjs",
+            "require": "./dist/core.cjs.min.js"
+        },
         "./package.json": "./package.json"
     },
     "sideEffects": false,

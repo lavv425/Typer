@@ -34,6 +34,16 @@ describe('published package manifest', () => {
             });
         });
 
+        it('exposes the instance-free core as a subpath', () => {
+            // The whole point of the 5.0 split: a consumer who only validates
+            // schemas must be able to reach them without the class.
+            expect(manifest.exports['./core']).toEqual({
+                types: './dist/core.d.ts',
+                import: './dist/core.esm.mjs',
+                require: './dist/core.cjs.min.js',
+            });
+        });
+
         it('exposes package.json as a subpath', () => {
             // Declaring `exports` at all makes every undeclared subpath
             // unresolvable, and tooling reads `<pkg>/package.json` routinely —

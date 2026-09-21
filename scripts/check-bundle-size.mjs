@@ -32,6 +32,14 @@ const BUDGETS = [
     { file: 'dist/Typer.esm.mjs', budgetGzip: 10_240 },
     { file: 'dist/Typer.cjs.min.js', budgetGzip: 10_240 },
     { file: 'dist/Typer.min.js', budgetGzip: 10_496 },
+
+    // The `core` entry is the whole argument for the 5.0 split: schema
+    // validation without the class, at 2.86 KB against the class's 9.67 KB.
+    // Its budget is deliberately tight — this is the number the split exists
+    // to protect, and it has to stay under `zod/mini` (4.8 KB) to be worth
+    // making. A change that pushes it up is a change worth arguing for.
+    { file: 'dist/core.esm.mjs', budgetGzip: 3_072 },
+    { file: 'dist/core.cjs.min.js', budgetGzip: 3_072 },
 ];
 
 const kb = (bytes) => `${(bytes / 1024).toFixed(2)} KB`;
