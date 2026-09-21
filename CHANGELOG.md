@@ -31,6 +31,32 @@ Work from the 4.0.0 adoption roadmap, in the order that audit recommended.
   footprint at `tslib` alone. `STANDARD_VENDOR` (`'typer'`) is exported for
   consumers that attribute issues by vendor.
 
+- **`toJSONSchema()`.** Without it there was no way to generate OpenAPI or
+  Swagger documentation from a schema, which is the main reason people reach
+  for TypeBox.
+
+  ```typescript
+  typer.toJSONSchema({ id: 'number', email: typer.validators.isEmail, note: 'string?' });
+  // { $schema: '…/2020-12/schema', type: 'object',
+  //   properties: { id: { type: 'number' },
+  //                 email: { type: 'string', format: 'email' },
+  //                 note: { type: ['string', 'null'] } },
+  //   required: ['id', 'email'] }
+  ```
+
+  Type strings, `?` markers, `|` unions, arrays and nested objects convert
+  exactly. Validators cannot be introspected, so Typer's own validators and
+  combinators carry the fragment they correspond to — `isEmail` becomes
+  `format: 'email'`, `arrayOf(…, { min: 1 })` becomes `minItems: 1`, `literal`
+  becomes `enum`, `tuple` becomes `prefixItems`, `record` becomes
+  `additionalProperties`, `withDefault` contributes `default`, and
+  `discriminatedUnion` becomes a discriminating `oneOf`.
+
+  A validator the caller wrote becomes `{}`, as do the aliases JSON cannot
+  carry and anything registered with `extend`. `{ unrepresentable: 'throw' }`
+  turns those into an error naming every path, so a build step can refuse
+  rather than publish a schema that quietly accepts anything.
+
 - **`discriminatedUnion(key, variants)`.** `union` tries each variant in turn,
   so its cost grows with the number of variants and its error lists every
   variant's failure — for the `{ type: 'a' | 'b' }` payloads that dominate real
@@ -227,6 +253,13 @@ Work from the 4.0.0 adoption roadmap, in the order that audit recommended.
   against 873 ns inline, and silent, because the code looks ordinary. Now
   called out on `parse`, on `schema`, and in a dedicated README section. (It is
   a cost, not a leak: the cache is a `WeakMap`.)
+
+- **The bundle grew from 6.7 KB to 9.7 KB gzip**, and the size budget is
+  raised to match. That is the price of this release's features, and none of
+  it can be tree-shaken away by a consumer who uses none of them, because the
+  whole API hangs off a class instance. It is the concrete argument for the
+  5.0 modularization rather than a reason to keep loosening the budget. The
+  README's size claims are updated accordingly.
 
 - **The README no longer leads with "High Performance".** On the hot path Typer
   is slower than Zod and about nine times slower than a compiled TypeBox, so

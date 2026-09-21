@@ -17,7 +17,8 @@ Typer is a comprehensive TypeScript validation library that provides robust type
 - **🤝 [Standard Schema](https://standardschema.dev)**: `typer.standard(schema)` is accepted by tRPC, Hono, TanStack Form and Router, Nuxt and the rest — no adapter *(4.1+)*
 - **📋 Schema Validation**: Complex nested object structure validation with strict mode
 - **🔧 Extensible Architecture**: Register custom types with `extend()` and keep full type inference
-- **🪶 Tiny and instant**: 7 KB gzip, and building a schema costs ~1.1 µs — the lowest setup cost of the three libraries measured. See [Performance](#-performance) for where it wins and where it does not
+- **🪶 Small and instant**: under 10 KB gzip, and building a schema costs ~1.1 µs — the lowest setup cost of the three libraries measured. See [Performance](#-performance) for where it wins and where it does not
+- **📐 JSON Schema output**: `toJSONSchema()` for OpenAPI and Swagger tooling *(4.1+)*
 - **🛡️ Runtime Safety**: Catch type errors at runtime with detailed error messages
 - **📱 Phone Number Validation**: International phone number validation (ITU-T E.164 standard)
 - **📧 Advanced Validations**: Email, URL, UUID, IP, semver, slug, JWT, MAC and more
@@ -202,6 +203,54 @@ try {
 > `result.error` is built on first access. Reading only `result.issues` skips
 > constructing an `Error` — whose stack capture costs more than the validation
 > itself.
+
+### 📐 JSON Schema output *(4.1+)*
+
+`toJSONSchema()` turns a schema into the document OpenAPI and Swagger tooling
+expects:
+
+```typescript
+typer.toJSONSchema({ id: 'number', email: typer.validators.isEmail, note: 'string?' });
+// {
+//   $schema: 'https://json-schema.org/draft/2020-12/schema',
+//   type: 'object',
+//   properties: {
+//     id:    { type: 'number' },
+//     email: { type: 'string', format: 'email' },
+//     note:  { type: ['string', 'null'] },
+//   },
+//   required: ['id', 'email'],
+// }
+```
+
+Type strings, `?` markers, `|` unions, arrays and nested objects have exact
+equivalents. Validators do not — a validator is an opaque function — so Typer's
+own validators and combinators carry the fragment they correspond to:
+
+| Slot | Emitted |
+|---|---|
+| `typer.validators.isEmail` | `{ type: 'string', format: 'email' }` |
+| `typer.literal('a', 'b')` | `{ enum: ['a', 'b'] }` |
+| `typer.arrayOf(v, { min: 1 })` | `{ type: 'array', items: …, minItems: 1 }` |
+| `typer.tuple([a, b])` | `{ type: 'array', prefixItems: […], minItems: 2, maxItems: 2 }` |
+| `typer.record(v)` | `{ type: 'object', additionalProperties: … }` |
+| `typer.optional(v)` | the inner fragment, key dropped from `required` |
+| `typer.withDefault(v, 10)` | the inner fragment plus `default: 10` |
+| `typer.discriminatedUnion(k, …)` | `{ oneOf: […], discriminator: { propertyName: k } }` |
+
+A validator *you* wrote becomes `{}` — which accepts anything — as do the
+aliases JSON cannot carry (`symbol`, `function`, `map`, `set`, `regexp`, the
+buffer types) and anything registered with `extend`. Pass
+`{ unrepresentable: 'throw' }` in a build step to be told about those instead of
+shipping a schema that quietly accepts anything at those keys:
+
+```typescript
+typer.toJSONSchema(schema, { unrepresentable: 'throw' });
+// TyperError: Cannot convert to JSON Schema: 1 slot(s) have no equivalent — session
+```
+
+`{ strict: true }` emits `additionalProperties: false`, and `{ $schema: false }`
+omits the dialect keyword for embedding in a larger document.
 
 ### 🔁 Coercion *(4.1+)*
 
@@ -811,6 +860,9 @@ schemas) or `TypeMap[K]` (for type aliases).
 Non-throwing variant. Returns
 `{ success: true, data } | { success: false, error: TypeError }`.
 
+#### `toJSONSchema<S>(schema: S, options?: ToJSONSchemaOptions): JSONSchemaDocument` *(4.1+)*
+Converts a schema into a JSON Schema document (draft 2020-12 by default), for OpenAPI and Swagger tooling. Options: `$schema` (dialect, or `false` to omit), `id`, `title`, `description`, `strict` (emits `additionalProperties: false`), and `unrepresentable` (`'any'` by default, `'throw'` to fail on slots with no JSON Schema equivalent).
+
 #### `pick<S, K>(schema: S, keys: readonly K[]): PickSchema<S, K>` *(4.1+)*
 Derives a schema keeping only the listed keys. Returns a new schema; the source is untouched.
 
@@ -895,7 +947,12 @@ Node 26 / darwin arm64, each library measured in its own equivalent-work lane:
 | Flat object, invalid | 404 ns | 354 ns | 1.05 µs | 🥈 |
 | Deep nested, invalid | 2.07 µs | 1.27 µs | 15.19 µs | 🥈 |
 
-<sub>* behind `zod/mini` at 4.8 KB.</sub>
+<sub>* behind `zod/mini` at 4.8 KB. Those bundle figures are 4.0.0's; 4.1 added
+Standard Schema, schema composition, coercion, discriminated unions and JSON
+Schema output, and `npm run size` now reports **9.7 KB gzip** for the full ESM
+bundle. None of it can be tree-shaken away by a consumer who does not use it,
+because the API hangs off a class instance — which is what the 5.0
+modularization is for.</sub>
 
 **On the hot path Typer is slower than Zod, and about nine times slower than a
 compiled TypeBox.** That is not a problem in itself — 90 ns is far below the

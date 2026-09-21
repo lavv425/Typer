@@ -19,11 +19,19 @@ import { dirname, join, relative } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** @type {Array<{ file: string, budgetGzip: number }>} */
+/**
+ * Raised from 9 KB in 4.1: the release added Standard Schema, schema
+ * composition, coercion, discriminated unions and JSON Schema output, taking
+ * the bundle from 6.7 KB to 9.7 KB gzip. The instance-based API means none of
+ * it can be tree-shaken away by a consumer who does not use it — which is the
+ * argument for the 5.0 modularization, not a reason to loosen this further.
+ *
+ * @type {Array<{ file: string, budgetGzip: number }>}
+ */
 const BUDGETS = [
-    { file: 'dist/Typer.esm.mjs', budgetGzip: 9_216 },
-    { file: 'dist/Typer.cjs.min.js', budgetGzip: 9_216 },
-    { file: 'dist/Typer.min.js', budgetGzip: 9_472 },
+    { file: 'dist/Typer.esm.mjs', budgetGzip: 10_240 },
+    { file: 'dist/Typer.cjs.min.js', budgetGzip: 10_240 },
+    { file: 'dist/Typer.min.js', budgetGzip: 10_496 },
 ];
 
 const kb = (bytes) => `${(bytes / 1024).toFixed(2)} KB`;

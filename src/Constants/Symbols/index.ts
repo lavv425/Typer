@@ -1,3 +1,4 @@
+import type { JSONSchemaFragment } from "../../Types/JSONSchema";
 import type { ParseResult } from "../../Types/Typer";
 
 /**
@@ -24,3 +25,41 @@ export const SAFE_RESULT = Symbol('typer.safeResult');
  * @internal
  */
 export type SafeReporting<T> = { [SAFE_RESULT]?: (value: unknown) => ParseResult<T> };
+
+/**
+ * Internal marker: a validator that knows how to describe itself in JSON
+ * Schema carries that fragment here.
+ *
+ * A validator is an opaque function — `toJSONSchema` cannot look inside one to
+ * learn that it accepts email addresses. Rather than emit `{}` for every
+ * validator slot, Typer's own validators and combinators carry the fragment
+ * they correspond to, and the converter reads it.
+ *
+ * @internal Not part of the public API.
+ */
+export const JSON_SCHEMA = Symbol('typer.jsonSchema');
+
+/**
+ * A validator that carries its JSON Schema fragment under {@link JSON_SCHEMA}.
+ *
+ * @internal
+ */
+export type SelfDescribing = { [JSON_SCHEMA]?: JSONSchemaFragment };
+
+/**
+ * Attaches a JSON Schema fragment to a validator, non-enumerably so the
+ * function still spreads, serializes and compares as the plain function it is.
+ *
+ * @param validator - The function to describe. Must be one Typer owns.
+ * @param fragment - The JSON Schema equivalent of what it accepts.
+ * @returns The same function.
+ * @internal
+ */
+export const describing = <T extends object>(validator: T, fragment: JSONSchemaFragment): T => {
+    Object.defineProperty(validator, JSON_SCHEMA, {
+        value: fragment,
+        enumerable: false,
+        configurable: true,
+    });
+    return validator;
+};
