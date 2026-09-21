@@ -71,6 +71,27 @@ describe('toJSONSchema — structure', () => {
         });
     });
 
+    it('adds null to an optional union of plain types', () => {
+        expect(body({ role: 'string|number?' }).properties).toEqual({
+            role: { type: ['string', 'number', 'null'] },
+        });
+    });
+
+    it('falls back to anyOf when the optional slot is not a plain type', () => {
+        expect(body({ when: 'date?' }).properties).toEqual({
+            when: { anyOf: [{ type: 'string', format: 'date-time' }, { type: 'null' }] },
+        });
+    });
+
+    it('emits {} for a malformed slot', () => {
+        expect(body({ bad: 42 as unknown as string }).properties).toEqual({ bad: {} });
+    });
+
+    it('emits {} for an array slot that is not exactly one element', () => {
+        expect(body({ a: [] as unknown as string[], b: ['string', 'number'] as unknown as string[] }).properties)
+            .toEqual({ a: {}, b: {} });
+    });
+
     it('converts array slots to items', () => {
         expect(body({ tags: ['string'] }).properties).toEqual({
             tags: { type: 'array', items: { type: 'string' } },
