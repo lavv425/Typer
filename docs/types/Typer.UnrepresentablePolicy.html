@@ -1,4 +1,4 @@
-<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>TypeRegistry | @illavv/run_typer - v4.1.0</title><meta name="description" content="Documentation for @illavv/run_typer"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
+<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>UnrepresentablePolicy | @illavv/run_typer - v4.1.0</title><meta name="description" content="Documentation for @illavv/run_typer"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
 <div class="tsd-toolbar-contents container"><a href="../index.html" class="title">@illavv/run_typer - v4.1.0</a>
 <div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/>
 <ul role="listbox" id="tsd-search-results"></ul>
@@ -8,15 +8,23 @@
 <div class="col-content">
 <div class="tsd-page-title">
 <ul class="tsd-breadcrumb" aria-label="Breadcrumb">
-<li><a href="../modules/Types_Typer.html">Types/Typer</a></li>
-<li><a href="" aria-current="page">TypeRegistry</a></li></ul>
-<h1>Type Alias TypeRegistry</h1></div>
-<div class="tsd-signature"><span class="tsd-kind-type-alias">TypeRegistry</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span></div>
-<div class="tsd-comment tsd-typography"><p>Custom aliases registered on a <code>Typer</code> instance, as a <code>name -&gt; type</code> map.
-Populated by <code>Typer#extend</code>; <code>{}</code> for a plain <code>new Typer()</code>.</p>
-</div><aside class="tsd-sources">
+<li><a href="../modules/Typer.html">Typer</a></li>
+<li><a href="" aria-current="page">UnrepresentablePolicy</a></li></ul>
+<h1>Type Alias UnrepresentablePolicy</h1></div>
+<div class="tsd-signature"><span class="tsd-kind-type-alias">UnrepresentablePolicy</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;any&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;throw&quot;</span></div>
+<div class="tsd-comment tsd-typography"><p>How <code>toJSONSchema</code> should treat a slot it cannot express.</p>
+</div>
+<div class="tsd-type-declaration">
+<h4>Type Declaration</h4>
 <ul>
-<li>Defined in <a href="https://github.com/lavv425/Typer/blob/346444e0ee32c70a6c01f36f63cf6dc724640917/src/Types/Typer/index.ts#L473">src/Types/Typer/index.ts:473</a></li></ul></aside></div>
+<li><span class="tsd-signature-type">&quot;any&quot;</span>
+<div class="tsd-comment tsd-typography"><p>Emit <code>{}</code>, which accepts anything, and carry on. The default.</p>
+</div></li>
+<li><span class="tsd-signature-type">&quot;throw&quot;</span>
+<div class="tsd-comment tsd-typography"><p>Throw, listing every offending path. Use in a build step.</p>
+</div></li></ul></div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/lavv425/Typer/blob/346444e0ee32c70a6c01f36f63cf6dc724640917/src/Types/JSONSchema/index.ts#L13">src/Types/JSONSchema/index.ts:13</a></li></ul></aside></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
