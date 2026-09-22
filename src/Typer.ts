@@ -1,20 +1,16 @@
 "use strict";
 
 import type { Error } from "./Types/Globals";
-import type { StandardSchemaV1 } from "./Types/StandardSchema";
-import type { BoundValidators, Coercions, DiscriminatedUnion, FieldChecker, Infer, KnownAlias, MergeSchema, OmitSchema, ParseResult, PartialSchema, PickSchema, Schema, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TyperReturn, TypeRegistry, TypeSlot, ValidateSchema, ValidationIssue, Validator, ValueChecker } from "./Types/Typer";
+import type { BoundValidators, Coercions, DiscriminatedUnion, Infer, KnownAlias, MergeSchema, OmitSchema, ParseResult, PartialSchema, PickSchema, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, ValidateSchema, Validator } from "./Types/Typer";
 import { TyperError } from "./Errors/TyperError";
-import { constraintOf, formatIssues, issueError, issueMessages, makeIssue, toStandardIssues } from "./Utils/Issues";
-import * as Patterns from "./Constants/Patterns";
-import { STANDARD_VENDOR } from "./Types/StandardSchema";
-import { describing, describingLazy, JSON_SCHEMA, SAFE_RESULT } from "./Constants/Symbols";
-import type { SafeReporting, SelfDescribing } from "./Constants/Symbols";
-import type { JSONSchemaDocument, JSONSchemaFragment, ToJSONSchemaOptions } from "./Types/JSONSchema";
-import { OPTIONAL_MARKER, toJSONSchema } from "./Utils/JSONSchema";
-import { DANGEROUS_KEYS, stripDangerousKeys } from "./Utils/Sanitize";
-import { indexPath, joinPath } from "./Utils/Path";
+import { formatIssues, issueError, issueMessages, makeIssue } from "./Utils/Issues";
+import { describing, SAFE_RESULT } from "./Constants/Symbols";
+import type { SafeReporting } from "./Constants/Symbols";
+import type { JSONSchemaDocument, ToJSONSchemaOptions } from "./Types/JSONSchema";
+import { toJSONSchema } from "./Utils/JSONSchema";
 import { BUILTIN_PREDICATES, getType } from "./Core/Predicates";
 import { BUILTIN_CHECKERS } from "./Core/Checkers";
+import { describedFragment } from "./Core/Describe";
 import * as Strings from "./Validators/Strings";
 import * as Numbers from "./Validators/Numbers";
 import * as Sizes from "./Validators/Sizes";
@@ -23,7 +19,7 @@ import * as Basic from "./Combinators/Basic";
 import * as Collections from "./Combinators/Collections";
 import * as Objects from "./Combinators/Objects";
 import { failure, runCatching } from "./Core/Result";
-import { createContext, getCompiledChecker, slotIssue } from "./Core/Compile";
+import { createContext, getCompiledChecker } from "./Core/Compile";
 import type { CompiledChecker, CompileContext } from "./Core/Compile";
 import type { Predicate } from "./Core/Predicates";
 
@@ -32,27 +28,6 @@ import type { Predicate } from "./Core/Predicates";
  * schema carrying a `hasOwnProperty` key of its own cannot shadow it.
  */
 const hasOwnKey = (target: object, key: string): boolean => Object.prototype.hasOwnProperty.call(target, key);
-
-/**
- * The JSON Schema fragment a validator carries, or the permissive `{}` when it
- * carries none.
- *
- * A validator is an opaque function: unless Typer built it, there is nothing
- * to read, and `{}` — "anything" — is the only honest answer. `toJSONSchema`
- * reports those slots separately, so the gap is visible rather than silent.
- */
-const describedFragment = (validator: unknown): JSONSchemaFragment => {
-    if (typeof validator !== 'function' && (validator === null || typeof validator !== 'object')) return {};
-    return (validator as SelfDescribing)[JSON_SCHEMA] ?? {};
-};
-
-/** Widens a fragment to also accept `null`. */
-const nullableFragment = (fragment: JSONSchemaFragment): JSONSchemaFragment => {
-    if (Object.keys(fragment).length === 0) return {};
-    if (typeof fragment.type === 'string') return { ...fragment, type: [fragment.type, 'null'] };
-    if (Array.isArray(fragment.type)) return { ...fragment, type: Array.from(new Set([...(fragment.type as string[]), 'null'])) };
-    return { anyOf: [fragment, { type: 'null' }] };
-};
 
 /**
  * Every free validator by name, so the instance can recover the JSON Schema
@@ -337,14 +312,16 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * Typer.importTypes('["customType"]');
      */
     public importTypes(json: string): void {
-        const types = JSON.parse(json);
+        const types: unknown = JSON.parse(json);
         if (!Array.isArray(types)) throw new Error("Invalid type list");
 
-        types.forEach(type => {
+        for (const type of types as string[]) {
             if (!this.typesMap[type]) {
+                // Documented behaviour: importTypes warns, it does not throw.
+                // eslint-disable-next-line no-console
                 console.warn(`[Typer] Unknown type in import: ${type}`);
             }
-        });
+        }
     }
 
     /**
@@ -656,7 +633,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
                 return p as T;
             } catch (e: unknown) {
                 const msg = (e as Error).message;
-                throw new TypeError(`None of the types matched for ${p}: ${msg}`);
+                throw new TypeError(`None of the types matched for ${p}: ${msg}`, { cause: e });
             }
         }
 
@@ -910,11 +887,8 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * //   required: ['id', 'email'],
      * // }
      */
-    public toJSONSchema<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(
-        schema: S,
-        options: ToJSONSchemaOptions = {},
-    ): JSONSchemaDocument {
-        return toJSONSchema(schema as Record<string, unknown>, options);
+    public toJSONSchema<const S extends ValidateSchema<S, KnownAlias<TRegistry>>>(schema: S, options: ToJSONSchemaOptions = {}): JSONSchemaDocument {
+        return toJSONSchema(schema, options);
     }
 
     /**
@@ -975,7 +949,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * const timestamped = typer.merge(userSchema, { createdAt: 'date', updatedAt: 'date' });
      */
     public merge<A extends Record<string, unknown>, B extends Record<string, unknown>>(base: A, extension: B): MergeSchema<A, B> {
-        return { ...base, ...extension } as MergeSchema<A, B>;
+        return { ...base, ...extension };
     }
 
     /**
@@ -1040,7 +1014,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
             return this.optional(this.arrayOf(this.slotElementValidator(slot[0])));
         }
         if (slot !== null && typeof slot === 'object') {
-            return this.optional(this.objectOf(slot as never) as Validator<unknown>);
+            return this.optional(this.objectOf(slot as never));
         }
         return slot;
     }
@@ -1054,7 +1028,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     private slotElementValidator(element: unknown): Validator<unknown> {
         if (typeof element === 'function') return element as Validator<unknown>;
         if (typeof element === 'string') return (value: unknown) => this.isType(element, value);
-        return this.objectOf(element as never) as Validator<unknown>;
+        return this.objectOf(element as never);
     }
 
     /**
@@ -1087,7 +1061,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      */
     public extend<N extends string, R>(name: N, validator: (value: unknown) => R, override = false): Typer<TRegistry & Record<N, R>> {
         this.registerType<unknown, R>(name, validator, override);
-        return this as Typer<TRegistry & Record<N, R>>;
+        return this;
     }
 
     /**
@@ -1095,7 +1069,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      *  - a built-in type alias (`"string"`, `"number"`, ...),
      *  - an array of aliases (`["string", "number"]` → union),
      *  - a `Validator<T>` function,
-     *  - or a {@link Schema} object.
+     *  - or a `Schema` object.
      *
      * Returns the value typed correctly. Throws a `TypeError` on failure.
      *
@@ -1211,7 +1185,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
 
     /** @see {@link Objects.discriminatedUnion} — moved to `Combinators/Objects`, kept here for the instance API. */
     public discriminatedUnion<const Key extends string, const V extends Record<string, Record<string, unknown>>>(key: Key, variants: V, options: { strict?: boolean } = {}): StandardValidator<DiscriminatedUnion<Key, V, TRegistry>> {
-        return Objects.discriminatedUnion(key, variants, { ...options, registry: this.asRegistry }) as StandardValidator<DiscriminatedUnion<Key, V, TRegistry>>;
+        return Objects.discriminatedUnion(key, variants, { ...options, registry: this.asRegistry });
     }
 
     /**
@@ -1274,16 +1248,12 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     }
 
     /** @see {@link Basic.union} — moved to `Combinators/Basic`, kept here for the instance API. */
-    public union<T extends readonly unknown[]>(
-    ...validators: { [K in keyof T]: Validator<T[K]> }
-): Validator<T[number]> {
+    public union<T extends readonly unknown[]>(...validators: { [K in keyof T]: Validator<T[K]> }): Validator<T[number]> {
         return Basic.union<T>(...validators);
     }
 
     /** @see {@link Basic.literal} — moved to `Combinators/Basic`, kept here for the instance API. */
-    public literal<const T extends readonly (string | number | boolean | null)[]>(
-    ...values: T
-): Validator<T[number]> {
+    public literal<const T extends readonly (string | number | boolean | null)[]>(...values: T): Validator<T[number]> {
         return Basic.literal<T>(...values);
     }
 
@@ -1326,43 +1296,6 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
     public tuple<const T extends readonly Validator<unknown>[]>(validators: T): Validator<{ -readonly [K in keyof T]: T[K] extends Validator<infer U> ? U : never }> {
         return Collections.tuple<T>(validators);
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     /**
      * Recursively validates an object against a nested schema.

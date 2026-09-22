@@ -115,7 +115,7 @@ const collect = (schema: Record<string, unknown>, value: unknown, path: string, 
         }
 
         if (Array.isArray(slot)) {
-            const element = slot[0];
+            const element: unknown = slot[0];
             const elementRun = asyncOf(element);
             const items = obj[key];
             if (!Array.isArray(items)) continue;
@@ -126,7 +126,7 @@ const collect = (schema: Record<string, unknown>, value: unknown, path: string, 
                     into.push({
                         path: indexPath(here, index),
                         run: elementRun,
-                        value: items[index],
+                        value: items[index] as unknown,
                         write: (resolved) => { items[index] = resolved; },
                     });
                 } else if (element !== null && typeof element === 'object') {
@@ -177,7 +177,7 @@ const syncOnly = (schema: Record<string, unknown>): Record<string, unknown> => {
         }
 
         if (Array.isArray(slot) && slot.length === 1) {
-            const element = slot[0];
+            const element: unknown = slot[0];
             if (asyncOf(element) !== undefined) {
                 // The elements are awaited individually; the array itself is
                 // still checked for being an array.

@@ -31,7 +31,7 @@ rather than parsing <code>message</code>, which is formatted for humans and may 
 <ul class="tsd-hierarchy">
 <li class="tsd-hierarchy-item"><span class="tsd-hierarchy-target">TyperError</span></li></ul></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/lavv425/Typer/blob/39f2b48c4c99c84f57bd7ac12f570b22c20d8efa/src/Errors/TyperError/index.ts#L22">src/Errors/TyperError/index.ts:22</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/lavv425/Typer/blob/0d335fd5d78e7a12829d1f520c10b3a08bbf7805/src/Errors/TyperError/index.ts#L22">src/Errors/TyperError/index.ts:22</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -43,7 +43,8 @@ rather than parsing <code>message</code>, which is formatted for humans and may 
 </div></section>
 <section class="tsd-index-section">
 <h3 class="tsd-index-heading tsd-anchor-link" id="properties">Properties<a href="#properties" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-index-list"><a href="#issues" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>issues</span></a>
+<div class="tsd-index-list"><a href="#cause" class="tsd-index-link tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>cause?</span></a>
+<a href="#issues" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>issues</span></a>
 <a href="#message" class="tsd-index-link tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>message</span></a>
 <a href="#name" class="tsd-index-link tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>name</span></a>
 <a href="#stack" class="tsd-index-link tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>stack?</span></a>
@@ -73,17 +74,23 @@ rather than parsing <code>message</code>, which is formatted for humans and may 
 <h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">TyperError</a></h4><aside class="tsd-sources">
 <p>Overrides TypeError.constructor</p>
 <ul>
-<li>Defined in <a href="https://github.com/lavv425/Typer/blob/39f2b48c4c99c84f57bd7ac12f570b22c20d8efa/src/Errors/TyperError/index.ts#L30">src/Errors/TyperError/index.ts:30</a></li></ul></aside></div></li></ul></section></section></details>
+<li>Defined in <a href="https://github.com/lavv425/Typer/blob/0d335fd5d78e7a12829d1f520c10b3a08bbf7805/src/Errors/TyperError/index.ts#L30">src/Errors/TyperError/index.ts:30</a></li></ul></aside></div></li></ul></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="properties-1">Properties<a href="#properties-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
+<section class="tsd-panel tsd-member tsd-is-inherited tsd-is-external">
+<h3 class="tsd-anchor-link" id="cause"><code class="tsd-tag">Optional</code><span>cause</span><a href="#cause" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">cause</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">unknown</span></div><aside class="tsd-sources">
+<p>Inherited from TypeError.cause</p>
+<ul>
+<li>Defined in node_modules/typescript/lib/lib.es2022.error.d.ts:24</li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="issues"><code class="tsd-tag">Readonly</code><span>issues</span><a href="#issues" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">issues</span><span class="tsd-signature-symbol">:</span> <a href="../types/core.ValidationIssue.html" class="tsd-signature-type tsd-kind-type-alias">ValidationIssue</a><span class="tsd-signature-symbol">[]</span></div>
 <div class="tsd-comment tsd-typography"><p>Every problem found during validation, in schema order. Never empty.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/lavv425/Typer/blob/39f2b48c4c99c84f57bd7ac12f570b22c20d8efa/src/Errors/TyperError/index.ts#L24">src/Errors/TyperError/index.ts:24</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/lavv425/Typer/blob/0d335fd5d78e7a12829d1f520c10b3a08bbf7805/src/Errors/TyperError/index.ts#L24">src/Errors/TyperError/index.ts:24</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-is-inherited tsd-is-external">
 <h3 class="tsd-anchor-link" id="message"><span>message</span><a href="#message" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">message</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div><aside class="tsd-sources">
@@ -123,7 +130,7 @@ expect when mapping validation output onto fields.</p>
 
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/lavv425/Typer/blob/39f2b48c4c99c84f57bd7ac12f570b22c20d8efa/src/Errors/TyperError/index.ts#L51">src/Errors/TyperError/index.ts:51</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/lavv425/Typer/blob/0d335fd5d78e7a12829d1f520c10b3a08bbf7805/src/Errors/TyperError/index.ts#L51">src/Errors/TyperError/index.ts:51</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
@@ -141,7 +148,7 @@ expect when mapping validation output onto fields.</p>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Constructors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Constructors</summary>
 <div><a href="#constructor"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Constructor"><use href="../assets/icons.svg#icon-512"></use></svg><span>constructor</span></a></div></details>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Properties</summary>
-<div><a href="#issues"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>issues</span></a><a href="#message" class="tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>message</span></a><a href="#name" class="tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>name</span></a><a href="#stack" class="tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>stack</span></a></div></details>
+<div><a href="#cause" class="tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>cause</span></a><a href="#issues"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>issues</span></a><a href="#message" class="tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>message</span></a><a href="#name" class="tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>name</span></a><a href="#stack" class="tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>stack</span></a></div></details>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Methods</summary>
 <div><a href="#flatten"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>flatten</span></a></div></details></div></details></div>
 <div class="site-menu">

@@ -4,6 +4,9 @@
     "module": "Node16",
     "lib": [
       "ES2020",
+      // `new Error(msg, { cause })` — chained errors. Node 16.9+, and the
+      // package declares Node 20+.
+      "ES2022.Error",
       "DOM"
     ],
     "strict": true,

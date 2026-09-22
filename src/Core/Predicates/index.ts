@@ -23,7 +23,7 @@ export type Predicate = (value: unknown) => boolean;
  * dance the legacy checker functions require.
  */
 const build = (): Record<string, Predicate> => {
-    const map: Record<string, Predicate> = Object.create(null);
+    const map = Object.create(null) as Record<string, Predicate>;
 
     const isString = (v: unknown): boolean => typeof v === 'string';
     for (const k of ['s', 'str', 'string']) map[k] = isString;

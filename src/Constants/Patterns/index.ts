@@ -16,7 +16,7 @@ export const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * International phone number, allowing `+`, parentheses, spaces, hyphens and
  * periods. Digit-count limits are enforced separately by the validator.
  */
-export const PHONE = /^(\+?[1-9]\d{0,3})?[\s\-\.]?(\(?\d{1,4}\)?[\s\-\.]?)?[\d\s\-\.\(\)]{6,}$/;
+export const PHONE = /^(\+?[1-9]\d{0,3})?[\s\-.]?(\(?\d{1,4}\)?[\s\-.]?)?[\d\s\-.()]{6,}$/;
 
 /** Leading `+`, used to exclude the sign from the digit count. */
 export const LEADING_PLUS = /^\+/;

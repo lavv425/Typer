@@ -533,7 +533,7 @@ const compileField = (ctx: CompileContext, key: string, expected: unknown, stric
  */
 export const compileSchema = (ctx: CompileContext, schema: Record<string, unknown>, strictMode = false): FieldChecker => {
     const keys = Object.keys(schema);
-    const fields: FieldChecker[] = new Array(keys.length);
+    const fields: FieldChecker[] = new Array<FieldChecker>(keys.length);
     for (let i = 0; i < keys.length; i++) {
         fields[i] = compileField(ctx, keys[i], schema[keys[i]], strictMode);
     }

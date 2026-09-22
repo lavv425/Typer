@@ -5,7 +5,7 @@ import type { StandardSchemaV1 } from "../StandardSchema";
  * Defines the return type of a type-checked function.
  * @template T - The expected return type
  */
-export type TyperReturn<T> = T | never | void;
+export type TyperReturn<T> = T | void;
 
 /**
  * Represents the result of a structure validation check.
@@ -497,6 +497,7 @@ export type Schema = {
 export type TypeRegistry = Record<string, unknown>;
 
 /** Every alias a given instance accepts: the built-ins plus its registry. */
+// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- `keyof R` is only `string` for the default registry
 export type KnownAlias<R extends TypeRegistry> = (keyof TypeMap & string) | (keyof R & string);
 
 /**

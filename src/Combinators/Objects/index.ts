@@ -94,7 +94,7 @@ export const objectOf = <const S extends ValidateSchema<S, KnownAlias<R>>, R ext
     options: ObjectOptions<R> = {},
 ): StandardValidator<Infer<S, R>> => {
     const context = options.registry?.context ?? BUILTIN_CONTEXT;
-    const checker = getCompiledChecker(context, schema as Record<string, unknown>, options.strict !== false);
+    const checker = getCompiledChecker(context, schema, options.strict !== false);
 
     const validator = (value: unknown): Infer<S, R> => {
         const issues = checker(value, '');
@@ -241,7 +241,7 @@ export const standard = <R extends TypeRegistry = {}>(
     // Schemas get the dedicated path: `objectOf` already compiles the
     // checker once and reports issues without building an Error.
     if (target !== null && typeof target === 'object' && !Array.isArray(target)) {
-        return objectOf(target as never, options) as StandardValidator<unknown>;
+        return objectOf(target as never, options);
     }
 
     // Never decorate the function the caller handed in: attaching to it

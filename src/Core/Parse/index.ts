@@ -184,14 +184,13 @@ export type BoundTyper<R extends TypeRegistry> = {
 export const createTyper = <const M extends Record<string, Validator<unknown>>>(
     aliases: M,
 ): BoundTyper<RegistryOf<M>> => {
-    type R = RegistryOf<M>;
     const registry = createRegistry(aliases);
 
     return {
-        parse: (definition, value, options) => parse(definition, value, { registry, strict: options?.strict }) as never,
-        safeParse: (definition, value, options) => safeParse(definition, value, { registry, strict: options?.strict }) as never,
+        parse: (definition, value, options) => parse(definition, value, { registry, strict: options?.strict }),
+        safeParse: (definition, value, options) => safeParse(definition, value, { registry, strict: options?.strict }),
         schema: (definition) => definition,
-        registry: registry as Registry<R>,
+        registry: registry,
     };
 };
 

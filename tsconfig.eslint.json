@@ -1,0 +1,20 @@
+{
+    // Type-aware linting needs every file it lints to belong to a program, and
+    // the build tsconfig deliberately excludes tests. This one exists only for
+    // ESLint: it emits nothing and widens the include to the whole repository.
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noEmit": true,
+        "declaration": false,
+        "declarationDir": null,
+        "declarationMap": false,
+        "sourceMap": false,
+        "rootDir": "."
+    },
+    "include": [
+        "src/**/*.ts",
+        "tests/**/*.ts",
+        "benchmarks/**/*.ts"
+    ],
+    "exclude": []
+}

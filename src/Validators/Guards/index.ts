@@ -123,7 +123,7 @@ export const isPlainObject = /*#__PURE__*/ describing(<T extends Record<string, 
     if (p === null || typeof p !== 'object') {
         throw new TypeError(`${p} must be a plain object, is ${p === null ? 'null' : typeof p}`);
     }
-    const proto = Object.getPrototypeOf(p);
+    const proto: unknown = Object.getPrototypeOf(p);
     if (proto !== null && proto !== Object.prototype) {
         throw new TypeError(`${p} must be a plain object (no class instances).`);
     }

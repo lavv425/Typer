@@ -77,7 +77,7 @@ export const createRegistry = <const M extends Record<string, Validator<unknown>
     aliases: M,
 ): Registry<RegistryOf<M>> => {
     // Normalised once, so the hot path does not lowercase on every lookup.
-    const normalised: Record<string, Validator<unknown>> = Object.create(null);
+    const normalised = Object.create(null) as Record<string, Validator<unknown>>;
     for (const name of Object.keys(aliases)) {
         normalised[name.toLowerCase().trim()] = aliases[name];
     }

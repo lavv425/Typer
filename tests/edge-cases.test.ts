@@ -114,7 +114,7 @@ describe('Typer - Edge Cases and Error Handling', () => {
         });
 
         it('should handle invalid schema definition types', () => {
-            const result = typer.checkStructure({ value: 123 as any }, { value: 'test' });
+            const result = typer.checkStructure({ value: 123 }, { value: 'test' });
             expect(result.isValid).toBe(false);
             expect(result.errors).toContain('Invalid schema definition at "value": expected string, array, or object, got number');
         });

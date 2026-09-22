@@ -117,7 +117,7 @@ describe('the free combinators match the class', () => {
 
     it('standard carries ~standard for schemas, validators and aliases', () => {
         for (const target of [{ id: 'number' } as const, isEmail, 'string' as const]) {
-            const s = free.standard(target as never);
+            const s = free.standard(target);
             expect(s['~standard'].version).toBe(1);
             expect(s['~standard'].vendor).toBe(free.STANDARD_VENDOR);
         }

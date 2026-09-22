@@ -128,7 +128,7 @@ describe('the fast pre-check does not change any outcome', () => {
         class Dto { public id = 1; }
         const payload = new Dto();
 
-        expect(typer.safeParse(schema, payload as unknown as Record<string, unknown>).success).toBe(true);
+        expect(typer.safeParse(schema, payload).success).toBe(true);
         expect(payload.id).toBe(1);
     });
 

@@ -101,11 +101,12 @@ export const tDomElement = (p: unknown): TyperReturn<HTMLElement> => {
  * Checks if the provided parameter is a function.
  * @throws {TypeError} Throws if the parameter is not a function.
  */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type -- the `function` alias accepts any callable, by definition
 export const tFunction = (p: unknown): TyperReturn<Function> => {
     if (typeof p !== "function") {
         throw new TypeError(`${p} must be a function, is ${typeof p}`);
     }
-    return p as Function;
+    return p;
 };
 
 /**
@@ -117,7 +118,7 @@ export const tJSON = (p: unknown): TyperReturn<string> => {
     try {
         JSON.parse(str);
     } catch (e: unknown) {
-        throw new TypeError(`${p} must be a valid JSON string.`);
+        throw new TypeError(`${p} must be a valid JSON string.`, { cause: e });
     }
     return str;
 };
@@ -244,7 +245,7 @@ const mismatch = (p: unknown, checker: (value: unknown) => unknown): never => {
     try {
         checker(p);
     } catch (e: unknown) {
-        throw new TypeError(`None of the types matched for ${p}: ${(e as Error).message}`);
+        throw new TypeError(`None of the types matched for ${p}: ${(e as Error).message}`, { cause: e });
     }
     /* istanbul ignore next — only reachable if a checker accepts a value its
      * caller already rejected, which would be a bug in the pair. */
@@ -351,7 +352,7 @@ export function isType<T = unknown>(types: string | readonly string[], p: unknow
              * said yes. They are kept in sync, so this is unreachable. */
             return p as T;
         } catch (e: unknown) {
-            throw new TypeError(`None of the types matched for ${p}: ${(e as Error).message}`);
+            throw new TypeError(`None of the types matched for ${p}: ${(e as Error).message}`, { cause: e });
         }
     }
 

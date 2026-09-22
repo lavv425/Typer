@@ -77,7 +77,7 @@ export const union = <T extends readonly unknown[]>(
         const errors: string[] = [];
         for (const validator of validators) {
             try {
-                return validator(value) as T[number];
+                return validator(value);
             } catch (e: unknown) {
                 errors.push(e instanceof Error ? e.message : String(e));
             }

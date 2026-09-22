@@ -91,11 +91,11 @@ describe('toJSONSchema — structure', () => {
     });
 
     it('emits {} for a malformed slot', () => {
-        expect(body({ bad: 42 as unknown as string }).properties).toEqual({ bad: {} });
+        expect(body({ bad: 42 }).properties).toEqual({ bad: {} });
     });
 
     it('emits {} for an array slot that is not exactly one element', () => {
-        expect(body({ a: [] as unknown as string[], b: ['string', 'number'] as unknown as string[] }).properties)
+        expect(body({ a: [] as unknown, b: ['string', 'number'] as unknown }).properties)
             .toEqual({ a: {}, b: {} });
     });
 

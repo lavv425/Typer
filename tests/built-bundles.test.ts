@@ -15,7 +15,7 @@ const dist = (file: string) => join(__dirname, '..', 'dist', file);
 const built = ['core.cjs.min.js', 'validators.cjs.min.js', 'combinators.cjs.min.js', 'async.cjs.min.js', 'Typer.cjs.min.js']
     .every((f) => existsSync(dist(f)));
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+ 
 const load = (file: string) => require(dist(file)) as Record<string, never>;
 
 (built ? describe : describe.skip)('the published bundles agree with each other', () => {

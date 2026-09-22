@@ -59,7 +59,7 @@ describe('Typer - parse() compiled path performance', () => {
         };
 
         const viaSafeParse = typer.safeParse(schema, bad);
-        const viaCheckStructure = typer.checkStructure(schema as Record<string, unknown>, bad);
+        const viaCheckStructure = typer.checkStructure(schema, bad);
 
         expect(viaSafeParse.success).toBe(false);
         if (viaSafeParse.success) return;
@@ -72,7 +72,7 @@ describe('Typer - parse() compiled path performance', () => {
         const schema = typer.schema(definition());
 
         expect(typer.safeParse(schema, payload).success).toBe(true);
-        expect(typer.checkStructure(schema as Record<string, unknown>, payload).isValid).toBe(true);
+        expect(typer.checkStructure(schema, payload).isValid).toBe(true);
     });
 
     it('a hoisted schema is much faster than one rebuilt on every call', () => {
@@ -90,7 +90,7 @@ describe('Typer - parse() compiled path performance', () => {
 
         expect(recompiled).toBeGreaterThan(cached * 2);
 
-        // eslint-disable-next-line no-console
+         
         console.log(`[perf] cached schema: ${cached.toFixed(0)}ns — recompiled every call: ${recompiled.toFixed(0)}ns — ${(recompiled / cached).toFixed(1)}×`);
     });
 
@@ -109,7 +109,7 @@ describe('Typer - parse() compiled path performance', () => {
         // reasonable machine — proves the cache is doing its job.
         expect(elapsed).toBeLessThan(500);
 
-        // eslint-disable-next-line no-console
+         
         console.log(`[perf] ${N}× cached parse(): ${elapsed.toFixed(2)}ms (${(N / elapsed).toFixed(0)} ops/ms)`);
     });
 
@@ -144,7 +144,7 @@ describe('Typer - parse() compiled path performance', () => {
         const isTypeElapsed = performance.now() - t2;
         expect(isTypeElapsed).toBeLessThan(500);
 
-        // eslint-disable-next-line no-console
+         
         console.log(`[perf] is(): ${(N * 3 / isElapsed).toFixed(0)} ops/ms — isType(): ${(N * 3 / isTypeElapsed).toFixed(0)} ops/ms`);
     });
 
@@ -162,7 +162,7 @@ describe('Typer - parse() compiled path performance', () => {
         const elapsed = performance.now() - t;
         expect(elapsed).toBeLessThan(500);
 
-        // eslint-disable-next-line no-console
+         
         console.log(`[perf] is() with 4-type union: ${(N / elapsed).toFixed(0)} ops/ms`);
     });
 });

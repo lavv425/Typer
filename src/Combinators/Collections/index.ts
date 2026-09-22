@@ -42,7 +42,7 @@ export const arrayOf = <T>(element: Validator<T>, bounds: { min?: number; max?: 
             throw issueError('too_big', `array length must be <= ${max}, is ${value.length}`, undefined, undefined, { maximum: max });
         }
 
-        const out: T[] = new Array(value.length);
+        const out: T[] = new Array<T>(value.length);
         const issues: ValidationIssue[] = [];
         for (let i = 0; i < value.length; i++) {
             try {
