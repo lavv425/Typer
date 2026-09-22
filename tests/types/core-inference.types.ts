@@ -119,3 +119,21 @@ boundParse({ qty: 'positiv' }, payload);
 
 export type { User, Order };
 export { user, nested, order, boundOrder, destructured, reparsed, optionalCustom };
+
+// ---------------------------------------------------------------------------
+//  Inline bounds
+// ---------------------------------------------------------------------------
+
+// A bound constrains the value, never its type — a bounded string is a string.
+const bounded = parse({ name: 'string(3,50)', qty: 'number(1,)', tags: ['string(2,)'] }, payload);
+type _Bounded = Expect<Equal<typeof bounded, { name: string; qty: number; tags: string[] }>>;
+
+// It composes with the optional marker and with unions.
+const boundedOptional = parse({ name: 'string(3,50)?', mixed: 'string(2,)|number' }, payload);
+type _BoundedOptional = Expect<Equal<typeof boundedOptional, { mixed: string | number; name?: string | null }>>;
+
+// The alias inside a bound is still checked.
+// @ts-expect-error - 'strng' is not a known alias, bound or not
+parse({ name: 'strng(3,50)' }, payload);
+
+export { bounded, boundedOptional };

@@ -286,6 +286,30 @@ export type TypeSlot = {
     unknownType: string | null;
     /** Pre-rendered `to be …` fragment of the mismatch message. */
     description: string;
+    /**
+     * The inline bound declared on each alternative, parallel to
+     * {@link predicates}, or `null` where one carries none.
+     *
+     * Per alternative rather than per slot because `'string(3,50)|number'`
+     * constrains only the string branch.
+     */
+    bounds: Array<SlotBound | null>;
+    /** Whether any alternative carries a bound, so the hot path can skip the check. */
+    hasBounds: boolean;
+};
+
+/**
+ * An inline bound written into a type string — `'string(3,50)'`,
+ * `'number(1,)'`, `'array(,10)'`.
+ *
+ * For a string or array it bounds the length; for a number it bounds the
+ * value. Both ends are inclusive, and either may be omitted.
+ */
+export type SlotBound = {
+    /** Lower bound, inclusive. */
+    min?: number;
+    /** Upper bound, inclusive. */
+    max?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -305,11 +329,20 @@ type Trim<S extends string> =
 export type ResolveTypeString<S extends string, R extends TypeRegistry = {}> =
     S extends `${infer A}|${infer B}`
     ? ResolveTypeString<Trim<A>, R> | ResolveTypeString<Trim<B>, R>
-    : Trim<S> extends keyof TypeMap
-    ? TypeMap[Trim<S>]
-    : Trim<S> extends keyof R
-    ? R[Trim<S>]
+    : StripBound<Trim<S>> extends keyof TypeMap
+    ? TypeMap[StripBound<Trim<S>>]
+    : StripBound<Trim<S>> extends keyof R
+    ? R[StripBound<Trim<S>>]
     : unknown;
+
+/**
+ * Removes an inline bound from a type string, so `'string(3,50)'` resolves as
+ * `'string'`.
+ *
+ * A bound constrains the value, never its type: a bounded string is still a
+ * `string`, which is why `Infer` can ignore it entirely.
+ */
+type StripBound<S extends string> = S extends `${infer Base}(${string})` ? Trim<Base> : S;
 
 /**
  * Resolves a single schema entry value to its TypeScript type.
@@ -476,8 +509,8 @@ export type UnknownAlias<S extends string> = `Typer: unknown type alias in "${S}
 /** True when every alternative of a `a|b|c` string is a known alias. */
 type IsKnownUnion<S extends string, Known extends string> =
     S extends `${infer A}|${infer B}`
-    ? Trim<A> extends Known ? IsKnownUnion<B, Known> : false
-    : Trim<S> extends Known ? true : false;
+    ? StripBound<Trim<A>> extends Known ? IsKnownUnion<B, Known> : false
+    : StripBound<Trim<S>> extends Known ? true : false;
 
 /**
  * True when a schema type string is made only of known aliases.

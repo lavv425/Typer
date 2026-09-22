@@ -1,4 +1,4 @@
-import type { FieldChecker, TypeSlot, ValidationIssue, Validator, ValueChecker } from "../../Types/Typer";
+import type { FieldChecker, SlotBound, TypeSlot, ValidationIssue, Validator, ValueChecker } from "../../Types/Typer";
 import type { Predicate } from "../Predicates";
 import { getType } from "../Predicates";
 import { constraintOf, makeIssue } from "../../Utils/Issues";
@@ -87,6 +87,74 @@ export const slotIssue = (error: unknown, path: string): ValidationIssue => {
     );
 };
 
+/** Matches `name(spec)` — the inline bound form. */
+const BOUND = /^([^()]*)\((.*)\)$/;
+
+/**
+ * Splits a type string into its alias and its inline bound, if it has one.
+ *
+ * `'string'` has none; `'string(3,50)'`, `'number(1,)'` and `'array(,10)'`
+ * each do. Returns `null` when a bound is present but unreadable, so the
+ * compiler reports the slot instead of silently dropping the constraint.
+ *
+ * @param type - One alternative of a type string, already trimmed.
+ */
+export const splitBound = (type: string): { name: string; bound: SlotBound | null } | null => {
+    const match = BOUND.exec(type);
+    if (match === null) return { name: type, bound: null };
+
+    const name = match[1].trim();
+    if (name === '') return null;
+
+    const parts = match[2].split(',');
+    if (parts.length > 2) return null;
+
+    const read = (raw: string | undefined): number | undefined | null => {
+        if (raw === undefined) return undefined;
+        const text = raw.trim();
+        if (text === '') return undefined;
+        const value = Number(text);
+        return Number.isFinite(value) ? value : null;
+    };
+
+    const min = read(parts[0]);
+    const max = read(parts[1]);
+    if (min === null || max === null) return null;
+    if (min === undefined && max === undefined) return null;
+
+    return { name, bound: { min, max } };
+};
+
+/**
+ * Checks a value against the bound its matching alternative declared.
+ *
+ * Length for a string or array, value for a number; anything else has nothing
+ * to measure and passes. Returns the issue to report, or `null` when the value
+ * is within bounds.
+ *
+ * @param value - The value that already matched the type.
+ * @param bound - The declared bound.
+ * @param path - Dotted path, for the issue.
+ */
+const boundIssue = (value: unknown, bound: SlotBound, path: string): ValidationIssue | null => {
+    const sized = typeof value === 'string' || Array.isArray(value);
+    const measure = sized ? (value as string | unknown[]).length : (typeof value === 'number' ? value : null);
+    if (measure === null) return null;
+
+    const noun = sized ? 'length' : 'value';
+    const { min, max } = bound;
+
+    if (min !== undefined && measure < min) {
+        return makeIssue('too_small', path, `Expected "${path}" to have ${noun} >= ${min}, got ${measure}`,
+            undefined, undefined, { minimum: min, maximum: max });
+    }
+    if (max !== undefined && measure > max) {
+        return makeIssue('too_big', path, `Expected "${path}" to have ${noun} <= ${max}, got ${measure}`,
+            undefined, undefined, { minimum: min, maximum: max });
+    }
+    return null;
+};
+
 /**
  * Parses a type-string slot (`"string"`, `"string?"`, `"a|b"`, `"a|b?"`)
  * into everything the hot path needs, resolved once at compile time.
@@ -104,14 +172,28 @@ export const parseTypeSlot = (ctx: CompileContext, expected: string): TypeSlot |
     if (types.length === 0) return null;
 
     const predicates: Array<(value: unknown) => boolean> = [];
+    const bounds: Array<SlotBound | null> = [];
+    let hasBounds = false;
     let unknownType: string | null = null;
+
     for (const type of types) {
-        const predicate = ctx.resolve(type);
+        const parsed = splitBound(type);
+        if (parsed === null) {
+            // An unreadable bound is reported like an unresolvable name: the
+            // slot is wrong, and a bound that quietly does nothing would be
+            // worse than one that fails loudly.
+            unknownType = type;
+            break;
+        }
+
+        const predicate = ctx.resolve(parsed.name);
         if (predicate === null) {
             unknownType = type;
             break;
         }
         predicates.push(predicate);
+        bounds.push(parsed.bound);
+        if (parsed.bound !== null) hasBounds = true;
     }
 
     return {
@@ -120,6 +202,8 @@ export const parseTypeSlot = (ctx: CompileContext, expected: string): TypeSlot |
         predicates,
         unknownType,
         description: types.length === 1 ? types[0] : `one of [${types.join(", ")}]`,
+        bounds,
+        hasBounds,
     };
 };
 
@@ -144,7 +228,7 @@ const compileStringField = (ctx: CompileContext, key: string, expected: string):
         };
     }
 
-    const { isOptional, predicates, unknownType, description } = slot;
+    const { isOptional, predicates, unknownType, description, bounds, hasBounds } = slot;
     const predicateCount = predicates.length;
 
     return (obj, issues, parentPath) => {
@@ -160,7 +244,16 @@ const compileStringField = (ctx: CompileContext, key: string, expected: string):
         if (value === null && isOptional) return;
 
         for (let i = 0; i < predicateCount; i++) {
-            if (predicates[i](value)) return;
+            if (predicates[i](value)) {
+                // The bound belongs to the alternative that matched, so it is
+                // only consulted once one has.
+                if (!hasBounds) return;
+                const bound = bounds[i];
+                if (bound === null) return;
+                const issue = boundIssue(value, bound, joinPath(parentPath, key));
+                if (issue !== null) issues.push(issue);
+                return;
+            }
         }
 
         const path = joinPath(parentPath, key);
@@ -302,7 +395,7 @@ const compileValue = (ctx: CompileContext, expected: unknown, strictMode: boolea
             };
         }
 
-        const { isOptional, predicates, unknownType, description } = slot;
+        const { isOptional, predicates, unknownType, description, bounds, hasBounds } = slot;
         const predicateCount = predicates.length;
 
         return (array, index, issues, arrayPath) => {
@@ -310,7 +403,14 @@ const compileValue = (ctx: CompileContext, expected: unknown, strictMode: boolea
             if (isOptional && (value === undefined || value === null)) return;
 
             for (let i = 0; i < predicateCount; i++) {
-                if (predicates[i](value)) return;
+                if (predicates[i](value)) {
+                    if (!hasBounds) return;
+                    const bound = bounds[i];
+                    if (bound === null) return;
+                    const issue = boundIssue(value, bound, indexPath(arrayPath, index));
+                    if (issue !== null) issues.push(issue);
+                    return;
+                }
             }
 
             const path = indexPath(arrayPath, index);
