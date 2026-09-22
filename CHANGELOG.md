@@ -39,6 +39,26 @@ See [MIGRATION.md](./MIGRATION.md#migration-guide-v4x--v50) for the upgrade.
   with no compile-time counterpart. `checkStructure` stays — it is the
   documented escape hatch for schemas built at runtime.
 
+### 🔒 Security
+
+- **A schema slot typed `constructor` accepted any value.** Alias names were
+  resolved through an ordinary object, so `constructor` found
+  `Object.prototype.constructor` by inheritance and was treated as a registered
+  type — the slot then validated nothing:
+
+  ```js
+  safeParse({ role: 'constructor' }, { role: anything })   // success: true, through 4.1.1
+  ```
+
+  Alias lookup now uses null-prototype maps, and the same schema reports
+  `unknown_type`. Verified against the published 4.1.1: every value passed
+  except a missing key.
+
+  Reaching it requires the *schema* to name a slot `constructor`, so payload
+  data alone cannot trigger it. It matters where schemas are built at runtime
+  from configuration or user input, which `checkStructure` documents as a
+  supported use.
+
 ### ✨ Added
 
 - **`@illavv/run_typer/jit` — generated validators, ~4× faster.**

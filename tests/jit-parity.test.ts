@@ -285,3 +285,41 @@ describe('the generator specialises what it claims to', () => {
         expect(wide).toContain('.has(');
     });
 });
+
+/**
+ * SECURITY.md states that only key names and type strings reach the generated
+ * source, each quoted, and that a schema is data rather than code. A key
+ * crafted to close the string it is emitted into would break both claims, so
+ * they are held here rather than left as prose.
+ */
+describe('a hostile key name cannot escape the generated source', () => {
+    const HOSTILE = [
+        'a"; globalThis.__TYPER_PWNED__ = 1; //',
+        "a'; globalThis.__TYPER_PWNED__ = 1; //",
+        'a`); globalThis.__TYPER_PWNED__ = 1; //',
+        'a\\',
+        'a\n b',
+        'a[0]',
+        'p; issues.push(1); const q',
+        '__proto__',
+        'constructor',
+    ];
+
+    afterEach(() => {
+        delete (globalThis as Record<string, unknown>).__TYPER_PWNED__;
+    });
+
+    it.each(HOSTILE)('%j is data, not code', (key) => {
+        const schema = { [key]: 'string' };
+        const generated = jitChecker(BUILTIN_CONTEXT, schema, false);
+        expect(generated).not.toBeNull();
+
+        expect((globalThis as Record<string, unknown>).__TYPER_PWNED__).toBeUndefined();
+
+        // And it still validates, rather than being quietly skipped.
+        expect(generated!({ [key]: 'x' }, '')).toEqual([]);
+        expect(generated!({ [key]: 42 }, '')).toEqual(
+            getCompiledChecker(BUILTIN_CONTEXT, schema, false)({ [key]: 42 }, ''),
+        );
+    });
+});
