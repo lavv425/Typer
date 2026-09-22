@@ -59,6 +59,9 @@ describe('Typer - structured validation errors', () => {
         });
 
         it('marks an unregistered type name with the unknown_type code', () => {
+            // The misspelling is the point: the type layer rejects it, and
+            // this asserts the runtime reports it rather than accepting it.
+            // @ts-expect-error -- 'nubmer' is not a KnownAlias
             const result = typer.safeParse({ id: 'nubmer' }, { id: 1 });
 
             if (result.success) throw new Error('expected failure');
@@ -186,8 +189,14 @@ describe('Typer - structured validation errors', () => {
             expect(result.issues[0]).toMatchObject({ code: 'unexpected_key', path: 'nested.extra' });
         });
 
-        it('does not flag extra keys when strict mode is off', () => {
+        it('flags extra keys by default in 5.0', () => {
             const result = typer.checkStructure({ a: 'number' }, { a: 1, extra: true });
+            expect(result.isValid).toBe(false);
+            expect(result.issues[0]).toMatchObject({ code: 'unexpected_key', path: 'extra' });
+        });
+
+        it('does not flag them when strict mode is explicitly off', () => {
+            const result = typer.checkStructure({ a: 'number' }, { a: 1, extra: true }, '', false);
             expect(result.isValid).toBe(true);
         });
 

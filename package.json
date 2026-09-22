@@ -1,6 +1,6 @@
 {
     "name": "@illavv/run_typer",
-    "version": "4.1.1",
+    "version": "5.0.0",
     "description": "A robust TypeScript class for type checking and validation",
     "main": "dist/Typer.cjs.min.js",
     "module": "dist/Typer.esm.mjs",
@@ -13,6 +13,31 @@
             "import": "./dist/Typer.esm.mjs",
             "require": "./dist/Typer.cjs.min.js"
         },
+        "./jit": {
+            "types": "./dist/jit.d.ts",
+            "import": "./dist/jit.esm.mjs",
+            "require": "./dist/jit.cjs.min.js"
+        },
+        "./async": {
+            "types": "./dist/async.d.ts",
+            "import": "./dist/async.esm.mjs",
+            "require": "./dist/async.cjs.min.js"
+        },
+        "./combinators": {
+            "types": "./dist/combinators.d.ts",
+            "import": "./dist/combinators.esm.mjs",
+            "require": "./dist/combinators.cjs.min.js"
+        },
+        "./validators": {
+            "types": "./dist/validators.d.ts",
+            "import": "./dist/validators.esm.mjs",
+            "require": "./dist/validators.cjs.min.js"
+        },
+        "./core": {
+            "types": "./dist/core.d.ts",
+            "import": "./dist/core.esm.mjs",
+            "require": "./dist/core.cjs.min.js"
+        },
         "./package.json": "./package.json"
     },
     "sideEffects": false,
@@ -24,16 +49,20 @@
         "src"
     ],
     "scripts": {
+        "lint": "eslint .",
+        "typecheck": "tsc -p tsconfig.json",
+        "lint:fix": "eslint . --fix",
         "test": "jest && npm run test:types",
+        "test:dist": "npm run build && jest tests/built-bundles.test.ts",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "test:types": "tsc -p tsconfig.typetest.json",
-        "bench": "tsc -p tsconfig.bench.json && node .bench/benchmarks/bench.js",
+        "bench": "tsc -p tsconfig.bench.json && node scripts/resolve-aliases.mjs .bench .bench/src .js && node .bench/benchmarks/bench.js",
         "size": "node scripts/check-bundle-size.mjs",
-        "build": "rollup -c",
+        "build": "rollup -c && node scripts/resolve-aliases.mjs dist dist .d.ts",
         "docs": "npx typedoc",
-        "build:docs": "rollup -c && npx typedoc",
-        "prepublishOnly": "npm test && npm run build && npm run size"
+        "build:docs": "rollup -c && node scripts/resolve-aliases.mjs dist dist .d.ts && npx typedoc",
+        "prepublishOnly": "npm run lint && npm run typecheck && npm test && npm run test:dist && npm run size"
     },
     "repository": {
         "type": "git",
@@ -54,17 +83,21 @@
     },
     "homepage": "https://github.com/lavv425/Typer",
     "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@rollup/plugin-alias": "^6.0.0",
         "@rollup/plugin-commonjs": "^29.0.3",
         "@rollup/plugin-node-resolve": "^16.0.3",
         "@rollup/plugin-terser": "^1.0.0",
         "@rollup/plugin-typescript": "^12.3.0",
         "@types/jest": "^30.0.0",
         "@types/mocha": "^10.0.10",
+        "eslint": "^10.11.0",
         "jest": "^30.5.1",
-        "rollup": "^4.63.3",
+        "rollup": "^4.63.4",
         "ts-jest": "^29.4.12",
         "typedoc": "0.28.20",
-        "typescript": "^6.0.3"
+        "typescript": "^6.0.3",
+        "typescript-eslint": "^8.70.1"
     },
     "dependencies": {
         "tslib": "^2.8.1"

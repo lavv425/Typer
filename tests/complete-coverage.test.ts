@@ -28,29 +28,6 @@ describe('Typer - Complete Coverage Tests', () => {
             expect(() => typer.isType('date', invalidDate)).toThrow('must be a valid Date');
         });
 
-        it('should handle expect function with returnType validation edge case', () => {
-            const func = (x: number) => x;
-            
-            // Test case dove returnType è undefined ma non 'void'
-            expect(() => typer.expect(func, {
-                paramTypes: ['number'],
-                returnType: undefined as any
-            })).toThrow('Expected paramType, returnType types');
-        });
-
-        it('should handle expect function args validation in else branch', () => {
-            const multiParamFunc = (x: number, y: string, z: boolean) => `${x}_${y}_${z}`;
-            const typedFunc = typer.expect(multiParamFunc, {
-                paramTypes: ['number', 'string', 'boolean'],
-                returnType: ['string']
-            });
-
-            // Test the else branch where we validate each parameter by index
-            expect(typedFunc(42, 'hello', true)).toBe('42_hello_true');
-            
-            // Test validation failure in the else branch
-            expect(() => typedFunc(42, 123, true)).toThrow('must be a string');
-        });
     });
 
     describe('Error path coverage for uncovered lines', () => {
@@ -68,16 +45,6 @@ describe('Typer - Complete Coverage Tests', () => {
     });
 
     describe('Complete type system edge cases', () => {
-        it('should handle all undefined checks in expect function', () => {
-            const func = (x: number) => x;
-            
-            // Test undefined paramTypes
-            expect(() => typer.expect(func, {
-                paramTypes: undefined as any,
-                returnType: ['number']
-            })).toThrow('Expected paramType, returnType types');
-        });
-
         it('should test all DOM element variations', () => {
             // Test all DOM element type aliases
             expect(() => typer.isType('dom', 'not-dom')).toThrow();

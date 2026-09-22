@@ -227,11 +227,11 @@ describe('Coverage completion', () => {
 
         it('rejects non-object inputs to parse()', () => {
             const schema = typer.schema({ x: 'string' });
-            const r1 = typer.safeParse(schema, 42 as never);
+            const r1 = typer.safeParse(schema, 42);
             expect(r1.success).toBe(false);
             if (!r1.success) expect(r1.error.message).toContain('Invalid object');
 
-            const r2 = typer.safeParse(schema, null as never);
+            const r2 = typer.safeParse(schema, null);
             expect(r2.success).toBe(false);
 
             const r3 = typer.safeParse(schema, [] as never);
@@ -331,7 +331,7 @@ describe('Coverage completion', () => {
     describe('Legacy validateSchemaValue function-entry branch', () => {
         it('checkStructure runs validator function entries on success', () => {
             const r = typer.checkStructure(
-                { x: typer.isPositiveInteger.bind(typer) } as Record<string, unknown>,
+                { x: typer.isPositiveInteger.bind(typer) },
                 { x: 5 },
             );
             expect(r.isValid).toBe(true);
@@ -339,7 +339,7 @@ describe('Coverage completion', () => {
 
         it('checkStructure reports errors from validator function entries', () => {
             const r = typer.checkStructure(
-                { x: typer.isPositiveInteger.bind(typer) } as Record<string, unknown>,
+                { x: typer.isPositiveInteger.bind(typer) },
                 { x: -3 },
             );
             expect(r.isValid).toBe(false);

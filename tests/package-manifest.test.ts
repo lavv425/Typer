@@ -34,6 +34,52 @@ describe('published package manifest', () => {
             });
         });
 
+        it('exposes the instance-free core as a subpath', () => {
+            // The whole point of the 5.0 split: a consumer who only validates
+            // schemas must be able to reach them without the class.
+            expect(manifest.exports['./core']).toEqual({
+                types: './dist/core.d.ts',
+                import: './dist/core.esm.mjs',
+                require: './dist/core.cjs.min.js',
+            });
+        });
+
+        it('exposes async validation as a subpath', () => {
+            // Separate from `core` on purpose: a synchronous consumer must not
+            // pay for the awaited walker.
+            expect(manifest.exports['./async']).toEqual({
+                types: './dist/async.d.ts',
+                import: './dist/async.esm.mjs',
+                require: './dist/async.cjs.min.js',
+            });
+        });
+
+        it('exposes the code generator as a subpath', () => {
+            // Separate from `core` because generated code needs `unsafe-eval`,
+            // which is a consumer's decision rather than the library's.
+            expect(manifest.exports['./jit']).toEqual({
+                types: './dist/jit.d.ts',
+                import: './dist/jit.esm.mjs',
+                require: './dist/jit.cjs.min.js',
+            });
+        });
+
+        it('exposes the combinators as a subpath', () => {
+            expect(manifest.exports['./combinators']).toEqual({
+                types: './dist/combinators.d.ts',
+                import: './dist/combinators.esm.mjs',
+                require: './dist/combinators.cjs.min.js',
+            });
+        });
+
+        it('exposes the validators as a subpath', () => {
+            expect(manifest.exports['./validators']).toEqual({
+                types: './dist/validators.d.ts',
+                import: './dist/validators.esm.mjs',
+                require: './dist/validators.cjs.min.js',
+            });
+        });
+
         it('exposes package.json as a subpath', () => {
             // Declaring `exports` at all makes every undeclared subpath
             // unresolvable, and tooling reads `<pkg>/package.json` routinely —

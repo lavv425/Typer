@@ -1,5 +1,6 @@
 import { Typer, TyperError } from '../src/Typer';
 import type { ValidationIssue } from '../src/Typer';
+import { issuesOf, validateSync } from './helpers/standard';
 
 const typer = new Typer();
 
@@ -90,11 +91,12 @@ describe('constraint validators report a code, not just prose', () => {
 
         it('keeps it out of the Standard Schema output, which frameworks log whole', () => {
             const schema = typer.standard({ pin: (v: unknown) => typer.isInRange(1000, 9999, v) });
-            const result = schema['~standard'].validate({ pin: 424242 }) as { issues: Array<Record<string, unknown>> };
+            const result = validateSync(schema, { pin: 424242 });
+            const issues = issuesOf(result);
 
             expect(JSON.stringify(result)).not.toContain('424242');
-            expect(result.issues[0]).not.toHaveProperty('value');
-            expect(result.issues[0].code).toBe('too_big');
+            expect(issues[0]).not.toHaveProperty('value');
+            expect(issues[0].code).toBe('too_big');
         });
 
         it('carries the value through a schema slot', () => {
@@ -169,10 +171,8 @@ describe('the code survives into a schema', () => {
 
     it('surfaces the code through Standard Schema as well', () => {
         const schema = typer.standard({ pin: (v: unknown) => typer.isInRange(1000, 9999, v) });
-        const result = schema['~standard'].validate({ pin: 42 });
+        const issues = issuesOf(validateSync(schema, { pin: 42 }));
 
-        expect(result).not.toBeInstanceOf(Promise);
-        const issues = (result as { issues: Array<{ code?: string; minimum?: number }> }).issues;
         expect(issues[0]).toMatchObject({ code: 'too_small', minimum: 1000 });
     });
 });

@@ -1,9 +1,11 @@
-import type { JSONSchemaDocument, JSONSchemaFragment, ToJSONSchemaOptions } from "../../Types/JSONSchema";
-import type { SelfDescribing } from "../../Constants/Symbols";
-import { JSON_SCHEMA } from "../../Constants/Symbols";
-import { TyperError } from "../../Errors/TyperError";
-import { makeIssue } from "../Issues";
-import { indexPath, joinPath } from "../Path";
+import type { JSONSchemaDocument, JSONSchemaFragment, ToJSONSchemaOptions } from "@/Types/JSONSchema";
+import type { SlotBound } from "@/Types/Typer";
+import { splitBound } from "@/Core/Compile";
+import type { SelfDescribing } from "@/Constants/Symbols";
+import { JSON_SCHEMA } from "@/Constants/Symbols";
+import { TyperError } from "@/Errors/TyperError";
+import { makeIssue } from "@/Utils/Issues";
+import { indexPath, joinPath } from "@/Utils/Path";
 
 /**
  * Conversion from a Typer schema to a JSON Schema document.
@@ -96,6 +98,30 @@ const nullableOf = (fragment: JSONSchemaFragment): JSONSchemaFragment => {
 };
 
 /**
+ * Applies an inline bound to the fragment of the alias it was written on.
+ *
+ * JSON Schema names the same constraint three ways depending on what is being
+ * measured, so the keyword follows the type rather than the syntax.
+ *
+ * @param fragment - The alias's own fragment.
+ * @param bound - The bound declared on it.
+ */
+const withBound = (fragment: JSONSchemaFragment, bound: SlotBound): JSONSchemaFragment => {
+    const { min, max } = bound;
+    const out: JSONSchemaFragment = { ...fragment };
+
+    const keywords = fragment.type === 'string'
+        ? ['minLength', 'maxLength']
+        : fragment.type === 'array'
+            ? ['minItems', 'maxItems']
+            : ['minimum', 'maximum'];
+
+    if (min !== undefined) out[keywords[0]] = min;
+    if (max !== undefined) out[keywords[1]] = max;
+    return out;
+};
+
+/**
  * Converts a type-string slot (`'string'`, `'string?'`, `'a|b'`, `'a|b?'`).
  */
 const convertTypeString = (expected: string, conversion: Conversion, path: string): JSONSchemaFragment => {
@@ -107,11 +133,14 @@ const convertTypeString = (expected: string, conversion: Conversion, path: strin
 
     const fragments: JSONSchemaFragment[] = [];
     for (const name of names) {
-        const fragment = ALIAS_FRAGMENTS[name];
+        const parsed = splitBound(name);
+        if (parsed === null) return unrepresentable(conversion, path);
+
+        const fragment = ALIAS_FRAGMENTS[parsed.name];
         // A runtime-registered alias is a validator function Typer cannot look
         // inside, exactly like a non-serializable built-in.
         if (fragment === undefined) return unrepresentable(conversion, path);
-        fragments.push(fragment);
+        fragments.push(parsed.bound === null ? fragment : withBound(fragment, parsed.bound));
     }
 
     const merged = unionOf(fragments);
@@ -186,7 +215,10 @@ const convertObject = (schema: Record<string, unknown>, conversion: Conversion, 
  * @throws {TyperError} With `unrepresentable: 'throw'`, when a slot cannot be expressed.
  */
 export const toJSONSchema = (schema: Record<string, unknown>, options: ToJSONSchemaOptions = {}): JSONSchemaDocument => {
-    const conversion: Conversion = { strict: options.strict === true, unrepresentable: [] };
+    // Strict by default, matching validation: an emitted schema that omitted
+    // `additionalProperties: false` would describe a laxer contract than the
+    // one `parse` actually enforces.
+    const conversion: Conversion = { strict: options.strict !== false, unrepresentable: [] };
     const body = convertObject(schema, conversion, '');
 
     if (conversion.unrepresentable.length > 0 && options.unrepresentable === 'throw') {

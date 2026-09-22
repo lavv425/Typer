@@ -1,49 +1,37 @@
-import type { JSONSchemaFragment } from "../../Types/JSONSchema";
-import type { ParseResult } from "../../Types/Typer";
+import type { JSONSchemaFragment } from "@/Types/JSONSchema";
+import type { ParseResult } from "@/Types/Typer";
 
 /**
- * Internal marker: a validator that can report failures **without throwing**
- * carries its non-throwing counterpart here.
+ * Internal markers Typer attaches to the validators it builds.
  *
- * `safeParse` reads it and calls that instead of running the throwing
- * validator inside a `try`/`catch`. Building a `TyperError` — capturing its
- * stack, above all — costs an order of magnitude more than the validation
- * itself, and a failed `safeParse` is an expected outcome rather than an
- * exceptional one.
- *
- * A symbol rather than a string key: it cannot collide with a property a
- * caller put on their own validator, and it stays out of `Object.keys`,
- * `JSON.stringify` and spreads.
- *
- * @internal Not part of the public API.
+ * `Symbol.for`, not `Symbol()`: each published entry point is a self-contained
+ * bundle with its own copy of this module, so a plain symbol would be a
+ * different value in each and a marker set by `/validators` would be invisible
+ * to `/core`.
  */
-export const SAFE_RESULT = Symbol('typer.safeResult');
 
 /**
- * A validator that carries a non-throwing counterpart under {@link SAFE_RESULT}.
+ * A validator that can report failures without throwing carries its
+ * non-throwing counterpart here, so `safeParse` can skip building an `Error`
+ * only to unwrap it again.
  *
  * @internal
  */
+export const SAFE_RESULT = Symbol.for('typer.safeResult');
+
+/** @internal */
 export type SafeReporting<T> = { [SAFE_RESULT]?: (value: unknown) => ParseResult<T> };
 
 /**
- * Internal marker: a validator that knows how to describe itself in JSON
- * Schema carries that fragment here.
- *
- * A validator is an opaque function — `toJSONSchema` cannot look inside one to
- * learn that it accepts email addresses. Rather than emit `{}` for every
- * validator slot, Typer's own validators and combinators carry the fragment
- * they correspond to, and the converter reads it.
- *
- * @internal Not part of the public API.
- */
-export const JSON_SCHEMA = Symbol('typer.jsonSchema');
-
-/**
- * A validator that carries its JSON Schema fragment under {@link JSON_SCHEMA}.
+ * A validator that knows its JSON Schema equivalent carries it here — a
+ * validator is otherwise an opaque function that `toJSONSchema` can only
+ * describe as `{}`.
  *
  * @internal
  */
+export const JSON_SCHEMA = Symbol.for('typer.jsonSchema');
+
+/** @internal */
 export type SelfDescribing = { [JSON_SCHEMA]?: JSONSchemaFragment };
 
 /**
@@ -65,15 +53,9 @@ export const describing = <T extends object>(validator: T, fragment: JSONSchemaF
 };
 
 /**
- * Same as {@link describing}, but the fragment is built on first read.
- *
- * Setup cost is the one benchmark Typer clearly wins, and most callers never
- * ask for a JSON Schema — so a combinator whose fragment costs real work to
- * build (converting a whole nested schema, say) must not charge every caller
- * for it up front. Building `objectOf`'s fragment eagerly was measured at
- * +42% on its setup time.
- *
- * The result is memoized, so repeated reads cost one property access.
+ * Same as {@link describing}, but the fragment is built on first read and
+ * memoized. Building `objectOf`'s eagerly cost 42% of its setup time, and most
+ * callers never ask for a JSON Schema.
  *
  * @param validator - The function to describe. Must be one Typer owns.
  * @param build - Produces the fragment; called at most once.

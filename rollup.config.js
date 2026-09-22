@@ -1,48 +1,171 @@
+import alias from '@rollup/plugin-alias';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import typescript from '@rollup/plugin-typescript';
 import terser from '@rollup/plugin-terser';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve as resolvePath } from 'node:path';
 
-export default {
-    input: 'src/Typer.ts',
-    output: [
-        {
-            file: 'dist/Typer.min.js',
-            format: 'umd',
-            name: 'Typer',
-            sourcemap: true,
-            plugins: [terser()]
-        },
-        {
-            // .mjs, not .js: the package is CommonJS by default, so Node would
-            // otherwise have to sniff a .js file for module syntax and reparse it.
-            file: 'dist/Typer.esm.mjs',
-            format: 'es',
-            sourcemap: true,
-            plugins: [terser()]
-        },
-        {
-            file: 'dist/Typer.cjs.min.js',
-            format: 'cjs',
-            sourcemap: true,
-            plugins: [terser()]
-        }
-    ],
-    plugins: [
-        resolve(),
-        commonjs(),
-        typescript({
-            tsconfig: './tsconfig.json',
-            // The project tsconfig targets Node16 modules, which makes tsc emit
-            // CommonJS `require()` calls that Rollup cannot follow — it would
-            // leave every internal module as an unresolved external. Rollup
-            // needs ES modules as input and produces the CJS/UMD outputs itself.
-            module: 'ESNext',
-            moduleResolution: 'bundler',
-            declaration: true,
-            declarationDir: 'dist',
-            rootDir: 'src'
-        })
-    ],
-    external: []
-};
+const src = resolvePath(dirname(fileURLToPath(import.meta.url)), 'src');
+const aliases = () => alias({ entries: [{ find: /^@\/(.*)$/, replacement: `${src}/$1` }] });
+
+/**
+ * Two entry points, deliberately built separately rather than as a shared
+ * chunk graph.
+ *
+ * `Typer.*` is the whole library behind the class. `core.*` is the
+ * schema-validation path on its own — the compiler, the built-in predicates
+ * and the entry points that use them. Building them as independent bundles is
+ * what makes the difference between the two measurable: `npm run size` reports
+ * both, so "importing only `parse` is smaller" is a number in CI rather than a
+ * claim in the README.
+ */
+
+const compile = (declaration) => typescript({
+    tsconfig: './tsconfig.build.json',
+    // The project tsconfig targets Node16 modules, which makes tsc emit
+    // CommonJS `require()` calls that Rollup cannot follow — it would
+    // leave every internal module as an unresolved external. Rollup
+    // needs ES modules as input and produces the CJS/UMD outputs itself.
+    module: 'ESNext',
+    moduleResolution: 'bundler',
+    declaration,
+    declarationDir: declaration ? 'dist' : undefined,
+    declarationMap: declaration,
+    rootDir: 'src',
+});
+
+/**
+ * 
+ * @param {Boolean} shouldCompile 
+ * @returns {Array} plugins list
+ */
+const pluginList = (shouldCompile) => [aliases(), resolve(), commonjs(), compile(shouldCompile)];
+
+export default [
+    {
+        input: 'src/Typer.ts',
+        output: [
+            {
+                file: 'dist/Typer.min.js',
+                format: 'umd',
+                name: 'Typer',
+                sourcemap: true,
+                plugins: [terser()]
+            },
+            {
+                // .mjs, not .js: the package is CommonJS by default, so Node would
+                // otherwise have to sniff a .js file for module syntax and reparse it.
+                file: 'dist/Typer.esm.mjs',
+                format: 'es',
+                sourcemap: true,
+                plugins: [terser()]
+            },
+            {
+                file: 'dist/Typer.cjs.min.js',
+                format: 'cjs',
+                sourcemap: true,
+                plugins: [terser()]
+            }
+        ],
+        plugins: pluginList(true),
+        external: []
+    },
+    {
+        input: 'src/jit.ts',
+        output: [
+            {
+                file: 'dist/jit.esm.mjs',
+                format: 'es',
+                sourcemap: true,
+                plugins: [terser()]
+            },
+            {
+                file: 'dist/jit.cjs.min.js',
+                format: 'cjs',
+                sourcemap: true,
+                plugins: [terser()]
+            }
+        ],
+        plugins: pluginList(false),
+        external: []
+    },
+    {
+        input: 'src/async.ts',
+        output: [
+            {
+                file: 'dist/async.esm.mjs',
+                format: 'es',
+                sourcemap: true,
+                plugins: [terser()]
+            },
+            {
+                file: 'dist/async.cjs.min.js',
+                format: 'cjs',
+                sourcemap: true,
+                plugins: [terser()]
+            }
+        ],
+        plugins: pluginList(false),
+        external: []
+    },
+    {
+        input: 'src/combinators.ts',
+        output: [
+            {
+                file: 'dist/combinators.esm.mjs',
+                format: 'es',
+                sourcemap: true,
+                plugins: [terser()]
+            },
+            {
+                file: 'dist/combinators.cjs.min.js',
+                format: 'cjs',
+                sourcemap: true,
+                plugins: [terser()]
+            }
+        ],
+        plugins: pluginList(false),
+        external: []
+    },
+    {
+        input: 'src/validators.ts',
+        output: [
+            {
+                file: 'dist/validators.esm.mjs',
+                format: 'es',
+                sourcemap: true,
+                plugins: [terser()]
+            },
+            {
+                file: 'dist/validators.cjs.min.js',
+                format: 'cjs',
+                sourcemap: true,
+                plugins: [terser()]
+            }
+        ],
+        plugins: pluginList(false),
+        external: []
+    },
+    {
+        input: 'src/core.ts',
+        output: [
+            {
+                file: 'dist/core.esm.mjs',
+                format: 'es',
+                sourcemap: true,
+                plugins: [terser()]
+            },
+            {
+                file: 'dist/core.cjs.min.js',
+                format: 'cjs',
+                sourcemap: true,
+                plugins: [terser()]
+            }
+        ],
+        // Declarations are emitted by the first build, which already covers
+        // every module this one reaches.
+        plugins: pluginList(false),
+        external: []
+    }
+];

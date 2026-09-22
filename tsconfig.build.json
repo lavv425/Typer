@@ -1,0 +1,25 @@
+{
+  // What ships. Narrows the editor project down to `src` and turns emit back
+  // on; Rollup drives this one.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "declaration": true,
+    "declarationDir": "dist",
+    "declarationMap": true,
+    "sourceMap": true,
+    // The published types must not depend on jest or node being installed.
+    "types": []
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "tests/**/*",
+    "benchmarks/**/*",
+    "dist/**/*",
+    "node_modules/**/*"
+  ]
+}

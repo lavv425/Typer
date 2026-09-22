@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * Bundle-size budget check.
+ * Raised from 9 KB in 4.1: that release added Standard Schema, schema
+ * composition, coercion, discriminated unions and JSON Schema output, taking
+ * the bundle from 6.7 KB to 9.7 KB gzip.
  *
- * A small bundle is one of the three things Typer actually wins on, so a
- * regression in it is a regression like any other: this exits non-zero when a
- * built artifact grows past its budget, and CI runs it on every push.
+ * The class gained ~300 B in 5.0, from the 55 methods that now delegate to
+ * `Validators/*` and `Combinators/*`. That is overhead a consumer of the class pays
+ * for a split they do not use, and it is the honest price of keeping the
+ * instance API working unchanged while the implementations move out.
  *
- * Budgets are deliberately close to the current sizes — the point is to make a
- * jump visible in review, not to leave room to drift into.
- *
- * Usage: `npm run size` (after `npm run build`).
+ * @type {Array<{ file: string, budgetGzip: number }>}
  */
 
 import { gzipSync } from 'node:zlib';
@@ -29,9 +29,44 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
  * @type {Array<{ file: string, budgetGzip: number }>}
  */
 const BUDGETS = [
-    { file: 'dist/Typer.esm.mjs', budgetGzip: 10_240 },
-    { file: 'dist/Typer.cjs.min.js', budgetGzip: 10_240 },
-    { file: 'dist/Typer.min.js', budgetGzip: 10_496 },
+    { file: 'dist/Typer.esm.mjs', budgetGzip: 11_008 },
+    { file: 'dist/Typer.cjs.min.js', budgetGzip: 11_008 },
+    { file: 'dist/Typer.min.js', budgetGzip: 11_264 },
+
+    // The `core` entry is the whole argument for the 5.0 split: schema
+    // validation without the class, at 2.86 KB against the class's 9.67 KB.
+    // Its budget is deliberately tight — this is the number the split exists
+    // to protect, and it has to stay under `zod/mini` (4.8 KB) to be worth
+    // making. A change that pushes it up is a change worth arguing for.
+    // (Raised once, for `parse`/`safeParse` to handle a validator passed
+    //  where a schema goes — without that branch they validated nothing,
+    //  and again for the inline bounds in type strings, which live in the
+    //  compiler and so reach every entry point that compiles a schema.)
+    { file: 'dist/core.esm.mjs', budgetGzip: 3_584 },
+    { file: 'dist/core.cjs.min.js', budgetGzip: 3_584 },
+
+    // Every validator, for a consumer who wants the lot without the class.
+    // One validator on top of `core` costs ~11 B; four cost ~65 B each.
+    { file: 'dist/validators.esm.mjs', budgetGzip: 4_096 },
+    { file: 'dist/validators.cjs.min.js', budgetGzip: 4_096 },
+
+    // The combinators, without the class. Larger than the other entries
+    // because `objectOf` and `discriminatedUnion` pull the schema compiler —
+    // importing only `optional` and `arrayOf` is 0.88 KB, so the compiler
+    // really does drop out when nothing needs it.
+    { file: 'dist/combinators.esm.mjs', budgetGzip: 6_656 },
+    { file: 'dist/combinators.cjs.min.js', budgetGzip: 6_656 },
+
+    // Async validation, kept out of `core` so a synchronous consumer never
+    // pays for the awaited walker.
+    // Generated code is text: the generator is mostly string building, and it
+    // carries the closure compiler with it for the fields it delegates and for
+    // the fallback when `new Function` is refused. Raised from 5.00 KB when
+    // `installJit` added the warm-up back end.
+    { file: 'dist/jit.esm.mjs', budgetGzip: 5_376 },
+    { file: 'dist/jit.cjs.min.js', budgetGzip: 5_376 },
+    { file: 'dist/async.esm.mjs', budgetGzip: 4_096 },
+    { file: 'dist/async.cjs.min.js', budgetGzip: 4_096 },
 ];
 
 const kb = (bytes) => `${(bytes / 1024).toFixed(2)} KB`;

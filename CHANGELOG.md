@@ -5,6 +5,232 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — 5.0
+
+The whole of [ROADMAP-5.0.md](./ROADMAP-5.0.md). Two breaking changes, and a
+library you can now import in pieces.
+
+See [MIGRATION.md](./MIGRATION.md#migration-guide-v4x--v50) for the upgrade.
+
+### 💥 Breaking
+
+- **Undeclared keys are rejected.** `parse`, `safeParse`, `objectOf`,
+  `standard`, `discriminatedUnion` and `checkStructure` now reject a key the
+  schema does not declare. Pass `{ strict: false }` — or `false` as
+  `checkStructure`'s fourth argument — to restore 4.x behaviour.
+
+  This is the audit's P0-2 option (a), deferred from 4.1 because it breaks. 4.1
+  shipped option (b) and stripped `__proto__`, `constructor` and `prototype`;
+  this closes the rest, so `success: true` now means the object has the keys
+  the schema declares and no others. Dangerous keys are still *stripped* rather
+  than reported, so a payload carrying only those stays valid.
+
+  **It costs about 20 ns per object.** Rejecting an undeclared key means
+  enumerating the value's own keys, which nothing did before: measured against
+  4.1.1 on the same machine, a flat four-field object goes from 65 ns to 86 ns
+  and a nested one from 121 ns to 171 ns. `{ strict: false }` restores both the
+  old behaviour and the old cost. Whether that trade is right for you depends
+  on whether you would rather find a drifted payload or shave 20 ns.
+
+- **`expect`, `validate` and `assert` are removed**, with the
+  `TyperExpectTypes` type. They predated `parse`/`safeParse` and duplicated
+  them with weaker typing: `validate` returned untyped strings, `assert` only
+  logged a warning, and `expect` type-checked function arguments at runtime
+  with no compile-time counterpart. `checkStructure` stays — it is the
+  documented escape hatch for schemas built at runtime.
+
+### 🔒 Security
+
+- **A schema slot typed `constructor` accepted any value.** Alias names were
+  resolved through an ordinary object, so `constructor` found
+  `Object.prototype.constructor` by inheritance and was treated as a registered
+  type — the slot then validated nothing:
+
+  ```js
+  safeParse({ role: 'constructor' }, { role: anything })   // success: true, through 4.1.1
+  ```
+
+  Alias lookup now uses null-prototype maps, and the same schema reports
+  `unknown_type`. Verified against the published 4.1.1: every value passed
+  except a missing key.
+
+  Reaching it requires the *schema* to name a slot `constructor`, so payload
+  data alone cannot trigger it. It matters where schemas are built at runtime
+  from configuration or user input, which `checkStructure` documents as a
+  supported use.
+
+### ✨ Added
+
+- **`@illavv/run_typer/jit` — generated validators, ~4× faster.**
+
+  ```typescript
+  import { compile } from '@illavv/run_typer/jit';
+
+  const user = compile({ id: 'number', email: 'string', note: 'string?' });
+  user.safeParse(payload);
+  ```
+
+  The default back end compiles a schema into closures, which costs one
+  indirect call per field, one `obj[key]` read through a captured variable and
+  one path concatenation per nesting level. None of that can be removed while
+  the shape is only known as data. `compile` generates source instead: fields
+  become `obj.id` reads the engine inline-caches, predicates are called
+  directly, and statically known paths fold into one literal.
+
+  Measured on the fixtures in `benchmarks/`, median of seven batches:
+
+  | | closures | generated | |
+  | --- | ---: | ---: | ---: |
+  | flat, 3 keys | 13.0M ops/sec | 57.4M ops/sec | 4.4× |
+  | nested, 6 keys + 3 nested | 4.9M ops/sec | 19.9M ops/sec | 4.1× |
+  | array of 50 numbers | 3.1M ops/sec | 15.0M ops/sec | 4.8× |
+  | nested, failing | 1.7M ops/sec | 3.1M ops/sec | 1.8× |
+
+  It is a **separate import, not a new default**, because it calls
+  `new Function`, which a Content-Security-Policy without `unsafe-eval`
+  forbids — a deployment decision, not one a validation library should make for
+  you. Where it is refused, `compile` falls back to the closure compiler and
+  reports it as `generated: false`; results are identical either way.
+
+  The generator specialises type-string slots, nested objects and arrays of
+  type strings, and **delegates every other field** to the closure the ordinary
+  compiler already built, so a form it has not heard of cannot be miscompiled.
+  A parity suite runs the same corpus through both back ends and requires every
+  issue to match; five deliberate mutations of the generator were each caught
+  by it.
+
+  `compile` does no caching of its own — hold the result rather than calling it
+  per request.
+
+  **`installJit()` turns it on everywhere**, for consumers who would rather not
+  change every call site. Every entry point reaches a compiled checker through
+  one slot, so the single call covers `parse`, `safeParse`, `parseAsync`,
+  `objectOf`, `discriminatedUnion` and the `Typer` class.
+
+  It warms up rather than generating at once: a schema starts on the closure
+  compiler and is rewritten after 50 validations, so one used twice never pays
+  the compile cost while one in a request handler upgrades after the first few
+  requests. Warmth is counted per schema *object*, which is what keeps the
+  throwaway-schema antipattern from generating thousands of times.
+  `{ eager: true }` skips the wait; the return value is a disposer.
+
+  Applications may install; libraries must not — it decides for the
+  application that hosts them. Consumers who never import `/jit` pay only a
+  module-level variable read, measured as no change across repeated runs.
+
+  See [guides/jit.md](./guides/jit.md).
+
+- **`@illavv/run_typer/core` — schema validation without the class.**
+
+  ```typescript
+  import { parse, safeParse, schema } from '@illavv/run_typer/core';
+
+  const userSchema = schema({ id: 'number', email: 'string', note: 'string?' });
+  const user = parse(userSchema, payload);
+  ```
+
+  **2.86 KB gzip, against 9.67 KB for the class — 70% smaller**, and under
+  `zod/mini` (4.8 KB). The whole API hung off a class instance, so a consumer
+  validating one flat schema still shipped every format validator, every
+  combinator and the JSON Schema converter; a bundler could not prove otherwise.
+  Now it can.
+
+  `parse`, `safeParse` and `schema` behave exactly as their methods do — a
+  table test runs nine shapes through both and requires identical issues, down
+  to paths and codes.
+
+- **`@illavv/run_typer/validators` — the validators, one import at a time.**
+
+  ```typescript
+  import { parse } from '@illavv/run_typer/core';
+  import { isEmail, isPort } from '@illavv/run_typer/validators';
+
+  parse({ email: isEmail, port: isPort }, payload);
+  ```
+
+  A validator costs **~61 B on top of `core`** — it carries the JSON Schema
+  fragment that makes it self-describing. All 44 together, without the class,
+  are 3.93 KB.
+
+  43 of them moved; `isArrayOf` stays on the class because it resolves its
+  element type through the instance registry. Every one is asserted against the
+  class method it came from — same result, same message, byte for byte.
+
+- **`@illavv/run_typer/combinators` and `/async`.** The combinators are
+  importable one at a time — `optional` + `arrayOf` alone is **0.88 KB**, which
+  is the proof the schema compiler drops out when nothing needs it. Async
+  validation lives at `/async` rather than in `core`, because putting it in
+  `core` took that bundle from 3.35 to 3.94 KB, and a feature every consumer
+  pays for is the problem this release exists to fix.
+
+- **Declarative bounds in type strings**: `'string(3,50)'`, `'number(1,)'`,
+  `'array(,10)'` — length for a string or array, value for a number. The other
+  half of the audit's P1-1, now that 4.1 has given constraint failures their
+  own codes: a bound reports `too_small`/`too_big` with `minimum`/`maximum`,
+  not a flat `custom`.
+
+  The bound belongs to the alternative it is written on, so `'string(3,)|number'`
+  constrains only the string branch. A malformed bound is reported rather than
+  ignored. `toJSONSchema` emits them as `minLength`/`maxLength`,
+  `minItems`/`maxItems` or `minimum`/`maximum`, the keyword following what is
+  being measured.
+
+- **`parseAsync`, `safeParseAsync` and `asyncRefine`.** Async is declared, not
+  sniffed — an ordinary function returning a promise is indistinguishable from
+  an `async` one. The awaited checks start together rather than in turn, and
+  the synchronous path refuses an async schema by naming the offending key
+  instead of validating the rest and reporting success.
+
+- **`createRegistry(aliases)` and `createTyper(aliases)`** for custom type
+  aliases without an instance. A registry is an ordinary value carrying its own
+  compile context, so invalidation is building a new one; `createTyper` binds
+  the entry points so the registry is supplied once rather than on every call,
+  and still tree-shakes because a consumer destructures only what they use.
+
+  `InferWith<typeof schema, typeof registry>` reads the alias map off the
+  registry value, instead of having it written out by hand.
+
+- **The size budget covers both entry points**, so the 2.86 KB is held by CI
+  rather than asserted in a changelog.
+
+### 🔧 Changed
+
+- **The class bundle grew ~170 B**, from the 43 methods that now delegate to
+  `Validators/*`. That is overhead a consumer of the class pays for a split
+  they do not use — the honest price of keeping the instance API working
+  unchanged while the implementations move out. The size budget is raised with
+  that reason recorded.
+
+- **The schema compiler and the built-in predicates no longer live in the
+  class.** They moved to `Core/Compile` and `Core/Predicates` with their logic
+  untouched — every message is byte for byte what it was. What the compiler
+  used to take from the instance now arrives as an explicit context.
+
+  `src/Typer.ts` is down from 3,426 to 2,893 lines. The class is unchanged for
+  callers.
+
+### 🐛 Fixed
+
+- **Markers did not survive between entry points.** Each published bundle is
+  self-contained, so each carried its own `Symbol('typer.jsonSchema')` — and a
+  fragment attached by `@illavv/run_typer/validators` was invisible to
+  `@illavv/run_typer/core`. `import { isEmail } from '…/validators'` emitted
+  `{}` from `toJSONSchema` in any real consumer, and `safeParse` missed a
+  combinator's non-throwing path, which is precisely the mixed-import usage the
+  documentation recommends.
+
+  The three internal markers now use `Symbol.for`, so the key is the same
+  whichever bundle created it. Every source test passed throughout — they
+  import `src`, where the entry points share one module instance — so
+  `tests/built-bundles.test.ts` now runs against `dist`, and `prepublishOnly`
+  builds before checking.
+
+- **`registerType` did not invalidate the strict-mode compile cache.**
+  `invalidateCaches` replaced only the permissive cache, so a schema already
+  compiled in strict mode kept validating against the type registry as it stood
+  before the call. Found while extracting the compiler, and pinned by a test
+  that fails against the previous implementation.
+
 ## [4.1.1] - 2026-09-21
 
 ### 🐛 Fixed

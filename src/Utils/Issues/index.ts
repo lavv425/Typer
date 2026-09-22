@@ -1,7 +1,7 @@
-import type { StandardSchemaV1 } from "../../Types/StandardSchema";
-import type { IssueMeta, IssueCode, ValidationIssue } from "../../Types/Typer";
-import { TyperError } from "../../Errors/TyperError";
-import { splitPath } from "../Path";
+import type { StandardSchemaV1 } from "@/Types/StandardSchema";
+import type { IssueMeta, IssueCode, ValidationIssue } from "@/Types/Typer";
+import { TyperError } from "@/Errors/TyperError";
+import { splitPath } from "@/Utils/Path";
 
 /**
  * Builds a structured validation issue.
@@ -79,7 +79,7 @@ export const formatIssues = (issues: ValidationIssue[]): string => {
  * @param issues - The issues to flatten.
  */
 export const issueMessages = (issues: ValidationIssue[]): string[] => {
-    const messages: string[] = new Array(issues.length);
+    const messages: string[] = new Array<string>(issues.length);
     for (let i = 0; i < issues.length; i++) messages[i] = issues[i].message;
     return messages;
 };
@@ -100,7 +100,7 @@ export const issueMessages = (issues: ValidationIssue[]): string[] => {
  * @param issues - The issues to convert.
  */
 export const toStandardIssues = (issues: ValidationIssue[]): StandardSchemaV1.Issue[] => {
-    const out: StandardSchemaV1.Issue[] = new Array(issues.length);
+    const out: StandardSchemaV1.Issue[] = new Array<StandardSchemaV1.Issue>(issues.length);
     for (let i = 0; i < issues.length; i++) {
         const { value: _omitted, ...issue } = issues[i];
         out[i] = { ...issue, path: splitPath(issues[i].path) };

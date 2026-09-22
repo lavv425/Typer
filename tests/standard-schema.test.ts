@@ -130,11 +130,12 @@ describe('Standard Schema — supported inputs', () => {
         expect(validate(schema, []).issues).toHaveLength(1);
     });
 
-    it('honours strict mode for schema objects', () => {
-        const schema = typer.standard({ id: 'number' }, { strict: true });
+    it('is strict by default, and opts out explicitly', () => {
+        const strict = typer.standard({ id: 'number' });
+        expect(validate(strict, { id: 1, extra: true }).issues).toHaveLength(1);
 
-        expect(validate(schema, { id: 1, extra: true }).issues).toHaveLength(1);
-        expect(validate(typer.standard({ id: 'number' }), { id: 1, extra: true }).issues).toBeUndefined();
+        const permissive = typer.standard({ id: 'number' }, { strict: false });
+        expect(validate(permissive, { id: 1, extra: true }).issues).toBeUndefined();
     });
 
     it('gives objectOf the same treatment', () => {

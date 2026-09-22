@@ -2,7 +2,13 @@ import { Typer, TyperError } from '../src/Typer';
 
 const typer = new Typer();
 
-/** Drops the `$schema` head so the assertions read as just the shape. */
+/**
+ * Drops the `$schema` head so the assertions read as just the shape.
+ *
+ * `additionalProperties: false` appears throughout because `toJSONSchema` is
+ * strict by default, matching validation — an emitted schema that omitted it
+ * would describe a laxer contract than `parse` enforces.
+ */
 const body = (schema: Record<string, unknown>, options = {}) => {
     const { $schema: _dialect, ...rest } = typer.toJSONSchema(schema as never, options);
     return rest;
@@ -54,6 +60,7 @@ describe('toJSONSchema — structure', () => {
             type: 'object',
             properties: { id: { type: 'number' }, note: { type: ['string', 'null'] } },
             required: ['id'],
+            additionalProperties: false,
         });
     });
 
@@ -84,11 +91,11 @@ describe('toJSONSchema — structure', () => {
     });
 
     it('emits {} for a malformed slot', () => {
-        expect(body({ bad: 42 as unknown as string }).properties).toEqual({ bad: {} });
+        expect(body({ bad: 42 }).properties).toEqual({ bad: {} });
     });
 
     it('emits {} for an array slot that is not exactly one element', () => {
-        expect(body({ a: [] as unknown as string[], b: ['string', 'number'] as unknown as string[] }).properties)
+        expect(body({ a: [] as unknown, b: ['string', 'number'] as unknown }).properties)
             .toEqual({ a: {}, b: {} });
     });
 
@@ -104,6 +111,7 @@ describe('toJSONSchema — structure', () => {
                 type: 'object',
                 properties: { city: { type: 'string' }, zip: { type: ['string', 'null'] } },
                 required: ['city'],
+                additionalProperties: false,
             },
         });
     });
@@ -112,14 +120,19 @@ describe('toJSONSchema — structure', () => {
         expect(body({ items: [{ qty: 'number' }] }).properties).toEqual({
             items: {
                 type: 'array',
-                items: { type: 'object', properties: { qty: { type: 'number' } }, required: ['qty'] },
+                items: {
+                    type: 'object',
+                    properties: { qty: { type: 'number' } },
+                    required: ['qty'],
+                    additionalProperties: false,
+                },
             },
         });
     });
 
-    it('emits additionalProperties: false in strict mode', () => {
-        expect(body({ id: 'number' }, { strict: true })).toMatchObject({ additionalProperties: false });
-        expect(body({ id: 'number' })).not.toHaveProperty('additionalProperties');
+    it('emits additionalProperties: false by default, and drops it on opt-out', () => {
+        expect(body({ id: 'number' })).toMatchObject({ additionalProperties: false });
+        expect(body({ id: 'number' }, { strict: false })).not.toHaveProperty('additionalProperties');
     });
 });
 
@@ -177,7 +190,15 @@ describe('toJSONSchema — validators describe themselves', () => {
     });
 
     it('describes objectOf() as the object it validates', () => {
+        // `additionalProperties: false` because objectOf is strict by default
+        // in 5.0 — the emitted schema has to say what validation actually does.
         expect(body({ user: typer.objectOf({ id: 'number' }) }).properties).toEqual({
+            user: { type: 'object', properties: { id: { type: 'number' } }, required: ['id'], additionalProperties: false },
+        });
+    });
+
+    it('drops additionalProperties when objectOf opts out of strict', () => {
+        expect(body({ user: typer.objectOf({ id: 'number' }, { strict: false }) }, { strict: false }).properties).toEqual({
             user: { type: 'object', properties: { id: { type: 'number' } }, required: ['id'] },
         });
     });
@@ -228,11 +249,13 @@ describe('toJSONSchema — validators describe themselves', () => {
                         type: 'object',
                         properties: { kind: { const: 'circle' }, radius: { type: 'number' } },
                         required: ['kind', 'radius'],
+                        additionalProperties: false,
                     },
                     {
                         type: 'object',
                         properties: { kind: { const: 'square' }, side: { type: 'number' } },
                         required: ['kind', 'side'],
+                        additionalProperties: false,
                     },
                 ],
             },
@@ -296,6 +319,7 @@ describe('toJSONSchema — composition', () => {
             type: 'object',
             properties: { id: { type: 'number' }, name: { type: 'string' } },
             required: ['id', 'name'],
+            additionalProperties: false,
         });
     });
 
@@ -305,6 +329,7 @@ describe('toJSONSchema — composition', () => {
         expect(body(patch)).toEqual({
             type: 'object',
             properties: { id: { type: ['number', 'null'] }, name: { type: ['string', 'null'] } },
+            additionalProperties: false,
         });
     });
 });

@@ -13,6 +13,8 @@
  * iteration and are stable to within a few percent.
  */
 import { Typer } from '../src/Typer';
+import { safeParse } from '../src/core';
+import { compile } from '../src/jit';
 
 type Case = {
     /** Human-readable name shown in the report. */
@@ -107,6 +109,11 @@ const arrayPayload = { values: Array.from({ length: 50 }, (_, i) => i) };
 
 const unionTypes = ['array', 'object', 'string', 'number'] as const;
 
+// Compiled once, outside the timed region: moving the work here is the point.
+const jitFlat = compile(flatSchema);
+const jitNested = compile(nestedSchema);
+const jitArray = compile(arraySchema);
+
 const cases: Case[] = [
     { name: 'is(value, "string")', run: () => { typer.is('hello', 'string'); } },
     { name: 'is(value, "number")', run: () => { typer.is(42, 'number'); } },
@@ -122,8 +129,19 @@ const cases: Case[] = [
     {
         name: 'checkStructure(nested) — legacy',
         iterations: 20_000,
-        run: () => { typer.checkStructure(nestedSchema as Record<string, unknown>, nestedPayload); },
+        run: () => { typer.checkStructure(nestedSchema, nestedPayload); },
     },
+
+    // The two back ends on identical work, so the generated code can be read
+    // against the closure compiler rather than against the class.
+    { name: 'closure: safeParse(flat)', iterations: 100_000, run: () => { safeParse(flatSchema, flatPayload); } },
+    { name: 'jit:     safeParse(flat)', iterations: 100_000, run: () => { jitFlat.safeParse(flatPayload); } },
+    { name: 'closure: safeParse(nested)', iterations: 50_000, run: () => { safeParse(nestedSchema, nestedPayload); } },
+    { name: 'jit:     safeParse(nested)', iterations: 50_000, run: () => { jitNested.safeParse(nestedPayload); } },
+    { name: 'closure: safeParse(nested) — invalid', iterations: 50_000, run: () => { safeParse(nestedSchema, invalidNestedPayload); } },
+    { name: 'jit:     safeParse(nested) — invalid', iterations: 50_000, run: () => { jitNested.safeParse(invalidNestedPayload); } },
+    { name: 'closure: safeParse(array, 50)', iterations: 20_000, run: () => { safeParse(arraySchema, arrayPayload); } },
+    { name: 'jit:     safeParse(array, 50)', iterations: 20_000, run: () => { jitArray.safeParse(arrayPayload); } },
 ];
 
 // --- report -----------------------------------------------------------------

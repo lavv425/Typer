@@ -1,30 +1,50 @@
 {
+  // The whole repository, so every file an editor opens belongs to a project.
+  // Editors only look for a file named `tsconfig.json`: anything this one
+  // leaves out lands in an inferred project with no `paths` and no `@types`,
+  // which is why the tests used to be a wall of red while `tsc` passed.
+  //
+  // It emits nothing. The build runs from `tsconfig.build.json`.
   "compilerOptions": {
     "target": "ES2020",
     "module": "Node16",
     "lib": [
       "ES2020",
+      // `new Error(msg, { cause })` — chained errors. Node 16.9+, and the
+      // package declares Node 20+.
+      "ES2022.Error",
       "DOM"
     ],
     "strict": true,
-    "outDir": "dist",
-    "rootDir": "src",
-    "declarationDir": "dist",
     "moduleResolution": "node16",
     "isolatedModules": true,
-    "declaration": true,
-    "declarationMap": true,
     "esModuleInterop": true,
-    "sourceMap": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "importHelpers": true,
+    "noEmit": true,
+    // TypeScript 6 no longer pulls in every `@types/*` package on its own, so
+    // the test globals have to be named.
+    "types": [
+      "jest",
+      "node"
+    ],
+    // One root alias rather than one per directory: no risk of shadowing a
+    // real package (`@types/*` would), and a new directory needs no config.
+    // No `baseUrl`: it is deprecated in TS 6 and `paths` resolves relative to
+    // this file without it.
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
   },
   "include": [
-    "src/**/*"
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "benchmarks/**/*.ts"
   ],
   "exclude": [
-    "tests/**/*",
     "dist/**/*",
     "node_modules/**/*"
   ]
