@@ -122,7 +122,7 @@ const cases: Case[] = [
     {
         name: 'checkStructure(nested) — legacy',
         iterations: 20_000,
-        run: () => { typer.checkStructure(nestedSchema as Record<string, unknown>, nestedPayload); },
+        run: () => { typer.checkStructure(nestedSchema, nestedPayload); },
     },
 ];
 
