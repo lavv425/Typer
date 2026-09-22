@@ -136,7 +136,8 @@ replacements. Full guide in
 
 ## Contributing
 
-See [CONTRIBUTING.md](.github/CONTRIBUTING.md).
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md). Participation is governed by our
+[Code of Conduct](.github/CODE_OF_CONDUCT.md).
 
 | | |
 | --- | --- |
