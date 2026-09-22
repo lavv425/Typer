@@ -1,7 +1,10 @@
 import type { Infer, KnownAlias, ParseResult, TypeRegistry, ValidateSchema } from "@/Types/Typer";
 import type { Registry } from "@/Core/Registry";
+import type { CompileContext, CompiledChecker } from "@/Core/Compile";
+import type { Backend } from "@/Core/Backend";
 import { BUILTIN_CONTEXT } from "@/Core/Registry";
 import { getCompiledChecker } from "@/Core/Compile";
+import { setBackend } from "@/Core/Backend";
 import { jitChecker } from "@/Core/Jit";
 import { TyperError } from "@/Errors/TyperError";
 import { formatIssues } from "@/Utils/Issues";
@@ -110,6 +113,115 @@ export const compile = <const S extends ValidateSchema<S, KnownAlias<R>>, R exte
  * answer reflects the running policy rather than a guess from the user agent.
  */
 export const canGenerate = (): boolean => jitChecker(BUILTIN_CONTEXT, {}, false) !== null;
+
+/**
+ * How many validations a schema must serve before it is worth generating code
+ * for it.
+ *
+ * Generating costs 4.9 µs more than compiling to closures for a flat schema
+ * and 14.1 µs more for a nested one, against a saving of 57 ns and 145 ns per
+ * validation — so the generation pays for itself after roughly 85 to 100 uses.
+ * Fifty puts the upgrade comfortably before that point without spending
+ * microseconds on schemas that turn out to be lukewarm.
+ */
+const WARMUP_USES = 50;
+
+/** What the warm-up back end remembers about one schema. */
+type Warmth = {
+    /** The context this entry was compiled against; checkers are not portable between them. */
+    ctx: CompileContext;
+    checker: CompiledChecker;
+    uses: number;
+    /** Generated, or generation refused — either way, stop reconsidering. */
+    settled: boolean;
+};
+
+const warmLoose = new WeakMap<object, Warmth>();
+const warmStrict = new WeakMap<object, Warmth>();
+
+/**
+ * A back end that starts on closures and rewrites a schema to generated code
+ * once it has proved itself.
+ *
+ * Keying by schema object identity is what makes this safe against the
+ * throwaway-schema antipattern: a literal written inside a request handler is a
+ * new object every call, so it never reaches the threshold and never pays for
+ * generation. A hoisted schema is one object and warms up.
+ */
+const warmingBackend = (threshold: number): Backend => (ctx: CompileContext, schema: Record<string, unknown>, strictMode: boolean): CompiledChecker => {
+    const store = strictMode ? warmStrict : warmLoose;
+    let entry = store.get(schema);
+
+    // A schema object reused under a different registry resolves its aliases
+    // differently, so the entry starts over rather than serving the wrong one.
+    if (entry === undefined || entry.ctx !== ctx) {
+        entry = { ctx, checker: getCompiledChecker(ctx, schema, strictMode), uses: 0, settled: false };
+        store.set(schema, entry);
+    }
+
+    if (!entry.settled && ++entry.uses >= threshold) {
+        entry.settled = true;
+        const generated = jitChecker(ctx, schema, strictMode);
+        if (generated !== null) entry.checker = generated;
+    }
+
+    return entry.checker;
+};
+
+/** The back end this module installed, so its disposer cannot undo someone else's. */
+let installed: Backend | null = null;
+
+/** Options for {@link installJit}. */
+export type InstallOptions = {
+    /**
+     * Validations a schema must serve before it is generated. Defaults to 50.
+     */
+    threshold?: number;
+    /** Generate on first sight instead of warming up. */
+    eager?: boolean;
+};
+
+/**
+ * Routes every schema in the process through the code generator.
+ *
+ * `parse`, `safeParse`, `parseAsync`, `objectOf`, `discriminatedUnion` and the
+ * `Typer` class all reach a compiled checker through one slot, so this one call
+ * covers them without changing an import anywhere.
+ *
+ * Schemas are not generated immediately. Each starts on the closure compiler
+ * and is rewritten once it has served `threshold` validations, so a schema used
+ * twice never pays the compile cost and one in a request handler upgrades
+ * itself after the first handful of requests. Pass `{ eager: true }` to skip
+ * the wait.
+ *
+ * **Applications may call this; libraries must not.** It decides for the
+ * application that hosts them. A library wanting generated code should use
+ * {@link compile} on its own schemas instead.
+ *
+ * Where `new Function` is refused — a Content-Security-Policy without
+ * `unsafe-eval` — nothing happens beyond one failed attempt per schema, and
+ * the closure compiler keeps serving.
+ *
+ * @param options - Threshold and eagerness.
+ * @returns A disposer that restores the default back end.
+ * @example
+ * // main.ts, once, at startup
+ * import { installJit } from '@illavv/run_typer/jit';
+ * installJit();
+ */
+export const installJit = (options?: InstallOptions): (() => void) => {
+    const threshold = options?.eager === true ? 1 : Math.max(1, options?.threshold ?? WARMUP_USES);
+    const backend = warmingBackend(threshold);
+
+    installed = backend;
+    setBackend(backend);
+
+    return () => {
+        if (installed !== backend) return;
+        installed = null;
+        setBackend(null);
+    };
+};
 
 export { TyperError };
 export type { Infer, ParseResult, Registry };

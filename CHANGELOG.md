@@ -80,7 +80,25 @@ See [MIGRATION.md](./MIGRATION.md#migration-guide-v4x--v50) for the upgrade.
   by it.
 
   `compile` does no caching of its own — hold the result rather than calling it
-  per request. See [guides/jit.md](./guides/jit.md).
+  per request.
+
+  **`installJit()` turns it on everywhere**, for consumers who would rather not
+  change every call site. Every entry point reaches a compiled checker through
+  one slot, so the single call covers `parse`, `safeParse`, `parseAsync`,
+  `objectOf`, `discriminatedUnion` and the `Typer` class.
+
+  It warms up rather than generating at once: a schema starts on the closure
+  compiler and is rewritten after 50 validations, so one used twice never pays
+  the compile cost while one in a request handler upgrades after the first few
+  requests. Warmth is counted per schema *object*, which is what keeps the
+  throwaway-schema antipattern from generating thousands of times.
+  `{ eager: true }` skips the wait; the return value is a disposer.
+
+  Applications may install; libraries must not — it decides for the
+  application that hosts them. Consumers who never import `/jit` pay only a
+  module-level variable read, measured as no change across repeated runs.
+
+  See [guides/jit.md](./guides/jit.md).
 
 - **`@illavv/run_typer/core` — schema validation without the class.**
 

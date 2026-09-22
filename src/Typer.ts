@@ -19,7 +19,8 @@ import * as Basic from "@/Combinators/Basic";
 import * as Collections from "@/Combinators/Collections";
 import * as Objects from "@/Combinators/Objects";
 import { failure, runCatching } from "@/Core/Result";
-import { createContext, getCompiledChecker } from "@/Core/Compile";
+import { createContext } from "@/Core/Compile";
+import { resolveChecker } from "@/Core/Backend";
 import type { CompiledChecker, CompileContext } from "@/Core/Compile";
 import type { Predicate } from "@/Core/Predicates";
 
@@ -1230,7 +1231,7 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * @param strictMode - Whether to reject keys the schema does not declare.
      */
     private getCompiledChecker(schema: Record<string, unknown>, strictMode = true): CompiledChecker {
-        return getCompiledChecker(this.context, schema, strictMode);
+        return resolveChecker(this.context, schema, strictMode);
     }
 
     // -----------------------------------------------------------------------

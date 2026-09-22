@@ -4,7 +4,7 @@ import type { Registry } from "@/Core/Registry";
 import type { SafeReporting } from "@/Constants/Symbols";
 import { STANDARD_VENDOR } from "@/Types/StandardSchema";
 import { BUILTIN_CONTEXT } from "@/Core/Registry";
-import { getCompiledChecker } from "@/Core/Compile";
+import { resolveChecker } from "@/Core/Backend";
 import { getType } from "@/Core/Predicates";
 import { isType } from "@/Core/Checkers";
 import { describedFragment, hasOwnKey } from "@/Core/Describe";
@@ -94,7 +94,7 @@ export const objectOf = <const S extends ValidateSchema<S, KnownAlias<R>>, R ext
     options: ObjectOptions<R> = {},
 ): StandardValidator<Infer<S, R>> => {
     const context = options.registry?.context ?? BUILTIN_CONTEXT;
-    const checker = getCompiledChecker(context, schema, options.strict !== false);
+    const checker = resolveChecker(context, schema, options.strict !== false);
 
     const validator = (value: unknown): Infer<S, R> => {
         const issues = checker(value, '');
@@ -160,7 +160,7 @@ export const discriminatedUnion = <const Key extends string, const V extends Rec
         // and keeps the variant free to declare it itself.
         const declared = variants[tag];
         const schema = hasOwnKey(declared, key) ? declared : { [key]: 'string', ...declared };
-        checkers.set(tag, getCompiledChecker(context, schema, strict));
+        checkers.set(tag, resolveChecker(context, schema, strict));
     }
 
     const tags = Object.keys(variants);

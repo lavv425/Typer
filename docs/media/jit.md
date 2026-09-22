@@ -22,6 +22,55 @@ user.parse(payload);      // throws TyperError, like parse()
 user.safeParse(payload);  // { success, data } | { success, issues }
 ```
 
+## Turning it on everywhere
+
+`compile` is explicit, one schema at a time. If you would rather not change
+every call site, `installJit` routes the whole process through the generator:
+
+```ts
+// main.ts, once, at startup
+import { installJit } from '@illavv/run_typer/jit';
+
+installJit();
+```
+
+From then on `parse`, `safeParse`, `parseAsync`, `objectOf`,
+`discriminatedUnion` and the `Typer` class all get generated checkers. Nothing
+else in your code changes — the two back ends produce identical results.
+
+Schemas are **not** generated immediately. Each one starts on the closure
+compiler and is rewritten once it has served 50 validations, so a schema used
+twice never pays the compile cost while one in a request handler upgrades
+itself after the first few requests. Generating costs 4.9 µs more than
+compiling to closures for a flat schema and 14.1 µs for a nested one, against
+a saving of 57 ns and 145 ns per validation — it pays for itself after roughly
+85 to 100 uses, and the threshold sits comfortably before that.
+
+```ts
+installJit({ threshold: 200 });  // wait longer
+installJit({ eager: true });     // generate on first sight
+```
+
+The warm-up counts per schema *object*, which is what makes it safe against
+the throwaway-schema antipattern: a literal written inside a handler is a new
+object every call, so it never accumulates uses and never pays for generation.
+A hoisted schema warms up. This is the same reason hoisting matters for the
+default back end, described in [Performance](performance.md).
+
+`installJit` returns a disposer:
+
+```ts
+const stop = installJit();
+stop();  // back to the closure compiler
+```
+
+### Applications may install; libraries must not
+
+`installJit` changes the strategy for the whole process. A library that calls
+it decides for the application that hosts it, including for schemas the library
+never sees. If you are writing a library and want generated code, use
+`compile` on your own schemas.
+
 ## When it is worth it
 
 `compile` moves work forward: the schema is analysed and a function is built

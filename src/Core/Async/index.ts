@@ -1,7 +1,8 @@
 import type { Infer, KnownAlias, ParseResult, TypeRegistry, ValidateSchema, ValidationIssue, Validator } from "@/Types/Typer";
 import type { ParseOptions } from "@/Core/Parse";
 import { BUILTIN_CONTEXT } from "@/Core/Registry";
-import { getCompiledChecker, slotIssue } from "@/Core/Compile";
+import { slotIssue } from "@/Core/Compile";
+import { resolveChecker } from "@/Core/Backend";
 import { failure } from "@/Core/Result";
 import { TyperError } from "@/Errors/TyperError";
 import { formatIssues, issueError } from "@/Utils/Issues";
@@ -217,7 +218,7 @@ const run = async <R extends TypeRegistry>(
     options: ParseOptions<R> | undefined,
 ): Promise<ValidationIssue[]> => {
     const context = options?.registry?.context ?? BUILTIN_CONTEXT;
-    const issues = getCompiledChecker(context, syncOnly(schema), options?.strict !== false)(value, '');
+    const issues = resolveChecker(context, syncOnly(schema), options?.strict !== false)(value, '');
 
     const pending: PendingSlot[] = [];
     collect(schema, value, '', pending);

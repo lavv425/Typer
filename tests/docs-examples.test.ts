@@ -3,7 +3,7 @@ import type { Infer, InferWith } from '../src/core';
 import { isEmail, isPort, isString, asString, asNumber, isLength, isInRange } from '../src/validators';
 import { arrayOf, objectOf, optional, literal, record, tuple, transform, lazy, discriminatedUnion, standard } from '../src/combinators';
 import { parseAsync, safeParseAsync, asyncRefine } from '../src/async';
-import { compile, canGenerate } from '../src/jit';
+import { compile, canGenerate, installJit } from '../src/jit';
 import { Typer } from '../src/Typer';
 import type { Validator } from '../src/Types/Typer';
 import { issuesOf, validateSync } from './helpers/standard';
@@ -389,5 +389,20 @@ describe('guides/jit.md', () => {
 
         expect(compile({ id: 'number' }).safeParse({ id: 1, x: 2 }).success).toBe(false);
         expect(compile({ id: 'number' }, { strict: false }).safeParse({ id: 1, x: 2 }).success).toBe(true);
+    });
+});
+
+describe('guides/jit.md — installJit', () => {
+    it('installs, warms up and disposes', () => {
+        const stop = installJit({ eager: true });
+        try {
+            expect(safeParse({ id: 'number' }, { id: 1 }).success).toBe(true);
+            expect(safeParse({ id: 'number' }, { id: 'x' }).success).toBe(false);
+        } finally {
+            stop();
+        }
+
+        const stopSlow = installJit({ threshold: 200 });
+        stopSlow();
     });
 });
