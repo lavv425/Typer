@@ -1,5 +1,5 @@
-import type { TypeKey, TypeMap, TyperReturn } from "../../Types/Typer";
-import { BUILTIN_PREDICATES } from "../Predicates";
+import type { TypeKey, TypeMap, TyperReturn } from "@/Types/Typer";
+import { BUILTIN_PREDICATES } from "@/Core/Predicates";
 
 /**
  * The throwing built-in type checkers, and the `isType` dispatch over them.

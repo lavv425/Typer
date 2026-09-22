@@ -1,7 +1,7 @@
-import * as Patterns from "../../Constants/Patterns";
-import { describing } from "../../Constants/Symbols";
-import { assertString } from "../../Core/Checkers";
-import { issueError } from "../../Utils/Issues";
+import * as Patterns from "@/Constants/Patterns";
+import { describing } from "@/Constants/Symbols";
+import { assertString } from "@/Core/Checkers";
+import { issueError } from "@/Utils/Issues";
 
 /**
  * Format validators: string shapes with a name — email, URL, UUID, IP,

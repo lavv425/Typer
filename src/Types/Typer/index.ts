@@ -1,4 +1,4 @@
-import type { StandardSchemaV1 } from "../StandardSchema";
+import type { StandardSchemaV1 } from "@/Types/StandardSchema";
 
 
 /**

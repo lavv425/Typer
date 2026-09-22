@@ -1,18 +1,18 @@
-import type { DiscriminatedUnion, Infer, KnownAlias, ParseResult, StandardValidator, TypeRegistry, ValidateSchema, ValidationIssue, Validator } from "../../Types/Typer";
-import type { StandardSchemaV1 } from "../../Types/StandardSchema";
-import type { Registry } from "../../Core/Registry";
-import type { SafeReporting } from "../../Constants/Symbols";
-import { STANDARD_VENDOR } from "../../Types/StandardSchema";
-import { BUILTIN_CONTEXT } from "../../Core/Registry";
-import { getCompiledChecker } from "../../Core/Compile";
-import { getType } from "../../Core/Predicates";
-import { isType } from "../../Core/Checkers";
-import { describedFragment, hasOwnKey } from "../../Core/Describe";
-import { describingLazy, SAFE_RESULT } from "../../Constants/Symbols";
-import { failure, runCatching } from "../../Core/Result";
-import { TyperError } from "../../Errors/TyperError";
-import { formatIssues, makeIssue, toStandardIssues } from "../../Utils/Issues";
-import { toJSONSchema } from "../../Utils/JSONSchema";
+import type { DiscriminatedUnion, Infer, KnownAlias, ParseResult, StandardValidator, TypeRegistry, ValidateSchema, ValidationIssue, Validator } from "@/Types/Typer";
+import type { StandardSchemaV1 } from "@/Types/StandardSchema";
+import type { Registry } from "@/Core/Registry";
+import type { SafeReporting } from "@/Constants/Symbols";
+import { STANDARD_VENDOR } from "@/Types/StandardSchema";
+import { BUILTIN_CONTEXT } from "@/Core/Registry";
+import { getCompiledChecker } from "@/Core/Compile";
+import { getType } from "@/Core/Predicates";
+import { isType } from "@/Core/Checkers";
+import { describedFragment, hasOwnKey } from "@/Core/Describe";
+import { describingLazy, SAFE_RESULT } from "@/Constants/Symbols";
+import { failure, runCatching } from "@/Core/Result";
+import { TyperError } from "@/Errors/TyperError";
+import { formatIssues, makeIssue, toStandardIssues } from "@/Utils/Issues";
+import { toJSONSchema } from "@/Utils/JSONSchema";
 
 /**
  * Combinators that need the schema compiler: turning a schema into a

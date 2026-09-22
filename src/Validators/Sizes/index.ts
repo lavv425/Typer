@@ -1,7 +1,7 @@
-import { describing } from "../../Constants/Symbols";
-import { assertArray } from "../../Core/Checkers";
-import { getType } from "../../Core/Predicates";
-import { issueError } from "../../Utils/Issues";
+import { describing } from "@/Constants/Symbols";
+import { assertArray } from "@/Core/Checkers";
+import { getType } from "@/Core/Predicates";
+import { issueError } from "@/Utils/Issues";
 
 /**
  * Size and membership validators: length bounds, emptiness, and the

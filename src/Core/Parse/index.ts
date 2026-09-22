@@ -1,12 +1,12 @@
-import type { Infer, KnownAlias, ParseResult, TypeRegistry, ValidateSchema, ValidationIssue, Validator } from "../../Types/Typer";
-import type { Registry, RegistryOf, TypesOf } from "../Registry";
-import { BUILTIN_CONTEXT, createRegistry } from "../Registry";
-import { getCompiledChecker } from "../Compile";
-import { TyperError } from "../../Errors/TyperError";
-import { formatIssues } from "../../Utils/Issues";
-import { failure, runCatching } from "../Result";
-import type { SafeReporting } from "../../Constants/Symbols";
-import { SAFE_RESULT } from "../../Constants/Symbols";
+import type { Infer, KnownAlias, ParseResult, TypeRegistry, ValidateSchema, ValidationIssue, Validator } from "@/Types/Typer";
+import type { Registry, RegistryOf, TypesOf } from "@/Core/Registry";
+import { BUILTIN_CONTEXT, createRegistry } from "@/Core/Registry";
+import { getCompiledChecker } from "@/Core/Compile";
+import { TyperError } from "@/Errors/TyperError";
+import { formatIssues } from "@/Utils/Issues";
+import { failure, runCatching } from "@/Core/Result";
+import type { SafeReporting } from "@/Constants/Symbols";
+import { SAFE_RESULT } from "@/Constants/Symbols";
 
 /**
  * Schema validation without an instance.

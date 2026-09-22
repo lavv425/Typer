@@ -1,4 +1,4 @@
-import type { ValidationIssue } from "../../Types/Typer";
+import type { ValidationIssue } from "@/Types/Typer";
 
 /**
  * The error every validation failure raises.

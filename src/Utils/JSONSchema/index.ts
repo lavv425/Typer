@@ -1,11 +1,11 @@
-import type { JSONSchemaDocument, JSONSchemaFragment, ToJSONSchemaOptions } from "../../Types/JSONSchema";
-import type { SlotBound } from "../../Types/Typer";
-import { splitBound } from "../../Core/Compile";
-import type { SelfDescribing } from "../../Constants/Symbols";
-import { JSON_SCHEMA } from "../../Constants/Symbols";
-import { TyperError } from "../../Errors/TyperError";
-import { makeIssue } from "../Issues";
-import { indexPath, joinPath } from "../Path";
+import type { JSONSchemaDocument, JSONSchemaFragment, ToJSONSchemaOptions } from "@/Types/JSONSchema";
+import type { SlotBound } from "@/Types/Typer";
+import { splitBound } from "@/Core/Compile";
+import type { SelfDescribing } from "@/Constants/Symbols";
+import { JSON_SCHEMA } from "@/Constants/Symbols";
+import { TyperError } from "@/Errors/TyperError";
+import { makeIssue } from "@/Utils/Issues";
+import { indexPath, joinPath } from "@/Utils/Path";
 
 /**
  * Conversion from a Typer schema to a JSON Schema document.

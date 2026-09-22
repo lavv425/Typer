@@ -1,6 +1,6 @@
-import type { JSONSchemaFragment } from "../../Types/JSONSchema";
-import type { SelfDescribing } from "../../Constants/Symbols";
-import { JSON_SCHEMA } from "../../Constants/Symbols";
+import type { JSONSchemaFragment } from "@/Types/JSONSchema";
+import type { SelfDescribing } from "@/Constants/Symbols";
+import { JSON_SCHEMA } from "@/Constants/Symbols";
 
 /**
  * Helpers shared by the combinators for reading and widening the JSON Schema

@@ -1,7 +1,7 @@
-import type { StandardSchemaV1 } from "../../Types/StandardSchema";
-import type { IssueMeta, IssueCode, ValidationIssue } from "../../Types/Typer";
-import { TyperError } from "../../Errors/TyperError";
-import { splitPath } from "../Path";
+import type { StandardSchemaV1 } from "@/Types/StandardSchema";
+import type { IssueMeta, IssueCode, ValidationIssue } from "@/Types/Typer";
+import { TyperError } from "@/Errors/TyperError";
+import { splitPath } from "@/Utils/Path";
 
 /**
  * Builds a structured validation issue.

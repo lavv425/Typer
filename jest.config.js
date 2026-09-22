@@ -31,6 +31,9 @@ module.exports = {
       lines: 97,
     },
   },
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
   moduleFileExtensions: ['ts', 'js', 'json'],
   testTimeout: 10000,
   verbose: true

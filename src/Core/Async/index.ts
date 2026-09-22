@@ -1,11 +1,11 @@
-import type { Infer, KnownAlias, ParseResult, TypeRegistry, ValidateSchema, ValidationIssue, Validator } from "../../Types/Typer";
-import type { ParseOptions } from "../Parse";
-import { BUILTIN_CONTEXT } from "../Registry";
-import { getCompiledChecker, slotIssue } from "../Compile";
-import { failure } from "../Result";
-import { TyperError } from "../../Errors/TyperError";
-import { formatIssues, issueError } from "../../Utils/Issues";
-import { indexPath, joinPath } from "../../Utils/Path";
+import type { Infer, KnownAlias, ParseResult, TypeRegistry, ValidateSchema, ValidationIssue, Validator } from "@/Types/Typer";
+import type { ParseOptions } from "@/Core/Parse";
+import { BUILTIN_CONTEXT } from "@/Core/Registry";
+import { getCompiledChecker, slotIssue } from "@/Core/Compile";
+import { failure } from "@/Core/Result";
+import { TyperError } from "@/Errors/TyperError";
+import { formatIssues, issueError } from "@/Utils/Issues";
+import { indexPath, joinPath } from "@/Utils/Path";
 
 /**
  * Asynchronous validation, for the checks that have to touch something else —

@@ -1,11 +1,11 @@
-import type { ValidationIssue, Validator } from "../../Types/Typer";
-import type { JSONSchemaFragment } from "../../Types/JSONSchema";
-import { describingLazy } from "../../Constants/Symbols";
-import { describedFragment } from "../../Core/Describe";
-import { getType } from "../../Core/Predicates";
-import { TyperError } from "../../Errors/TyperError";
-import { formatIssues, issueError, makeIssue } from "../../Utils/Issues";
-import { DANGEROUS_KEYS } from "../../Utils/Sanitize";
+import type { ValidationIssue, Validator } from "@/Types/Typer";
+import type { JSONSchemaFragment } from "@/Types/JSONSchema";
+import { describingLazy } from "@/Constants/Symbols";
+import { describedFragment } from "@/Core/Describe";
+import { getType } from "@/Core/Predicates";
+import { TyperError } from "@/Errors/TyperError";
+import { formatIssues, issueError, makeIssue } from "@/Utils/Issues";
+import { DANGEROUS_KEYS } from "@/Utils/Sanitize";
 
 /**
  * Combinators over collections: arrays, dictionaries and tuples.

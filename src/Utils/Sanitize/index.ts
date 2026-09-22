@@ -1,6 +1,6 @@
-import type { ValidationIssue } from "../../Types/Typer";
-import { makeIssue } from "../Issues";
-import { joinPath } from "../Path";
+import type { ValidationIssue } from "@/Types/Typer";
+import { makeIssue } from "@/Utils/Issues";
+import { joinPath } from "@/Utils/Path";
 
 /**
  * Own keys that are never safe to carry through validation unnoticed.

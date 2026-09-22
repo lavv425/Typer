@@ -53,7 +53,7 @@
         "test:types": "tsc -p tsconfig.typetest.json",
         "bench": "tsc -p tsconfig.bench.json && node .bench/benchmarks/bench.js",
         "size": "node scripts/check-bundle-size.mjs",
-        "build": "rollup -c",
+        "build": "rollup -c && node scripts/resolve-dts-aliases.mjs",
         "docs": "npx typedoc",
         "build:docs": "rollup -c && npx typedoc",
         "prepublishOnly": "npm run lint && npm test && npm run test:dist && npm run size"
@@ -78,6 +78,7 @@
     "homepage": "https://github.com/lavv425/Typer",
     "devDependencies": {
         "@eslint/js": "^10.0.1",
+        "@rollup/plugin-alias": "^6.0.0",
         "@rollup/plugin-commonjs": "^29.0.3",
         "@rollup/plugin-node-resolve": "^16.0.3",
         "@rollup/plugin-terser": "^1.0.0",

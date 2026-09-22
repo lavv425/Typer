@@ -1,7 +1,13 @@
+import alias from '@rollup/plugin-alias';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import typescript from '@rollup/plugin-typescript';
 import terser from '@rollup/plugin-terser';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve as resolvePath } from 'node:path';
+
+const src = resolvePath(dirname(fileURLToPath(import.meta.url)), 'src');
+const aliases = () => alias({ entries: [{ find: /^@\/(.*)$/, replacement: `${src}/$1` }] });
 
 /**
  * Two entry points, deliberately built separately rather than as a shared
@@ -29,6 +35,8 @@ const compile = (declaration) => typescript({
     rootDir: 'src',
 });
 
+const pluginList = (shouldCompile) => [aliases(), resolve(), commonjs(), compile(shouldCompile)];
+
 export default [
     {
         input: 'src/Typer.ts',
@@ -55,7 +63,7 @@ export default [
                 plugins: [terser()]
             }
         ],
-        plugins: [resolve(), commonjs(), compile(true)],
+        plugins: pluginList(true),
         external: []
     },
     {
@@ -74,7 +82,7 @@ export default [
                 plugins: [terser()]
             }
         ],
-        plugins: [resolve(), commonjs(), compile(false)],
+        plugins: pluginList(false),
         external: []
     },
     {
@@ -93,7 +101,7 @@ export default [
                 plugins: [terser()]
             }
         ],
-        plugins: [resolve(), commonjs(), compile(false)],
+        plugins: pluginList(false),
         external: []
     },
     {
@@ -112,7 +120,7 @@ export default [
                 plugins: [terser()]
             }
         ],
-        plugins: [resolve(), commonjs(), compile(false)],
+        plugins: pluginList(false),
         external: []
     },
     {
@@ -133,7 +141,7 @@ export default [
         ],
         // Declarations are emitted by the first build, which already covers
         // every module this one reaches.
-        plugins: [resolve(), commonjs(), compile(false)],
+        plugins: pluginList(false),
         external: []
     }
 ];

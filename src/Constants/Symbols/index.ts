@@ -1,5 +1,5 @@
-import type { JSONSchemaFragment } from "../../Types/JSONSchema";
-import type { ParseResult } from "../../Types/Typer";
+import type { JSONSchemaFragment } from "@/Types/JSONSchema";
+import type { ParseResult } from "@/Types/Typer";
 
 /**
  * Internal markers Typer attaches to the validators it builds.

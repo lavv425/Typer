@@ -1,27 +1,27 @@
 "use strict";
 
-import type { Error } from "./Types/Globals";
-import type { BoundValidators, Coercions, DiscriminatedUnion, Infer, KnownAlias, MergeSchema, OmitSchema, ParseResult, PartialSchema, PickSchema, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, ValidateSchema, Validator } from "./Types/Typer";
-import { TyperError } from "./Errors/TyperError";
-import { formatIssues, issueError, issueMessages, makeIssue } from "./Utils/Issues";
-import { describing, SAFE_RESULT } from "./Constants/Symbols";
-import type { SafeReporting } from "./Constants/Symbols";
-import type { JSONSchemaDocument, ToJSONSchemaOptions } from "./Types/JSONSchema";
-import { toJSONSchema } from "./Utils/JSONSchema";
-import { BUILTIN_PREDICATES, getType } from "./Core/Predicates";
-import { BUILTIN_CHECKERS } from "./Core/Checkers";
-import { describedFragment } from "./Core/Describe";
-import * as Strings from "./Validators/Strings";
-import * as Numbers from "./Validators/Numbers";
-import * as Sizes from "./Validators/Sizes";
-import * as Guards from "./Validators/Guards";
-import * as Basic from "./Combinators/Basic";
-import * as Collections from "./Combinators/Collections";
-import * as Objects from "./Combinators/Objects";
-import { failure, runCatching } from "./Core/Result";
-import { createContext, getCompiledChecker } from "./Core/Compile";
-import type { CompiledChecker, CompileContext } from "./Core/Compile";
-import type { Predicate } from "./Core/Predicates";
+import type { Error } from "@/Types/Globals";
+import type { BoundValidators, Coercions, DiscriminatedUnion, Infer, KnownAlias, MergeSchema, OmitSchema, ParseResult, PartialSchema, PickSchema, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, ValidateSchema, Validator } from "@/Types/Typer";
+import { TyperError } from "@/Errors/TyperError";
+import { formatIssues, issueError, issueMessages, makeIssue } from "@/Utils/Issues";
+import { describing, SAFE_RESULT } from "@/Constants/Symbols";
+import type { SafeReporting } from "@/Constants/Symbols";
+import type { JSONSchemaDocument, ToJSONSchemaOptions } from "@/Types/JSONSchema";
+import { toJSONSchema } from "@/Utils/JSONSchema";
+import { BUILTIN_PREDICATES, getType } from "@/Core/Predicates";
+import { BUILTIN_CHECKERS } from "@/Core/Checkers";
+import { describedFragment } from "@/Core/Describe";
+import * as Strings from "@/Validators/Strings";
+import * as Numbers from "@/Validators/Numbers";
+import * as Sizes from "@/Validators/Sizes";
+import * as Guards from "@/Validators/Guards";
+import * as Basic from "@/Combinators/Basic";
+import * as Collections from "@/Combinators/Collections";
+import * as Objects from "@/Combinators/Objects";
+import { failure, runCatching } from "@/Core/Result";
+import { createContext, getCompiledChecker } from "@/Core/Compile";
+import type { CompiledChecker, CompileContext } from "@/Core/Compile";
+import type { Predicate } from "@/Core/Predicates";
 
 /**
  * Own-property test that does not go through the object being tested, so a
@@ -1345,9 +1345,9 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
 //  was reachable, which made the documented `import { type Infer }` fail.
 // ---------------------------------------------------------------------------
 
-export { TyperError } from "./Errors/TyperError";
-export { STANDARD_VENDOR } from "./Types/StandardSchema";
+export { TyperError } from "@/Errors/TyperError";
+export { STANDARD_VENDOR } from "@/Types/StandardSchema";
 
-export type { StandardSchemaV1 } from "./Types/StandardSchema";
-export type { JSONSchemaDocument, JSONSchemaFragment, ToJSONSchemaOptions, UnrepresentablePolicy } from "./Types/JSONSchema";
-export type { BoundValidators, Coercions, DiscriminatedUnion, Infer, IssueMeta, IssueCode, KnownAlias, MergeSchema, OmitSchema, OptionalSlot, ParseResult, PartialSchema, PickSchema, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from "./Types/Typer";
+export type { StandardSchemaV1 } from "@/Types/StandardSchema";
+export type { JSONSchemaDocument, JSONSchemaFragment, ToJSONSchemaOptions, UnrepresentablePolicy } from "@/Types/JSONSchema";
+export type { BoundValidators, Coercions, DiscriminatedUnion, Infer, IssueMeta, IssueCode, KnownAlias, MergeSchema, OmitSchema, OptionalSlot, ParseResult, PartialSchema, PickSchema, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from "@/Types/Typer";

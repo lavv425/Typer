@@ -22,6 +22,11 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "importHelpers": true,
+    // One root alias rather than one per directory: no risk of shadowing a
+    // real package (`@types/*` would), and a new directory needs no config.
+    "paths": {
+      "@/*": ["./src/*"]
+    },
   },
   "include": [
     "src/**/*"

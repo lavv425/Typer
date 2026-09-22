@@ -134,9 +134,19 @@ replacements. Full guide in
 
 ## Contributing
 
-See [CONTRIBUTING.md](.github/CONTRIBUTING.md). `npm test` runs the unit suite
-and the type-level suite; `npm run size` checks the bundle budgets, which CI
-enforces on every push.
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md).
+
+| | |
+| --- | --- |
+| `npm test` | unit suite + type-level suite |
+| `npm run lint` | ESLint, type-aware |
+| `npm run size` | bundle budgets, enforced by CI |
+| `npm run test:dist` | builds, then checks the published bundles against each other |
+
+Source imports use the `@/` alias for the `src` root — `@/Core/Compile`, not
+`../../Core/Compile`. The build rewrites those back to relative paths in the
+emitted declarations, because a published `.d.ts` carrying `@/…` is not
+resolvable by a consumer; `npm run build` fails if any survive.
 
 ## License
 

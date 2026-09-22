@@ -1,9 +1,9 @@
-import type { FieldChecker, SlotBound, TypeSlot, ValidationIssue, Validator, ValueChecker } from "../../Types/Typer";
-import type { Predicate } from "../Predicates";
-import { getType } from "../Predicates";
-import { constraintOf, makeIssue } from "../../Utils/Issues";
-import { indexPath, joinPath } from "../../Utils/Path";
-import { DANGEROUS_KEYS, stripDangerousKeys } from "../../Utils/Sanitize";
+import type { FieldChecker, SlotBound, TypeSlot, ValidationIssue, Validator, ValueChecker } from "@/Types/Typer";
+import type { Predicate } from "@/Core/Predicates";
+import { getType } from "@/Core/Predicates";
+import { constraintOf, makeIssue } from "@/Utils/Issues";
+import { indexPath, joinPath } from "@/Utils/Path";
+import { DANGEROUS_KEYS, stripDangerousKeys } from "@/Utils/Sanitize";
 
 /**
  * The schema compiler, as free functions.

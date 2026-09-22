@@ -1,7 +1,7 @@
-import type { TypeRegistry, Validator } from "../../Types/Typer";
-import type { CompileContext, Resolver } from "../Compile";
-import { createContext } from "../Compile";
-import { BUILTIN_PREDICATES } from "../Predicates";
+import type { TypeRegistry, Validator } from "@/Types/Typer";
+import type { CompileContext, Resolver } from "@/Core/Compile";
+import { createContext } from "@/Core/Compile";
+import { BUILTIN_PREDICATES } from "@/Core/Predicates";
 
 /**
  * Custom type aliases, as a value you hold rather than hidden instance state.

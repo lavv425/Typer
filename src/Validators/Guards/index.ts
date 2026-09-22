@@ -1,5 +1,5 @@
-import { describing } from "../../Constants/Symbols";
-import { assertArray, assertBoolean, assertNumber, assertObject, assertString } from "../../Core/Checkers";
+import { describing } from "@/Constants/Symbols";
+import { assertArray, assertBoolean, assertNumber, assertObject, assertString } from "@/Core/Checkers";
 
 /**
  * Type guards and the `as*` asserting coercers.

@@ -1,9 +1,9 @@
-import type { Validator } from "../../Types/Typer";
-import type { JSONSchemaFragment } from "../../Types/JSONSchema";
-import { describing, describingLazy } from "../../Constants/Symbols";
-import { describedFragment, nullableFragment } from "../../Core/Describe";
-import { OPTIONAL_MARKER } from "../../Utils/JSONSchema";
-import * as Guards from "../../Validators/Guards";
+import type { Validator } from "@/Types/Typer";
+import type { JSONSchemaFragment } from "@/Types/JSONSchema";
+import { describing, describingLazy } from "@/Constants/Symbols";
+import { describedFragment, nullableFragment } from "@/Core/Describe";
+import { OPTIONAL_MARKER } from "@/Utils/JSONSchema";
+import * as Guards from "@/Validators/Guards";
 
 /**
  * Combinators that wrap or constrain a validator without needing the schema

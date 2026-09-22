@@ -1,6 +1,6 @@
-import { describing } from "../../Constants/Symbols";
-import { assertNumber } from "../../Core/Checkers";
-import { issueError } from "../../Utils/Issues";
+import { describing } from "@/Constants/Symbols";
+import { assertNumber } from "@/Core/Checkers";
+import { issueError } from "@/Utils/Issues";
 
 /**
  * Numeric validators: integers, sign, finiteness, safe range, ports and

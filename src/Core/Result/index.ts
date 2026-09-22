@@ -1,6 +1,6 @@
-import type { ParseResult, ValidationIssue, Validator } from "../../Types/Typer";
-import { TyperError } from "../../Errors/TyperError";
-import { formatIssues, makeIssue } from "../../Utils/Issues";
+import type { ParseResult, ValidationIssue, Validator } from "@/Types/Typer";
+import { TyperError } from "@/Errors/TyperError";
+import { formatIssues, makeIssue } from "@/Utils/Issues";
 
 /**
  * Building blocks for the non-throwing half of the API, shared by the free
