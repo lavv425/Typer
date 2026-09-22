@@ -5,10 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] — 5.0
 
-Work towards 5.0 — see [ROADMAP-5.0.md](./ROADMAP-5.0.md). Everything here is
-**additive**; nothing existing changes behaviour.
+The whole of [ROADMAP-5.0.md](./ROADMAP-5.0.md). Two breaking changes, and a
+library you can now import in pieces.
+
+See [MIGRATION.md](./MIGRATION.md#migration-guide-v4x--v50) for the upgrade.
+
+### 💥 Breaking
+
+- **Undeclared keys are rejected.** `parse`, `safeParse`, `objectOf`,
+  `standard`, `discriminatedUnion` and `checkStructure` now reject a key the
+  schema does not declare. Pass `{ strict: false }` — or `false` as
+  `checkStructure`'s fourth argument — to restore 4.x behaviour.
+
+  This is the audit's P0-2 option (a), deferred from 4.1 because it breaks. 4.1
+  shipped option (b) and stripped `__proto__`, `constructor` and `prototype`;
+  this closes the rest, so `success: true` now means the object has the keys
+  the schema declares and no others. Dangerous keys are still *stripped* rather
+  than reported, so a payload carrying only those stays valid.
+
+- **`expect`, `validate` and `assert` are removed**, with the
+  `TyperExpectTypes` type. They predated `parse`/`safeParse` and duplicated
+  them with weaker typing: `validate` returned untyped strings, `assert` only
+  logged a warning, and `expect` type-checked function arguments at runtime
+  with no compile-time counterpart. `checkStructure` stays — it is the
+  documented escape hatch for schemas built at runtime.
 
 ### ✨ Added
 
@@ -47,6 +69,31 @@ Work towards 5.0 — see [ROADMAP-5.0.md](./ROADMAP-5.0.md). Everything here is
   43 of them moved; `isArrayOf` stays on the class because it resolves its
   element type through the instance registry. Every one is asserted against the
   class method it came from — same result, same message, byte for byte.
+
+- **`@illavv/run_typer/combinators` and `/async`.** The combinators are
+  importable one at a time — `optional` + `arrayOf` alone is **0.88 KB**, which
+  is the proof the schema compiler drops out when nothing needs it. Async
+  validation lives at `/async` rather than in `core`, because putting it in
+  `core` took that bundle from 3.35 to 3.94 KB, and a feature every consumer
+  pays for is the problem this release exists to fix.
+
+- **Declarative bounds in type strings**: `'string(3,50)'`, `'number(1,)'`,
+  `'array(,10)'` — length for a string or array, value for a number. The other
+  half of the audit's P1-1, now that 4.1 has given constraint failures their
+  own codes: a bound reports `too_small`/`too_big` with `minimum`/`maximum`,
+  not a flat `custom`.
+
+  The bound belongs to the alternative it is written on, so `'string(3,)|number'`
+  constrains only the string branch. A malformed bound is reported rather than
+  ignored. `toJSONSchema` emits them as `minLength`/`maxLength`,
+  `minItems`/`maxItems` or `minimum`/`maximum`, the keyword following what is
+  being measured.
+
+- **`parseAsync`, `safeParseAsync` and `asyncRefine`.** Async is declared, not
+  sniffed — an ordinary function returning a promise is indistinguishable from
+  an `async` one. The awaited checks start together rather than in turn, and
+  the synchronous path refuses an async schema by naming the offending key
+  instead of validating the rest and reporting success.
 
 - **`createRegistry(aliases)` and `createTyper(aliases)`** for custom type
   aliases without an instance. A registry is an ordinary value carrying its own
