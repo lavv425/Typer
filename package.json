@@ -1,6 +1,6 @@
 {
     "name": "@illavv/run_typer",
-    "version": "4.1.1",
+    "version": "5.0.0",
     "description": "A robust TypeScript class for type checking and validation",
     "main": "dist/Typer.cjs.min.js",
     "module": "dist/Typer.esm.mjs",
@@ -81,7 +81,7 @@
         "@types/jest": "^30.0.0",
         "@types/mocha": "^10.0.10",
         "jest": "^30.5.1",
-        "rollup": "^4.63.3",
+        "rollup": "^4.63.4",
         "ts-jest": "^29.4.12",
         "typedoc": "0.28.20",
         "typescript": "^6.0.3"
