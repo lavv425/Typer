@@ -92,6 +92,7 @@ works, and is still the easiest way in if you would rather not think about it.
 | `@illavv/run_typer/validators` | `isEmail`, `isPort`, `isUUID`, … (44 of them) | 3.93 KB |
 | `@illavv/run_typer/combinators` | `arrayOf`, `objectOf`, `optional`, … | 6.24 KB |
 | `@illavv/run_typer/async` | `parseAsync`, `asyncRefine` | 3.65 KB |
+| `@illavv/run_typer/jit` | `compile` — generated validators, ~4× faster | 4.76 KB |
 | `@illavv/run_typer` | the `Typer` class — everything, on one object | 10.46 KB |
 
 Those are whole-entry-point figures; what you ship is what you import.
@@ -119,6 +120,7 @@ parse({ contacts: arrayOf(objectOf({ email: isEmail })) }, payload);
 | [JSON Schema](guides/json-schema.md) | OpenAPI and Swagger output |
 | [Async validation](guides/async.md) | Checks that have to touch a database |
 | [The Typer class](guides/class.md) | The instance API, and when you still want it |
+| [Generated validators](guides/jit.md) | `compile`, for when 4x matters more than `unsafe-eval` |
 | [Performance](guides/performance.md) | Where Typer wins, where it does not, and why |
 
 The generated API reference lives in `docs/` after `npm run docs`, and covers all five entry points.

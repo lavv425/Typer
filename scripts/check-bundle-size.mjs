@@ -59,6 +59,11 @@ const BUDGETS = [
 
     // Async validation, kept out of `core` so a synchronous consumer never
     // pays for the awaited walker.
+    // Generated code is text: the generator is mostly string building, and it
+    // carries the closure compiler with it for the fields it delegates and for
+    // the fallback when `new Function` is refused.
+    { file: 'dist/jit.esm.mjs', budgetGzip: 5_120 },
+    { file: 'dist/jit.cjs.min.js', budgetGzip: 5_120 },
     { file: 'dist/async.esm.mjs', budgetGzip: 4_096 },
     { file: 'dist/async.cjs.min.js', budgetGzip: 4_096 },
 ];

@@ -4,6 +4,7 @@
         "src/validators.ts",
         "src/combinators.ts",
         "src/async.ts",
+        "src/jit.ts",
         "src/Typer.ts"
     ],
     "out": "docs",

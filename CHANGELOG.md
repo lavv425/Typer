@@ -41,6 +41,47 @@ See [MIGRATION.md](./MIGRATION.md#migration-guide-v4x--v50) for the upgrade.
 
 ### ✨ Added
 
+- **`@illavv/run_typer/jit` — generated validators, ~4× faster.**
+
+  ```typescript
+  import { compile } from '@illavv/run_typer/jit';
+
+  const user = compile({ id: 'number', email: 'string', note: 'string?' });
+  user.safeParse(payload);
+  ```
+
+  The default back end compiles a schema into closures, which costs one
+  indirect call per field, one `obj[key]` read through a captured variable and
+  one path concatenation per nesting level. None of that can be removed while
+  the shape is only known as data. `compile` generates source instead: fields
+  become `obj.id` reads the engine inline-caches, predicates are called
+  directly, and statically known paths fold into one literal.
+
+  Measured on the fixtures in `benchmarks/`, median of seven batches:
+
+  | | closures | generated | |
+  | --- | ---: | ---: | ---: |
+  | flat, 3 keys | 13.0M ops/sec | 57.4M ops/sec | 4.4× |
+  | nested, 6 keys + 3 nested | 4.9M ops/sec | 19.9M ops/sec | 4.1× |
+  | array of 50 numbers | 3.1M ops/sec | 15.0M ops/sec | 4.8× |
+  | nested, failing | 1.7M ops/sec | 3.1M ops/sec | 1.8× |
+
+  It is a **separate import, not a new default**, because it calls
+  `new Function`, which a Content-Security-Policy without `unsafe-eval`
+  forbids — a deployment decision, not one a validation library should make for
+  you. Where it is refused, `compile` falls back to the closure compiler and
+  reports it as `generated: false`; results are identical either way.
+
+  The generator specialises type-string slots, nested objects and arrays of
+  type strings, and **delegates every other field** to the closure the ordinary
+  compiler already built, so a form it has not heard of cannot be miscompiled.
+  A parity suite runs the same corpus through both back ends and requires every
+  issue to match; five deliberate mutations of the generator were each caught
+  by it.
+
+  `compile` does no caching of its own — hold the result rather than calling it
+  per request. See [guides/jit.md](./guides/jit.md).
+
 - **`@illavv/run_typer/core` — schema validation without the class.**
 
   ```typescript

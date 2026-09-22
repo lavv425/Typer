@@ -80,6 +80,11 @@ works, and is still the easiest way in if you would rather not think about it.</
 <td style="text-align:right">3.65 KB</td>
 </tr>
 <tr>
+<td><code>@illavv/run_typer/jit</code></td>
+<td><code>compile</code> — generated validators, ~4× faster</td>
+<td style="text-align:right">4.76 KB</td>
+</tr>
+<tr>
 <td><code>@illavv/run_typer</code></td>
 <td>the <code>Typer</code> class — everything, on one object</td>
 <td style="text-align:right">10.46 KB</td>
@@ -135,6 +140,10 @@ For reference, <code>zod/mini</code> is 4.8 KB.</p>
 <td>The instance API, and when you still want it</td>
 </tr>
 <tr>
+<td><a href="media/jit.md">Generated validators</a></td>
+<td><code>compile</code>, for when 4x matters more than <code>unsafe-eval</code></td>
+</tr>
+<tr>
 <td><a href="media/performance.md">Performance</a></td>
 <td>Where Typer wins, where it does not, and why</td>
 </tr>
@@ -149,9 +158,37 @@ Everything else is additive — the free entry points are new ways in, not
 replacements. Full guide in
 <a href="media/MIGRATION.md#migration-guide-v4x--v50">MIGRATION.md</a>.</p>
 <h2 id="contributing" class="tsd-anchor-link">Contributing<a href="#contributing" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<p>See <a href="media/CONTRIBUTING.md">CONTRIBUTING.md</a>. <code>npm test</code> runs the unit suite
-and the type-level suite; <code>npm run size</code> checks the bundle budgets, which CI
-enforces on every push.</p>
+<p>See <a href="media/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>npm test</code></td>
+<td>unit suite + type-level suite</td>
+</tr>
+<tr>
+<td><code>npm run lint</code></td>
+<td>ESLint, type-aware</td>
+</tr>
+<tr>
+<td><code>npm run size</code></td>
+<td>bundle budgets, enforced by CI</td>
+</tr>
+<tr>
+<td><code>npm run test:dist</code></td>
+<td>builds, then checks the published bundles against each other</td>
+</tr>
+</tbody>
+</table>
+<p>Source imports use the <code>@/</code> alias for the <code>src</code> root — <code>@/Core/Compile</code>, not
+<code>../../Core/Compile</code>. The build rewrites those back to relative paths in the
+emitted declarations, because a published <code>.d.ts</code> carrying <code>@/…</code> is not
+resolvable by a consumer; <code>npm run build</code> fails if any survive.</p>
 <h2 id="license" class="tsd-anchor-link">License<a href="#license" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <p>MIT © <a href="https://michaellavigna.com">Michael Lavigna</a></p>
 </div></div>

@@ -54,6 +54,16 @@ describe('published package manifest', () => {
             });
         });
 
+        it('exposes the code generator as a subpath', () => {
+            // Separate from `core` because generated code needs `unsafe-eval`,
+            // which is a consumer's decision rather than the library's.
+            expect(manifest.exports['./jit']).toEqual({
+                types: './dist/jit.d.ts',
+                import: './dist/jit.esm.mjs',
+                require: './dist/jit.cjs.min.js',
+            });
+        });
+
         it('exposes the combinators as a subpath', () => {
             expect(manifest.exports['./combinators']).toEqual({
                 types: './dist/combinators.d.ts',

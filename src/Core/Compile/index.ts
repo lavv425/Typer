@@ -136,7 +136,7 @@ export const splitBound = (type: string): { name: string; bound: SlotBound | nul
  * @param bound - The declared bound.
  * @param path - Dotted path, for the issue.
  */
-const boundIssue = (value: unknown, bound: SlotBound, path: string): ValidationIssue | null => {
+export const boundIssue = (value: unknown, bound: SlotBound, path: string): ValidationIssue | null => {
     const sized = typeof value === 'string' || Array.isArray(value);
     const measure = sized ? (value as string | unknown[]).length : (typeof value === 'number' ? value : null);
     if (measure === null) return null;
@@ -475,7 +475,7 @@ const compileValue = (ctx: CompileContext, expected: unknown, strictMode: boolea
  * Compiles a single key+value pair from a schema into a closure that
  * checks the field in its parent object and pushes any errors found.
  */
-const compileField = (ctx: CompileContext, key: string, expected: unknown, strictMode: boolean): FieldChecker => {
+export const compileField = (ctx: CompileContext, key: string, expected: unknown, strictMode: boolean): FieldChecker => {
     // Validator function entry — defers all decisions (incl. optional) to the validator itself.
     if (typeof expected === "function") {
         const validator = expected as Validator<unknown>;

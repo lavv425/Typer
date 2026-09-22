@@ -67,6 +67,22 @@ alternative is resolved at compile time, so validating is a flat loop over
 predicates. Error paths are only built when something actually fails, and a
 failed `safeParse` never constructs an `Error` unless you read `.error`.
 
+## When closures are not enough
+
+Everything above describes the default back end, which compiles a schema to
+closures. `@illavv/run_typer/jit` compiles it to generated source instead and
+runs roughly 4x faster, at the cost of needing `unsafe-eval`.
+
+```ts
+import { compile } from '@illavv/run_typer/jit';
+
+const user = compile(userSchema);
+user.safeParse(payload);
+```
+
+See [Generated validators](jit.md) for the measurements, what it does and does
+not specialise, and how it behaves under a Content-Security-Policy.
+
 ## Run it yourself
 
 ```bash

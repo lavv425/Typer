@@ -3,6 +3,7 @@ import type { Infer, InferWith } from '../src/core';
 import { isEmail, isPort, isString, asString, asNumber, isLength, isInRange } from '../src/validators';
 import { arrayOf, objectOf, optional, literal, record, tuple, transform, lazy, discriminatedUnion, standard } from '../src/combinators';
 import { parseAsync, safeParseAsync, asyncRefine } from '../src/async';
+import { compile, canGenerate } from '../src/jit';
 import { Typer } from '../src/Typer';
 import type { Validator } from '../src/Types/Typer';
 import { issuesOf, validateSync } from './helpers/standard';
@@ -354,5 +355,39 @@ describe('guides/class', () => {
         expect((typer as unknown as Record<string, unknown>).expect).toBeUndefined();
         expect((typer as unknown as Record<string, unknown>).validate).toBeUndefined();
         expect((typer as unknown as Record<string, unknown>).assert).toBeUndefined();
+    });
+});
+
+describe('guides/jit.md', () => {
+    const userSchema = { id: 'number', email: 'string', note: 'string?' } as const;
+
+    it('compile parses and safeParses like the free API', () => {
+        const user = compile(userSchema);
+
+        expect(user.parse({ id: 1, email: 'a@b.co' })).toBeDefined();
+        expect(user.safeParse({ id: 1, email: 'a@b.co' }).success).toBe(true);
+        expect(user.safeParse({ id: 'x', email: 'a@b.co' }).success).toBe(false);
+    });
+
+    it('reports whether it is generating', () => {
+        const user = compile(userSchema);
+        expect(user.generated).toBe(true);
+        expect(canGenerate()).toBe(true);
+    });
+
+    it('takes the same registry and strictness options', () => {
+        const registry = createRegistry({
+            positive: (v: unknown): number => {
+                if (typeof v !== 'number' || v <= 0) throw new TypeError('Must be positive');
+                return v;
+            },
+        });
+
+        const order = compile({ qty: 'positive' }, { registry });
+        expect(order.safeParse({ qty: 2 }).success).toBe(true);
+        expect(order.safeParse({ qty: -1 }).success).toBe(false);
+
+        expect(compile({ id: 'number' }).safeParse({ id: 1, x: 2 }).success).toBe(false);
+        expect(compile({ id: 'number' }, { strict: false }).safeParse({ id: 1, x: 2 }).success).toBe(true);
     });
 });

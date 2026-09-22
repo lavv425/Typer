@@ -72,6 +72,25 @@ export default [
         external: []
     },
     {
+        input: 'src/jit.ts',
+        output: [
+            {
+                file: 'dist/jit.esm.mjs',
+                format: 'es',
+                sourcemap: true,
+                plugins: [terser()]
+            },
+            {
+                file: 'dist/jit.cjs.min.js',
+                format: 'cjs',
+                sourcemap: true,
+                plugins: [terser()]
+            }
+        ],
+        plugins: pluginList(false),
+        external: []
+    },
+    {
         input: 'src/async.ts',
         output: [
             {

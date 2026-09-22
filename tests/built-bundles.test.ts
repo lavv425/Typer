@@ -12,7 +12,7 @@ import { join } from 'node:path';
  * `{}` in any real consumer. The source tests all passed.
  */
 const dist = (file: string) => join(__dirname, '..', 'dist', file);
-const built = ['core.cjs.min.js', 'validators.cjs.min.js', 'combinators.cjs.min.js', 'async.cjs.min.js', 'Typer.cjs.min.js']
+const built = ['core.cjs.min.js', 'validators.cjs.min.js', 'combinators.cjs.min.js', 'async.cjs.min.js', 'jit.cjs.min.js', 'Typer.cjs.min.js']
     .every((f) => existsSync(dist(f)));
 
  
@@ -51,6 +51,30 @@ const load = (file: string) => require(dist(file)) as Record<string, never>;
         await expect(parseAsync({ a: slot }, { a: 'x' })).resolves.toEqual({ a: 'x' });
         // And the synchronous path still refuses it, across bundles.
         expect(() => parse({ a: slot }, { a: 'x' })).toThrow('requires parseAsync');
+    });
+
+    it('the generated checker agrees with the closure compiler across bundles', () => {
+        const { compile } = load('jit.cjs.min.js') as unknown as {
+            compile: (s: unknown) => { safeParse: (v: unknown) => { success: boolean; issues?: unknown[] }; generated: boolean };
+        };
+        const { safeParse } = load('core.cjs.min.js') as unknown as {
+            safeParse: (s: unknown, v: unknown) => { success: boolean; issues?: unknown[] };
+        };
+
+        // Minification renames everything the generator reads from; that the
+        // emitted source still resolves its helpers is only true after a build.
+        const schema = { id: 'number', addr: { city: 'string' }, tags: ['string'] };
+        const generated = compile(schema);
+        expect(generated.generated).toBe(true);
+
+        for (const value of [
+            { id: 1, addr: { city: 'Rome' }, tags: ['a'] },
+            { id: 'x', addr: { city: 2 }, tags: [3], extra: true },
+            { id: 1 },
+        ]) {
+            expect(generated.safeParse(structuredClone(value)))
+                .toEqual(safeParse(schema, structuredClone(value)));
+        }
     });
 
     it('uses the global symbol registry, which is what makes that work', () => {
