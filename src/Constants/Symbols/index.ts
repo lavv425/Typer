@@ -2,6 +2,20 @@ import type { JSONSchemaFragment } from "../../Types/JSONSchema";
 import type { ParseResult } from "../../Types/Typer";
 
 /**
+ * These use `Symbol.for`, not `Symbol()`, and that is load-bearing.
+ *
+ * Each published entry point is its own self-contained bundle, so each one
+ * carries its own copy of this module. With `Symbol()` every copy would mint a
+ * *different* symbol, and a marker attached by `@illavv/run_typer/validators`
+ * would be invisible to `@illavv/run_typer/core` — which is precisely the
+ * mixed-import usage the documentation recommends. The global registry makes
+ * the key the same whoever created it.
+ *
+ * The `typer.` prefix is what keeps the registry keys from colliding with
+ * another library's.
+ */
+
+/**
  * Internal marker: a validator that can report failures **without throwing**
  * carries its non-throwing counterpart here.
  *
@@ -17,7 +31,7 @@ import type { ParseResult } from "../../Types/Typer";
  *
  * @internal Not part of the public API.
  */
-export const SAFE_RESULT = Symbol('typer.safeResult');
+export const SAFE_RESULT = Symbol.for('typer.safeResult');
 
 /**
  * A validator that carries a non-throwing counterpart under {@link SAFE_RESULT}.
@@ -37,7 +51,7 @@ export type SafeReporting<T> = { [SAFE_RESULT]?: (value: unknown) => ParseResult
  *
  * @internal Not part of the public API.
  */
-export const JSON_SCHEMA = Symbol('typer.jsonSchema');
+export const JSON_SCHEMA = Symbol.for('typer.jsonSchema');
 
 /**
  * A validator that carries its JSON Schema fragment under {@link JSON_SCHEMA}.

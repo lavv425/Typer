@@ -26,8 +26,14 @@ import { indexPath, joinPath } from "../../Utils/Path";
  * that quietly does not run is worse than one that fails.
  */
 
-/** Marks a validator as asynchronous, and carries its real implementation. */
-const ASYNC_VALIDATOR = Symbol('typer.asyncValidator');
+/**
+ * Marks a validator as asynchronous, and carries its real implementation.
+ *
+ * `Symbol.for`, so the marker survives across entry points: `/async` and
+ * `/core` are separate bundles, and a plain `Symbol()` would be a different
+ * value in each.
+ */
+const ASYNC_VALIDATOR = Symbol.for('typer.asyncValidator');
 
 /** A validator that must be awaited. */
 type AsyncCapable<T> = Validator<T> & {

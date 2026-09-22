@@ -45,6 +45,7 @@
     ],
     "scripts": {
         "test": "jest && npm run test:types",
+        "test:dist": "npm run build && jest tests/built-bundles.test.ts",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "test:types": "tsc -p tsconfig.typetest.json",
@@ -53,7 +54,7 @@
         "build": "rollup -c",
         "docs": "npx typedoc",
         "build:docs": "rollup -c && npx typedoc",
-        "prepublishOnly": "npm test && npm run build && npm run size"
+        "prepublishOnly": "npm test && npm run test:dist && npm run size"
     },
     "repository": {
         "type": "git",

@@ -125,6 +125,22 @@ See [MIGRATION.md](./MIGRATION.md#migration-guide-v4x--v50) for the upgrade.
 
 ### 🐛 Fixed
 
+- **Markers did not survive between entry points.** Each published bundle is
+  self-contained, so each carried its own `Symbol('typer.jsonSchema')` — and a
+  fragment attached by `@illavv/run_typer/validators` was invisible to
+  `@illavv/run_typer/core`. `import { isEmail } from '…/validators'` emitted
+  `{}` from `toJSONSchema` in any real consumer, and `safeParse` missed a
+  combinator's non-throwing path, which is precisely the mixed-import usage the
+  documentation recommends.
+
+  The three internal markers now use `Symbol.for`, so the key is the same
+  whichever bundle created it. Every source test passed throughout — they
+  import `src`, where the entry points share one module instance — so
+  `tests/built-bundles.test.ts` now runs against `dist`, and `prepublishOnly`
+  builds before checking.
+
+### 🐛 Fixed (continued)
+
 - **`registerType` did not invalidate the strict-mode compile cache.**
   `invalidateCaches` replaced only the permissive cache, so a schema already
   compiled in strict mode kept validating against the type registry as it stood
