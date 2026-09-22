@@ -1,16 +1,8 @@
 {
+    // The type-level assertions in tests/types, which are compiled, never run.
     "extends": "./tsconfig.json",
-    "compilerOptions": {
-        "noEmit": true,
-        "declaration": false,
-        "declarationDir": null,
-        "declarationMap": false,
-        "sourceMap": false,
-        "rootDir": "."
-    },
     "include": [
         "src/**/*",
         "tests/types/**/*"
-    ],
-    "exclude": []
+    ]
 }

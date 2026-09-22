@@ -45,7 +45,7 @@
     ],
     "scripts": {
         "lint": "eslint .",
-        "typecheck": "tsc -p tsconfig.eslint.json",
+        "typecheck": "tsc -p tsconfig.json",
         "lint:fix": "eslint . --fix",
         "test": "jest && npm run test:types",
         "test:dist": "npm run build && jest tests/built-bundles.test.ts",

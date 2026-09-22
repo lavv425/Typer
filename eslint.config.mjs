@@ -16,13 +16,13 @@ export default tseslint.config(
     js.configs.recommended,
 
     {
-        // Type-aware rules only where there are types. The build tsconfig
-        // excludes tests, so linting uses a project of its own.
+        // Type-aware rules only where there are types. The root tsconfig spans
+        // the whole repository, so linting and the editor see the same program.
         files: ['**/*.ts'],
         extends: [...tseslint.configs.recommendedTypeChecked],
         languageOptions: {
             parserOptions: {
-                project: './tsconfig.eslint.json',
+                project: './tsconfig.json',
                 tsconfigRootDir: import.meta.dirname,
             },
         },

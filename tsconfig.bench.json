@@ -1,11 +1,11 @@
 {
+    // Compiles src plus the benchmarks to plain JS that node can run directly.
     "extends": "./tsconfig.json",
     "compilerOptions": {
+        "noEmit": false,
         "rootDir": ".",
         "outDir": ".bench",
-        "declaration": true,
-        "declarationDir": ".bench/types",
-        "declarationMap": false,
+        "declaration": false,
         "sourceMap": false,
         "importHelpers": false
     },

@@ -22,7 +22,7 @@ const aliases = () => alias({ entries: [{ find: /^@\/(.*)$/, replacement: `${src
  */
 
 const compile = (declaration) => typescript({
-    tsconfig: './tsconfig.json',
+    tsconfig: './tsconfig.build.json',
     // The project tsconfig targets Node16 modules, which makes tsc emit
     // CommonJS `require()` calls that Rollup cannot follow — it would
     // leave every internal module as an unresolved external. Rollup
