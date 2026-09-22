@@ -13,6 +13,11 @@
             "import": "./dist/Typer.esm.mjs",
             "require": "./dist/Typer.cjs.min.js"
         },
+        "./async": {
+            "types": "./dist/async.d.ts",
+            "import": "./dist/async.esm.mjs",
+            "require": "./dist/async.cjs.min.js"
+        },
         "./combinators": {
             "types": "./dist/combinators.d.ts",
             "import": "./dist/combinators.esm.mjs",

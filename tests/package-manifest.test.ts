@@ -44,6 +44,16 @@ describe('published package manifest', () => {
             });
         });
 
+        it('exposes async validation as a subpath', () => {
+            // Separate from `core` on purpose: a synchronous consumer must not
+            // pay for the awaited walker.
+            expect(manifest.exports['./async']).toEqual({
+                types: './dist/async.d.ts',
+                import: './dist/async.esm.mjs',
+                require: './dist/async.cjs.min.js',
+            });
+        });
+
         it('exposes the combinators as a subpath', () => {
             expect(manifest.exports['./combinators']).toEqual({
                 types: './dist/combinators.d.ts',

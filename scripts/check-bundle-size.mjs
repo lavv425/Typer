@@ -56,6 +56,11 @@ const BUDGETS = [
     // really does drop out when nothing needs it.
     { file: 'dist/combinators.esm.mjs', budgetGzip: 6_656 },
     { file: 'dist/combinators.cjs.min.js', budgetGzip: 6_656 },
+
+    // Async validation, kept out of `core` so a synchronous consumer never
+    // pays for the awaited walker.
+    { file: 'dist/async.esm.mjs', budgetGzip: 4_096 },
+    { file: 'dist/async.cjs.min.js', budgetGzip: 4_096 },
 ];
 
 const kb = (bytes) => `${(bytes / 1024).toFixed(2)} KB`;

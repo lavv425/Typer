@@ -59,6 +59,25 @@ export default [
         external: []
     },
     {
+        input: 'src/async.ts',
+        output: [
+            {
+                file: 'dist/async.esm.mjs',
+                format: 'es',
+                sourcemap: true,
+                plugins: [terser()]
+            },
+            {
+                file: 'dist/async.cjs.min.js',
+                format: 'cjs',
+                sourcemap: true,
+                plugins: [terser()]
+            }
+        ],
+        plugins: [resolve(), commonjs(), compile(false)],
+        external: []
+    },
+    {
         input: 'src/combinators.ts',
         output: [
             {
