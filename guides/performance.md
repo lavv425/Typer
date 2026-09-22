@@ -67,6 +67,24 @@ alternative is resolved at compile time, so validating is a flat loop over
 predicates. Error paths are only built when something actually fails, and a
 failed `safeParse` never constructs an `Error` unless you read `.error`.
 
+## Against 4.1.1
+
+5.0 rejects undeclared keys by default, which means enumerating the value's own
+keys — work 4.x never did. Like for like, with strict off, the two are level;
+with strict on, 5.0 pays for it. The generator more than buys it back.
+
+Nanoseconds per validation, median of five runs, Node 26:
+
+| | 4.1.1 | 5.0 `{strict:false}` | 5.0 default | 5.0 + `compile` |
+| --- | ---: | ---: | ---: | ---: |
+| flat, 3 keys | 39.4 | 42.1 | 63.1 | **19.2** |
+| nested, 6 keys + 3 nested | 121.3 | 125.1 | 203.3 | **57.1** |
+| array of 50 numbers | 286.6 | 300.2 | 322.4 | **66.3** |
+
+So: the closure compiler in 5.0 matches 4.1.1 at equal semantics, costs 20-80 ns
+more for strict-by-default, and with `compile` ends up 2.1x to 4.3x faster than
+4.1.1 while doing strictly more work.
+
 ## When closures are not enough
 
 Everything above describes the default back end, which compiles a schema to

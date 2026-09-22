@@ -64,6 +64,22 @@ const stop = installJit();
 stop();  // back to the closure compiler
 ```
 
+### `installJit` is not quite as fast as `compile`
+
+Installing keeps the per-call lookup: `parse` still has to find the checker for
+the schema object it was handed, which costs about 10 ns whichever back end
+answers. `compile` does that lookup once and hands you the checker, so the hot
+path has nothing left to look up.
+
+| nested schema, strict | ns/validation |
+| --- | ---: |
+| closure compiler | 203.3 |
+| `installJit()` | 69.2 |
+| `compile()` | 57.1 |
+
+So `installJit` buys most of the win for one line at startup, and `compile`
+buys the rest for the schemas where it is worth naming them.
+
 ### Applications may install; libraries must not
 
 `installJit` changes the strategy for the whole process. A library that calls
