@@ -39,7 +39,7 @@ export type ObjectOptions<R extends TypeRegistry> = {
  * built on the non-throwing path rather than on `try`/`catch` around the
  * throwing one.
  *
- * The same non-throwing path is also stored under {@link SAFE_RESULT}, so
+ * The same non-throwing path is also stored under an internal symbol, so
  * `safeParse` can use it directly instead of catching what this validator
  * would have thrown.
  *

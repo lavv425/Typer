@@ -38,15 +38,19 @@ default is what keeps <code>parse({ id: 'nubmer' }, x)</code> a compile error.</
 <section class="tsd-panel">
 <h4>Type Parameters</h4>
 <ul class="tsd-type-parameter-list">
-<li><span id="parset"><span class="tsd-kind-type-parameter">T</span></span></li></ul></section>
+<li><span id="parset"><span class="tsd-kind-type-parameter">T</span></span>
+<div class="tsd-comment tsd-typography"><p>The type the validator produces</p>
+</div></li></ul></section>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">validator</span>: <a href="../types/core.Validator.html" class="tsd-signature-type tsd-kind-type-alias">Validator</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#parset">T</a><span class="tsd-signature-symbol">&gt;</span></span></li>
+<li><span><span class="tsd-kind-parameter">validator</span>: <a href="../types/core.Validator.html" class="tsd-signature-type tsd-kind-type-alias">Validator</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#parset">T</a><span class="tsd-signature-symbol">&gt;</span></span>
+<div class="tsd-comment tsd-typography"><p>A validator function, run directly.</p>
+</div></li>
 <li><span><span class="tsd-kind-parameter">value</span>: <span class="tsd-signature-type">unknown</span></span>
 <div class="tsd-comment tsd-typography"><p>The value to validate.</p>
 </div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <a class="tsd-signature-type tsd-kind-type-parameter" href="#parset">T</a></h4><p>The same value, typed as <code>Infer&lt;S, R&gt;</code>.</p>
+<h4 class="tsd-returns-title">Returns <a class="tsd-signature-type tsd-kind-type-parameter" href="#parset">T</a></h4><p>The validated value.</p>
 
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-throws">
@@ -58,15 +62,11 @@ default is what keeps <code>parse({ id: 'nubmer' }, x)</code> a compile error.</
 
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/lavv425/Typer/blob/0ba7078ad368152f4b16b96fb8d4f247fd4b97ea/src/Core/Parse/index.ts#L71">src/Core/Parse/index.ts:71</a></li></ul></aside></div></li>
+<li>Defined in <a href="https://github.com/lavv425/Typer/blob/38561d1f5e5b21f5ab9470b159903f67eef4bc5b/src/Core/Parse/index.ts#L68">src/Core/Parse/index.ts:68</a></li></ul></aside></div></li>
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="parse-1"><span class="tsd-kind-call-signature">parse</span><span class="tsd-signature-symbol">&lt;</span><br/>    <span class="tsd-signature-keyword">const</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#parses">S</a> <span class="tsd-signature-keyword">extends</span> <a href="../types/core.ValidateSchema.html" class="tsd-signature-type tsd-kind-type-alias">ValidateSchema</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#parses">S</a><span class="tsd-signature-symbol">,</span> <a href="../types/core.KnownAlias.html" class="tsd-signature-type tsd-kind-type-alias">KnownAlias</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#parser">R</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">,</span><br/>    <a class="tsd-signature-type tsd-kind-type-parameter" href="#parser">R</a> <span class="tsd-signature-keyword">extends</span> <a href="../types/core.TypeRegistry.html" class="tsd-signature-type tsd-kind-type-alias">TypeRegistry</a> <span class="tsd-signature-symbol">=</span> <span class="tsd-signature-symbol">{}</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">schema</span><span class="tsd-signature-symbol">:</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#parses">S</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">options</span><span class="tsd-signature-symbol">?:</span> <a href="../types/core.ParseOptions.html" class="tsd-signature-type tsd-kind-type-alias">ParseOptions</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#parser">R</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{</span><br/>    <span class="tsd-signature-symbol">[</span><span class="tsd-kind-type-parameter">K</span> <span class="tsd-signature-keyword">in</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">number</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">symbol</span><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol">:</span> (<br/>        <span class="tsd-signature-symbol">{</span> <span class="tsd-signature-symbol">[</span><span class="tsd-kind-type-parameter">K</span> <span class="tsd-signature-keyword">in</span> <span class="tsd-signature-type">string</span><br/>        <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">number</span><br/>        <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">symbol</span><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol">:</span> <a href="../types/core.ResolveSchemaValue.html" class="tsd-signature-type tsd-kind-type-alias">ResolveSchemaValue</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#parses">S</a><span class="tsd-signature-symbol">[</span><span class="tsd-signature-type tsd-kind-type-parameter">K</span><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#parser">R</a><span class="tsd-signature-symbol">&gt;</span> <span class="tsd-signature-symbol">}</span> <span class="tsd-signature-symbol">&amp;</span> <span class="tsd-signature-symbol">{</span><br/>            <span class="tsd-signature-symbol">[</span><span class="tsd-kind-type-parameter">K</span> <span class="tsd-signature-keyword">in</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">number</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">symbol</span><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol">?:</span> <a href="../types/core.ResolveSchemaValue.html" class="tsd-signature-type tsd-kind-type-alias">ResolveSchemaValue</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#parses">S</a><span class="tsd-signature-symbol">[</span><span class="tsd-signature-type tsd-kind-type-parameter">K</span><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#parser">R</a><span class="tsd-signature-symbol">&gt;</span><br/>        <span class="tsd-signature-symbol">}</span><br/>    )<span class="tsd-signature-symbol">[</span><span class="tsd-signature-type tsd-kind-type-parameter">K</span><span class="tsd-signature-symbol">]</span><br/><span class="tsd-signature-symbol">}</span><a href="#parse-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
 <div class="tsd-comment tsd-typography"><p>Validates a value against a schema, returning it typed.</p>
-<p><code>R</code> defaults to <code>{}</code> rather than being inferred from nothing: with the
-registry omitted it would otherwise fall back to its constraint, widening
-<code>KnownAlias&lt;R&gt;</code> to <code>string</code> and silently accepting a misspelled alias. The
-default is what keeps <code>parse({ id: 'nubmer' }, x)</code> a compile error.</p>
 </div>
 <section class="tsd-panel">
 <h4>Type Parameters</h4>
@@ -95,14 +95,9 @@ hot path: compiled checkers are cached by object identity.</p>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-throws">
 <h4 class="tsd-anchor-link" id="throws-1">Throws<a href="#throws-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>With one issue per problem found.</p>
-</div>
-<div class="tsd-tag-example">
-<h4 class="tsd-anchor-link" id="example-2">Example<a href="#example-2" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-0">import</span><span class="hl-1"> { </span><span class="hl-2">parse</span><span class="hl-1"> } </span><span class="hl-0">from</span><span class="hl-1"> </span><span class="hl-3">&#39;@illavv/run_typer/core&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">userSchema</span><span class="hl-1"> = { </span><span class="hl-2">id:</span><span class="hl-1"> </span><span class="hl-3">&#39;number&#39;</span><span class="hl-1">, </span><span class="hl-2">email:</span><span class="hl-1"> </span><span class="hl-3">&#39;string&#39;</span><span class="hl-1">, </span><span class="hl-2">note:</span><span class="hl-1"> </span><span class="hl-3">&#39;string?&#39;</span><span class="hl-1"> };</span><br/><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">user</span><span class="hl-1"> = </span><span class="hl-6">parse</span><span class="hl-1">(</span><span class="hl-2">userSchema</span><span class="hl-1">, </span><span class="hl-2">payload</span><span class="hl-1">);</span><br/><span class="hl-7">// { id: number; email: string; note?: string | null }</span>
-</code><button type="button">Copy</button></pre>
-
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/lavv425/Typer/blob/0ba7078ad368152f4b16b96fb8d4f247fd4b97ea/src/Core/Parse/index.ts#L72">src/Core/Parse/index.ts:72</a></li></ul></aside></div></li></ul></section></div>
+<li>Defined in <a href="https://github.com/lavv425/Typer/blob/38561d1f5e5b21f5ab9470b159903f67eef4bc5b/src/Core/Parse/index.ts#L81">src/Core/Parse/index.ts:81</a></li></ul></aside></div></li></ul></section></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

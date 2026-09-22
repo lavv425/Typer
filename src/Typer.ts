@@ -991,7 +991,6 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * @template S - The source schema
      * @template K - The keys to make optional; all of them by default
      * @param {S} schema - The schema to derive from.
-     * @param {readonly K[]} [keys] - The keys to make optional. Omit for all of them.
      * @returns {PartialSchema} A new schema; the source is untouched.
      * @example
      * const patchUser = typer.partial(typer.omit(userSchema, ['id']));
@@ -1001,6 +1000,15 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
      * const draft = typer.partial(userSchema, ['name']);
      */
     public partial<S extends Record<string, unknown>>(schema: S): PartialSchema<S>;
+    /**
+     * Derives a schema with only the listed keys made optional.
+     *
+     * @template S - The source schema
+     * @template K - The keys to make optional
+     * @param schema - The schema to derive from.
+     * @param keys - The keys to make optional.
+     * @returns A new schema; the source is untouched.
+     */
     public partial<S extends Record<string, unknown>, const K extends keyof S>(schema: S, keys: readonly K[]): PartialSchema<S, K>;
     public partial<S extends Record<string, unknown>>(schema: S, keys?: readonly (keyof S)[]): PartialSchema<S> {
         const targeted = keys === undefined ? null : new Set<unknown>(keys);

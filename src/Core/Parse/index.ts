@@ -53,13 +53,10 @@ const run = <R extends TypeRegistry>(
  * `KnownAlias<R>` to `string` and silently accepting a misspelled alias. The
  * default is what keeps `parse({ id: 'nubmer' }, x)` a compile error.
  *
- * @template S - The schema
- * @template R - Custom aliases, inferred from `options.registry`
- * @param schema - The shape to validate against. Declare it once, outside the
- *                 hot path: compiled checkers are cached by object identity.
+ * @template T - The type the validator produces
+ * @param validator - A validator function, run directly.
  * @param value - The value to validate.
- * @param options - Registry and strictness.
- * @returns The same value, typed as `Infer<S, R>`.
+ * @returns The validated value.
  * @throws {TyperError} With one issue per problem found.
  * @example
  * import { parse } from '@illavv/run_typer/core';
@@ -69,6 +66,18 @@ const run = <R extends TypeRegistry>(
  * // { id: number; email: string; note?: string | null }
  */
 export function parse<T>(validator: Validator<T>, value: unknown): T;
+/**
+ * Validates a value against a schema, returning it typed.
+ *
+ * @template S - The schema
+ * @template R - Custom aliases, inferred from `options.registry`
+ * @param schema - The shape to validate against. Declare it once, outside the
+ *                 hot path: compiled checkers are cached by object identity.
+ * @param value - The value to validate.
+ * @param options - Registry and strictness.
+ * @returns The same value, typed as `Infer<S, R>`.
+ * @throws {TyperError} With one issue per problem found.
+ */
 export function parse<const S extends ValidateSchema<S, KnownAlias<R>>, R extends TypeRegistry = {}>(schema: S, value: unknown, options?: ParseOptions<R>): Infer<S, R>;
 export function parse(schemaOrValidator: unknown, value: unknown, options?: ParseOptions<TypeRegistry>): unknown {
     // A validator is a function, and `Object.keys` of a function is empty — so
@@ -88,17 +97,24 @@ export function parse(schemaOrValidator: unknown, value: unknown, options?: Pars
  * reading it does not force construction of an `Error` with its stack trace,
  * which costs more than the validation that produced it.
  *
- * @template S - The schema
- * @template R - Custom aliases, inferred from `options.registry`
- * @param schema - The shape to validate against.
+ * @template T - The type the validator produces
+ * @param validator - A validator function, run directly.
  * @param value - The value to validate.
- * @param options - Registry and strictness.
  * @example
  * const result = safeParse({ id: 'number' }, payload);
  * if (result.success) result.data.id;
  * else result.issues.forEach((i) => console.error(i.path, i.code));
  */
 export function safeParse<T>(validator: Validator<T>, value: unknown): ParseResult<T>;
+/**
+ * Validates a value against a schema without throwing.
+ *
+ * @template S - The schema
+ * @template R - Custom aliases, inferred from `options.registry`
+ * @param schema - The shape to validate against.
+ * @param value - The value to validate.
+ * @param options - Registry and strictness.
+ */
 export function safeParse<const S extends ValidateSchema<S, KnownAlias<R>>, R extends TypeRegistry = {}>(schema: S, value: unknown, options?: ParseOptions<R>): ParseResult<Infer<S, R>>;
 export function safeParse(schemaOrValidator: unknown, value: unknown, options?: ParseOptions<TypeRegistry>): ParseResult<unknown> {
     if (typeof schemaOrValidator === 'function') {

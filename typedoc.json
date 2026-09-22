@@ -12,5 +12,15 @@
     "excludeProtected": true,
     "hideGenerator": true,
     "excludeExternals": false,
-    "theme": "default"
+    "theme": "default",
+    "intentionallyNotExported": [
+        "Prettify",
+        "RequiredKeys",
+        "OptionalKeys",
+        "Trim",
+        "StripBound",
+        "IsKnownTypeString",
+        "ValidateElement",
+        "CompileContext"
+    ]
 }

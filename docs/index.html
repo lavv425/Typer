@@ -31,7 +31,7 @@ typo like <code>'nubmer'</code> is a <strong>compile error</strong> rather than 
 <p><strong>The schema reads like the shape it describes.</strong> <code>{ id: 'number', tags: ['string'] }</code>
 is the whole declaration, and <code>Infer&lt;typeof schema&gt;</code> gives you the type.</p>
 <p><strong>It is small, and you pay for what you use.</strong> Schema validation is 3.35 KB
-gzip; adding a format check costs about 11 bytes. Import four functions, ship
+gzip; adding a format check costs about 61 bytes. Import four functions, ship
 four functions.</p>
 <p><strong>Setup is instant.</strong> Building a schema costs ~1.1 µs — the lowest of the three
 libraries measured, against 5.74 µs for Zod and 3.43 µs for TypeBox.</p>
@@ -67,12 +67,12 @@ works, and is still the easiest way in if you would rather not think about it.</
 <tr>
 <td><code>@illavv/run_typer/validators</code></td>
 <td><code>isEmail</code>, <code>isPort</code>, <code>isUUID</code>, … (44 of them)</td>
-<td style="text-align:right">3.70 KB</td>
+<td style="text-align:right">3.93 KB</td>
 </tr>
 <tr>
 <td><code>@illavv/run_typer/combinators</code></td>
 <td><code>arrayOf</code>, <code>objectOf</code>, <code>optional</code>, …</td>
-<td style="text-align:right">6.25 KB</td>
+<td style="text-align:right">6.24 KB</td>
 </tr>
 <tr>
 <td><code>@illavv/run_typer/async</code></td>
@@ -82,13 +82,13 @@ works, and is still the easiest way in if you would rather not think about it.</
 <tr>
 <td><code>@illavv/run_typer</code></td>
 <td>the <code>Typer</code> class — everything, on one object</td>
-<td style="text-align:right">10.07 KB</td>
+<td style="text-align:right">10.46 KB</td>
 </tr>
 </tbody>
 </table>
 <p>Those are whole-entry-point figures; what you ship is what you import.
 <code>optional</code> + <code>arrayOf</code> on their own come to <strong>0.88 KB</strong>, and a realistic
-application — schemas plus a handful of format checks — lands around <strong>4 KB</strong>.
+application — schemas plus a handful of format checks — lands under <strong>4 KB</strong>.
 For reference, <code>zod/mini</code> is 4.8 KB.</p>
 <pre><code class="typescript"><span class="hl-0">import</span><span class="hl-1"> { </span><span class="hl-2">parse</span><span class="hl-1"> } </span><span class="hl-0">from</span><span class="hl-1"> </span><span class="hl-3">&#39;@illavv/run_typer/core&#39;</span><span class="hl-1">;</span><br/><span class="hl-0">import</span><span class="hl-1"> { </span><span class="hl-2">isEmail</span><span class="hl-1"> } </span><span class="hl-0">from</span><span class="hl-1"> </span><span class="hl-3">&#39;@illavv/run_typer/validators&#39;</span><span class="hl-1">;</span><br/><span class="hl-0">import</span><span class="hl-1"> { </span><span class="hl-2">arrayOf</span><span class="hl-1">, </span><span class="hl-2">objectOf</span><span class="hl-1"> } </span><span class="hl-0">from</span><span class="hl-1"> </span><span class="hl-3">&#39;@illavv/run_typer/combinators&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-6">parse</span><span class="hl-1">({ </span><span class="hl-2">contacts:</span><span class="hl-1"> </span><span class="hl-6">arrayOf</span><span class="hl-1">(</span><span class="hl-6">objectOf</span><span class="hl-1">({ </span><span class="hl-2">email:</span><span class="hl-1"> </span><span class="hl-2">isEmail</span><span class="hl-1"> })) }, </span><span class="hl-2">payload</span><span class="hl-1">);</span>
 </code><button type="button">Copy</button></pre>
@@ -140,7 +140,7 @@ For reference, <code>zod/mini</code> is 4.8 KB.</p>
 </tr>
 </tbody>
 </table>
-<p>The generated API reference lives in <code>docs/api</code> after <code>npm run docs</code>.</p>
+<p>The generated API reference lives in <code>docs/</code> after <code>npm run docs</code>, and covers all five entry points.</p>
 <h2 id="upgrading-from-4x" class="tsd-anchor-link">Upgrading from 4.x<a href="#upgrading-from-4x" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <p>Two things changed:
 <a href="media/MIGRATION.md#1-undeclared-keys-are-now-rejected">undeclared keys are now rejected</a>

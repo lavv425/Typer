@@ -90,7 +90,7 @@ export const union = <T extends readonly unknown[]>(
  * Builds a validator accepting only the listed literal values.
  *
  * The returned validator narrows to the union of those literals, so it is
- * the composable counterpart of {@link isOneOf}.
+ * the composable counterpart of `isOneOf`, from `@illavv/run_typer/validators`.
  *
  * @template T - Tuple of accepted literals
  * @param {...(string|number|boolean|null)} values - The accepted values.
@@ -203,7 +203,7 @@ export const lazy = <T>(factory: () => Validator<T>): Validator<T> => {
 };
 
 /**
- * Composable form of {@link isInstanceOf}.
+ * Composable form of `isInstanceOf`, from `@illavv/run_typer/validators`.
  *
  * @template T - The instance type
  * @param {Function} ctor - The constructor to check against.

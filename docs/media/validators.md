@@ -11,8 +11,8 @@ import { isEmail, isPort } from '@illavv/run_typer/validators';
 parse({ email: isEmail, port: isPort }, payload);
 ```
 
-Importing one costs about 11 bytes on top of `core`, and ~65 bytes each after
-that. Import what you use.
+Importing one costs about 61 bytes on top of `core` — four of them come to
+328 bytes. Import what you use.
 
 ## Formats
 

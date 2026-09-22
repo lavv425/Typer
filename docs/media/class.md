@@ -12,7 +12,7 @@ typer.isEmail('a@b.co');
 typer.toJSONSchema(userSchema);
 ```
 
-It costs 10.07 KB gzip, because importing it makes every method reachable and a
+It costs 10.46 KB gzip, because importing it makes every method reachable and a
 bundler cannot prove otherwise. That is the trade: convenience for size. If
 that matters, the [free entry points](../README.md#what-to-import) are the same
 implementations reached directly.

@@ -33,11 +33,11 @@ Measured by `npm run size`, which CI enforces:
 | --- | ---: |
 | `optional` + `arrayOf` only | **0.88 KB** |
 | `core` | 3.35 KB |
-| `core` + `isEmail` + 3 combinators | 4.34 KB |
-| all 44 validators, no class | 3.70 KB |
-| every combinator, no class | 6.25 KB |
+| `core` + `isEmail` + 3 combinators | 4.84 KB |
+| all 44 validators, no class | 3.93 KB |
+| every combinator, no class | 6.24 KB |
 | `async` | 3.65 KB |
-| the `Typer` class | 10.07 KB |
+| the `Typer` class | 10.46 KB |
 | *(reference)* `zod/mini` | 4.8 KB |
 
 The 0.88 KB row is the one that matters: the schema compiler genuinely drops
