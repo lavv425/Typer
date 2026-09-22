@@ -2,7 +2,7 @@
 
 import type { Error } from "./Types/Globals";
 import type { StandardSchemaV1 } from "./Types/StandardSchema";
-import type { BoundValidators, Coercions, DiscriminatedUnion, FieldChecker, Infer, KnownAlias, MergeSchema, OmitSchema, ParseResult, PartialSchema, PickSchema, Schema, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TyperExpectTypes, TyperReturn, TypeRegistry, TypeSlot, ValidateSchema, ValidationIssue, Validator, ValueChecker } from "./Types/Typer";
+import type { BoundValidators, Coercions, DiscriminatedUnion, FieldChecker, Infer, KnownAlias, MergeSchema, OmitSchema, ParseResult, PartialSchema, PickSchema, Schema, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TyperReturn, TypeRegistry, TypeSlot, ValidateSchema, ValidationIssue, Validator, ValueChecker } from "./Types/Typer";
 import { TyperError } from "./Errors/TyperError";
 import { constraintOf, formatIssues, issueError, issueMessages, makeIssue, toStandardIssues } from "./Utils/Issues";
 import * as Patterns from "./Constants/Patterns";
@@ -1431,138 +1431,9 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
         return { isValid: issues.length === 0, errors: issueMessages(issues), issues };
     }
 
-    /**
-     * Validates an object against a schema.
-     * @param {Record<string, string | string[]>} schema - The expected types for each key.
-     * @param {Record<string, unknown>} obj - The object to validate.
-     * @returns {string[]} - An array of validation errors, or an empty array if valid.
-     * @example
-     * const schema = { name: "string", age: "number" };
-     * const obj = { name: "John", age: "25" };
-     * console.log(Typer.validate(schema, obj)); // ["Expected 'age' to be of type number, got string"]
-     */
-    public validate(schema: Record<string, string | string[]>, obj: Record<string, unknown>): string[] {
-        const errors: string[] = [];
 
-        Object.keys(schema).forEach(key => {
-            const expectedType = schema[key];
-            const value = obj[key];
 
-            if (!this.is(value, expectedType)) {
-                errors.push(`Expected "${key}" to be of type ${expectedType}, got ${typeof value}`);
-            }
-        });
 
-        return errors;
-    }
-
-    /**
-     * Assert that a value is of a specific type. Logs a warning if incorrect.
-     * @param {unknown} value - The value to check.
-     * @param {string | string[]} expectedType - The expected type(s).
-     * @example
-     * Typer.assert(42, "number"); // No output
-     * Typer.assert("hello", "number"); // Warning in console
-     */
-    public assert(value: unknown, expectedType: string | string[]): void {
-        if (!this.is(value, expectedType)) {
-            console.warn(`[Typer] Assertion failed: Expected ${expectedType}, got ${typeof value}`, value);
-        }
-    }
-
-    /**
-     * Expects a function to conform to specified input and output types.
-     * 
-     * @param {Function} funct - The function to type-check.
-     * @param {Object} types - The expected types for the function's parameters and return value.
-     * @param {Array<string>} types.paramTypes - The expected type of the main argument.
-     * @param {Array<string>} types.returnType - The expected return type of the function.
-     * @returns {Function} A new function that type-checks its arguments and return value.
-     * @throws {Error} If the types object does not contain exactly 3 keys or the required type properties.
-     * @throws {TypeError} If the function or types object does not conform to the expected types.
-     * @example
-     * const typedFunction = Typer.expect(
-     *    (x: number) => x * 2, 
-     *    { paramTypes: ["number"], returnType: ["number"] }
-     * );
-     * console.log(typedFunction(3)); // 6
-     */
-    public expect(funct: Function, types: TyperExpectTypes) {
-        if (Object.keys(types).length !== 2) {
-            throw new Error(`Expected 2 types (paramTypes and returnTypes), got ${Object.keys(types).length}`);
-        }
-
-        if (types.paramTypes === undefined || !types.returnType || (!types.returnType && types.returnType !== 'void')) {
-            throw new Error(`Expected paramType, returnType types, got ${Object.keys(types)}`);
-        }
-
-        funct = this.isType('f', funct) as Function;
-        types = this.isType('o', types) as TyperExpectTypes;
-
-        return (...args: unknown[]) => {
-            const paramTypes = Array.isArray(types.paramTypes) ? types.paramTypes : [types.paramTypes];
-            const returnTypes = Array.isArray(types.returnType) ? types.returnType : [types.returnType];
-            if ((args.length !== paramTypes.length) && paramTypes.length !== 1) {
-                throw new Error(`Expected ${paramTypes.length} arguments, but got ${args.length}`);
-            }
-
-            // verify num of arguments + types
-            if (paramTypes.length === 1) {
-                args.forEach((arg: unknown) => {
-                    this.isType(paramTypes[0], arg);
-                });
-            } else {
-                args.forEach((arg: unknown, index: number) => {
-                    this.isType(paramTypes[index], arg);
-                });
-            }
-
-            // call og funct
-            const result = funct(...args);
-
-            if (result instanceof Promise) {
-                return result.then(res => {
-                    this.verifyReturnType(res, returnTypes);
-                    return res;
-                }).catch(err => {
-                    throw err;
-                });
-            } else {
-                this.verifyReturnType(result, returnTypes);
-                return result;
-            }
-        };
-    }
-
-    /**
-     * Verifies that the result matches one of the expected return types.
-     *
-     * @private
-     * @param {unknown} result - The result to check.
-     * @param {Array<string>} returnTypes - The expected return types.
-     * @throws {TypeError} Throws if the result does not match any of the expected return types.
-     */
-    private verifyReturnType(result: unknown, returnTypes: TyperExpectTypes['returnType']) {
-        const returnTypeErrors: string[] = [];
-        const isReturnTypeValid = returnTypes.some(returnType => {
-            try {
-                if (returnType === 'void' && result === undefined) {
-                    return true;
-                }
-                this.isType(returnType, result);
-                return true;
-            } catch (error: unknown) {
-                const catchedError = error as Error;
-
-                returnTypeErrors.push(catchedError.message);
-                return false;
-            }
-        });
-
-        if (!isReturnTypeValid) {
-            throw new TypeError(`Return type mismatch: ${returnTypeErrors.join(', ')}`);
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1578,4 +1449,4 @@ export { STANDARD_VENDOR } from "./Types/StandardSchema";
 
 export type { StandardSchemaV1 } from "./Types/StandardSchema";
 export type { JSONSchemaDocument, JSONSchemaFragment, ToJSONSchemaOptions, UnrepresentablePolicy } from "./Types/JSONSchema";
-export type { BoundValidators, Coercions, DiscriminatedUnion, Infer, IssueMeta, IssueCode, KnownAlias, MergeSchema, OmitSchema, OptionalSlot, ParseResult, PartialSchema, PickSchema, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperExpectTypes, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from "./Types/Typer";
+export type { BoundValidators, Coercions, DiscriminatedUnion, Infer, IssueMeta, IssueCode, KnownAlias, MergeSchema, OmitSchema, OptionalSlot, ParseResult, PartialSchema, PickSchema, ResolveSchemaValue, ResolveTypeString, Schema, SchemaArrayElement, StandardValidator, StructureValidationReturn, TypeKey, TypeMap, TypeRegistry, TyperReturn, UnknownAlias, ValidateSchema, ValidationIssue, Validator } from "./Types/Typer";

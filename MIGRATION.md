@@ -1,7 +1,99 @@
 # Migration Guides
 
+- [v4.x → v5.0](#migration-guide-v4x--v50)
 - [v3.x → v4.0](#migration-guide-v3x--v40)
 - [v2.x → v3.0](#migration-guide-v2x--v30)
+
+---
+
+# Migration Guide: v4.x → v5.0
+
+Two breaking changes, and a new way to import that nobody has to adopt.
+
+## 1. Undeclared keys are now rejected
+
+The big one. `parse`, `safeParse`, `objectOf`, `standard`,
+`discriminatedUnion` and `checkStructure` now reject a key the schema does not
+declare:
+
+```typescript
+typer.parse({ id: 'number' }, { id: 1, role: 'admin' });
+// 5.0: throws — unexpected_key at "role"
+// 4.x: returned the object unchanged
+```
+
+This is the audit's P0-2 option (a). 4.1 shipped option (b) and stripped
+`__proto__`, `constructor` and `prototype`; this closes the rest, so
+`success: true` now means the object has the keys the schema declares and no
+others — which is what it always looked like it promised.
+
+**To keep 4.x behaviour**, opt out explicitly:
+
+```typescript
+typer.parse(schema, payload, { strict: false });
+typer.objectOf(schema, { strict: false });
+typer.checkStructure(schema, payload, '', false);   // fourth argument
+```
+
+**To adopt it**, declare the keys you actually receive. A payload with extra
+keys is usually either a schema that has drifted from the API, or data you did
+not mean to accept.
+
+Dangerous keys are still *stripped* rather than reported, so a payload carrying
+only `__proto__` stays valid.
+
+`toJSONSchema` follows suit and emits `additionalProperties: false`, because the
+emitted schema has to say what validation actually does.
+
+## 2. `expect`, `validate` and `assert` were removed
+
+They predated `parse`/`safeParse` and duplicated them with weaker typing:
+`validate` returned untyped strings, `assert` only logged a warning, and
+`expect` type-checked function arguments at runtime with no compile-time
+counterpart.
+
+```typescript
+// before
+const errors = typer.validate({ id: 'number' }, payload);
+if (errors.length) { /* strings */ }
+
+// after
+const result = typer.safeParse({ id: 'number' }, payload);
+if (!result.success) {
+    result.issues;   // { code, path, message, expected, received }
+}
+```
+
+`assert` has no direct replacement by design — use `safeParse` and handle the
+failure, or `parse` and let it throw. `checkStructure` **stays**: it is the
+documented escape hatch for schemas built at runtime.
+
+## 3. Optional: import only what you use
+
+Nothing to change, but the reason 5.0 exists. The library is now reachable in
+pieces:
+
+```typescript
+import { parse, safeParse, schema } from '@illavv/run_typer/core';
+import { isEmail, isPort } from '@illavv/run_typer/validators';
+import { arrayOf, objectOf } from '@illavv/run_typer/combinators';
+```
+
+A schema-validating consumer ships **2.97 KB gzip** instead of the class's
+9.98 KB. `new Typer()` still works exactly as before and remains the
+compatibility path.
+
+Custom aliases become a value instead of instance state:
+
+```typescript
+// before
+const typer = new Typer().extend('positive', fn);
+typer.parse({ qty: 'positive' }, payload);
+
+// after, without the class
+const { parse } = createTyper({ positive: fn });
+parse({ qty: 'positive' }, payload);
+```
 
 ---
 

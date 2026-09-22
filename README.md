@@ -906,16 +906,14 @@ Exports types as JSON string.
 #### `importTypes(json: string): void`
 Imports types from JSON string.
 
-### Function Wrapping
+### Removed in 5.0
 
-#### `expect(func: Function, types: TyperExpectTypes): Function`
-Wraps function with type checking for parameters and return value.
-
-#### `validate(schema: Record<string, string | string[]>, obj: Record<string, unknown>): string[]`
-Validates object against simple schema, returns error array.
-
-#### `assert(value: unknown, expectedType: string | string[]): void`
-Logs warning if type assertion fails.
+`expect`, `validate` and `assert` were removed. They predated `parse`/`safeParse`
+and duplicated them with weaker typing — `validate` returned untyped strings,
+`assert` only logged a warning, and `expect` type-checked function arguments at
+runtime without any compile-time counterpart. Use `parse`/`safeParse`, which
+report structured issues and infer the result type. `checkStructure` stays: it
+is the documented escape hatch for schemas built at runtime.
 
 ### Supported Types
 

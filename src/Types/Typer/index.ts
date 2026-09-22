@@ -1,14 +1,5 @@
 import type { StandardSchemaV1 } from "../StandardSchema";
 
-/**
- * Defines the expected input and output types for a function.
- */
-export type TyperExpectTypes = {
-    /** The expected type(s) of the function's parameters */
-    paramTypes: string[];
-    /** The expected return type(s) of the function */
-    returnType: string[];
-};
 
 /**
  * Defines the return type of a type-checked function.
