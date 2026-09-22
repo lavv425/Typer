@@ -45,6 +45,7 @@
     ],
     "scripts": {
         "lint": "eslint .",
+        "typecheck": "tsc -p tsconfig.eslint.json",
         "lint:fix": "eslint . --fix",
         "test": "jest && npm run test:types",
         "test:dist": "npm run build && jest tests/built-bundles.test.ts",
@@ -56,7 +57,7 @@
         "build": "rollup -c && node scripts/resolve-aliases.mjs dist dist .d.ts",
         "docs": "npx typedoc",
         "build:docs": "rollup -c && node scripts/resolve-aliases.mjs dist dist .d.ts && npx typedoc",
-        "prepublishOnly": "npm run lint && npm test && npm run test:dist && npm run size"
+        "prepublishOnly": "npm run lint && npm run typecheck && npm test && npm run test:dist && npm run size"
     },
     "repository": {
         "type": "git",

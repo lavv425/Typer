@@ -5,6 +5,7 @@ import { arrayOf, objectOf, optional, literal, record, tuple, transform, lazy, d
 import { parseAsync, safeParseAsync, asyncRefine } from '../src/async';
 import { Typer } from '../src/Typer';
 import type { Validator } from '../src/Types/Typer';
+import { issuesOf, validateSync } from './helpers/standard';
 
 /**
  * Every code block in README.md and guides/ that can be executed, executed.
@@ -66,6 +67,10 @@ describe('guides/schemas', () => {
         expect(safeParse({ v: 'string(3,50)' }, { v: 'abc' }).success).toBe(true);
         expect(safeParse({ v: 'number(1,)' }, { v: 1 }).success).toBe(true);
         expect(safeParse({ v: 'array(,10)' }, { v: [] }).success).toBe(true);
+        // Trimming and case folding are a runtime courtesy; the type layer
+        // only knows the canonical spellings, so this is a compile error by
+        // design and stays one.
+        // @ts-expect-error -- ' STRING ' is not a KnownAlias
         expect(safeParse({ v: ' STRING ' }, { v: 'x' }).success).toBe(true);
     });
 
@@ -254,8 +259,7 @@ describe('guides/standard-schema', () => {
         const userSchema = standard({ id: 'number', email: 'string' });
         expect(userSchema({ id: 1, email: 'a@b.co' })).toBeDefined();
 
-        const result = userSchema['~standard'].validate({ id: 'one', email: 'a@b.co' });
-        const issues = (result as { issues: Array<Record<string, unknown>> }).issues;
+        const issues = issuesOf(validateSync(userSchema, { id: 'one', email: 'a@b.co' }));
         expect(issues[0]).toMatchObject({ code: 'invalid_type', path: ['id'] });
     });
 

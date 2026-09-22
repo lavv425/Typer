@@ -1,5 +1,6 @@
 import { Typer, TyperError } from '../src/Typer';
 import { compare } from './helpers/measure';
+import { issuesOf, validateSync } from './helpers/standard';
 
 const typer = new Typer();
 
@@ -122,8 +123,8 @@ describe('discriminatedUnion', () => {
 
     it('is a Standard Schema', () => {
         expect(shape['~standard'].version).toBe(1);
-        const result = shape['~standard'].validate({ kind: 'circle', radius: 'two' });
-        expect((result as { issues: Array<{ path?: unknown }> }).issues[0].path).toEqual(['radius']);
+        const issues = issuesOf(validateSync(shape, { kind: 'circle', radius: 'two' }));
+        expect(issues[0].path).toEqual(['radius']);
     });
 
     it('strips dangerous keys from the selected variant', () => {

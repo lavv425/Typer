@@ -59,6 +59,9 @@ describe('Typer - structured validation errors', () => {
         });
 
         it('marks an unregistered type name with the unknown_type code', () => {
+            // The misspelling is the point: the type layer rejects it, and
+            // this asserts the runtime reports it rather than accepting it.
+            // @ts-expect-error -- 'nubmer' is not a KnownAlias
             const result = typer.safeParse({ id: 'nubmer' }, { id: 1 });
 
             if (result.success) throw new Error('expected failure');

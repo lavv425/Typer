@@ -9,7 +9,11 @@
         "declarationDir": null,
         "declarationMap": false,
         "sourceMap": false,
-        "rootDir": "."
+        "rootDir": ".",
+        // TypeScript 6 no longer pulls in every `@types/*` package on its own,
+        // so the test globals have to be named. Without this the tests are a
+        // wall of "Cannot find name 'expect'" in any editor.
+        "types": ["jest", "node"]
     },
     "include": [
         "src/**/*.ts",
