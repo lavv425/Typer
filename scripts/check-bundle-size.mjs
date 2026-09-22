@@ -39,9 +39,11 @@ const BUDGETS = [
     // to protect, and it has to stay under `zod/mini` (4.8 KB) to be worth
     // making. A change that pushes it up is a change worth arguing for.
     // (Raised once, for `parse`/`safeParse` to handle a validator passed
-    //  where a schema goes — without that branch they validated nothing.)
-    { file: 'dist/core.esm.mjs', budgetGzip: 3_328 },
-    { file: 'dist/core.cjs.min.js', budgetGzip: 3_328 },
+    //  where a schema goes — without that branch they validated nothing,
+    //  and again for the inline bounds in type strings, which live in the
+    //  compiler and so reach every entry point that compiles a schema.)
+    { file: 'dist/core.esm.mjs', budgetGzip: 3_584 },
+    { file: 'dist/core.cjs.min.js', budgetGzip: 3_584 },
 
     // Every validator, for a consumer who wants the lot without the class.
     // One validator on top of `core` costs ~11 B; four cost ~65 B each.
@@ -52,8 +54,8 @@ const BUDGETS = [
     // because `objectOf` and `discriminatedUnion` pull the schema compiler —
     // importing only `optional` and `arrayOf` is 0.88 KB, so the compiler
     // really does drop out when nothing needs it.
-    { file: 'dist/combinators.esm.mjs', budgetGzip: 6_144 },
-    { file: 'dist/combinators.cjs.min.js', budgetGzip: 6_144 },
+    { file: 'dist/combinators.esm.mjs', budgetGzip: 6_656 },
+    { file: 'dist/combinators.cjs.min.js', budgetGzip: 6_656 },
 ];
 
 const kb = (bytes) => `${(bytes / 1024).toFixed(2)} KB`;
