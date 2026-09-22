@@ -139,8 +139,6 @@ See [MIGRATION.md](./MIGRATION.md#migration-guide-v4x--v50) for the upgrade.
   `tests/built-bundles.test.ts` now runs against `dist`, and `prepublishOnly`
   builds before checking.
 
-### 🐛 Fixed (continued)
-
 - **`registerType` did not invalidate the strict-mode compile cache.**
   `invalidateCaches` replaced only the permissive cache, so a schema already
   compiled in strict mode kept validating against the type registry as it stood
