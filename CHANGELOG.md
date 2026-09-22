@@ -25,6 +25,13 @@ See [MIGRATION.md](./MIGRATION.md#migration-guide-v4x--v50) for the upgrade.
   the schema declares and no others. Dangerous keys are still *stripped* rather
   than reported, so a payload carrying only those stays valid.
 
+  **It costs about 20 ns per object.** Rejecting an undeclared key means
+  enumerating the value's own keys, which nothing did before: measured against
+  4.1.1 on the same machine, a flat four-field object goes from 65 ns to 86 ns
+  and a nested one from 121 ns to 171 ns. `{ strict: false }` restores both the
+  old behaviour and the old cost. Whether that trade is right for you depends
+  on whether you would rather find a drifted payload or shave 20 ns.
+
 - **`expect`, `validate` and `assert` are removed**, with the
   `TyperExpectTypes` type. They predated `parse`/`safeParse` and duplicated
   them with weaker typing: `validate` returned untyped strings, `assert` only
