@@ -1,3 +1,4 @@
+import { describing } from "../../Constants/Symbols";
 import { assertArray } from "../../Core/Checkers";
 import { getType } from "../../Core/Predicates";
 import { issueError } from "../../Utils/Issues";
@@ -100,13 +101,13 @@ export const isNonEmpty = <T = unknown>(p: unknown): T => {
  * @example
  * const items = typer.isNonEmptyArray<string>(["a", "b"]); // items: string[]
  */
-export const isNonEmptyArray = <T = unknown>(p: unknown): T[] => {
+export const isNonEmptyArray = /*#__PURE__*/ describing(<T = unknown>(p: unknown): T[] => {
     const arr = assertArray<T>(p);
     if (arr.length === 0) {
         throw issueError('too_small', `${p} must be a non-empty array.`, undefined, undefined, { minimum: 1 });
     }
     return arr;
-};
+}, { type: 'array', minItems: 1 });
 
 /**
  * Checks if the provided parameter is one of the specified values.

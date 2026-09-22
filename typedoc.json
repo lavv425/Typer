@@ -1,5 +1,11 @@
 {
-    "entryPoints": ["src/Typer.ts", "src/Types/Typer/index.ts"],
+    "entryPoints": [
+        "src/core.ts",
+        "src/validators.ts",
+        "src/combinators.ts",
+        "src/async.ts",
+        "src/Typer.ts"
+    ],
     "out": "docs",
     "includeVersion": true,
     "excludePrivate": true,
@@ -7,4 +13,4 @@
     "hideGenerator": true,
     "excludeExternals": false,
     "theme": "default"
-  }
+}

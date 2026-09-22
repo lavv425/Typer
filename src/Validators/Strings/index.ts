@@ -1,4 +1,5 @@
 import * as Patterns from "../../Constants/Patterns";
+import { describing } from "../../Constants/Symbols";
 import { assertString } from "../../Core/Checkers";
 import { issueError } from "../../Utils/Issues";
 
@@ -20,13 +21,13 @@ import { issueError } from "../../Utils/Issues";
  * @example
  * const email = typer.isEmail("test@example.com"); // email: string
  */
-export const isEmail = (p: unknown): string => {
+export const isEmail = /*#__PURE__*/ describing((p: unknown): string => {
     const str = assertString(p);
     if (!Patterns.EMAIL.test(str)) {
         throw issueError('invalid_format', `${p} must be a valid email address.`, 'email');
     }
     return str;
-};
+}, { type: 'string', format: 'email' });
 
 /**
  * Checks if the provided parameter is a valid URL.
@@ -38,7 +39,7 @@ export const isEmail = (p: unknown): string => {
  * console.log(Typer.isURL("https://example.com")); // true
  * console.log(Typer.isURL("invalid-url")); // false
  */
-export const isURL = (p: unknown): string => {
+export const isURL = /*#__PURE__*/ describing((p: unknown): string => {
     const str = assertString(p);
     try {
         new URL(str);
@@ -46,7 +47,7 @@ export const isURL = (p: unknown): string => {
         throw issueError('invalid_format', `${p} must be a valid URL.`, 'url');
     }
     return str;
-};
+}, { type: 'string', format: 'uri' });
 
 /**
  * Checks that the parameter is a valid UUID (versions 1-5, RFC 4122).
@@ -55,13 +56,13 @@ export const isURL = (p: unknown): string => {
  * @returns {string} The validated UUID
  * @throws {TypeError} If `p` is not a valid UUID
  */
-export const isUUID = (p: unknown): string => {
+export const isUUID = /*#__PURE__*/ describing((p: unknown): string => {
     const str = assertString(p);
     if (!Patterns.UUID.test(str)) {
         throw issueError('invalid_format', `${p} must be a valid UUID.`, 'uuid');
     }
     return str;
-};
+}, { type: 'string', format: 'uuid' });
 
 /**
  * Checks that the parameter is a valid IPv4 address (dotted-quad notation).
@@ -70,7 +71,7 @@ export const isUUID = (p: unknown): string => {
  * @returns {string} The validated IPv4 address
  * @throws {TypeError} If `p` is not a valid IPv4 address
  */
-export const isIPv4 = (p: unknown): string => {
+export const isIPv4 = /*#__PURE__*/ describing((p: unknown): string => {
     const str = assertString(p);
     const parts = str.split('.');
     if (parts.length !== 4) {
@@ -87,7 +88,7 @@ export const isIPv4 = (p: unknown): string => {
         }
     }
     return str;
-};
+}, { type: 'string', format: 'ipv4' });
 
 /**
  * Checks that the parameter is a valid IPv6 address.
@@ -98,7 +99,7 @@ export const isIPv4 = (p: unknown): string => {
  * @returns {string} The validated IPv6 address
  * @throws {TypeError} If `p` is not a valid IPv6 address
  */
-export const isIPv6 = (p: unknown): string => {
+export const isIPv6 = /*#__PURE__*/ describing((p: unknown): string => {
     const str = assertString(p);
     try {
         const url = new URL(`http://[${str}]`);
@@ -113,7 +114,7 @@ export const isIPv6 = (p: unknown): string => {
         throw issueError('invalid_format', `${p} must be a valid IPv6 address.`, 'ipv6');
     }
     return str;
-};
+}, { type: 'string', format: 'ipv6' });
 
 /**
  * Checks that the parameter is a valid IP address, of either version.
@@ -125,7 +126,7 @@ export const isIPv6 = (p: unknown): string => {
  * typer.isIP('192.168.0.1');
  * typer.isIP('::1');
  */
-export const isIP = (p: unknown): string => {
+export const isIP = /*#__PURE__*/ describing((p: unknown): string => {
     const str = assertString(p);
     try {
         return isIPv4(str);
@@ -137,7 +138,7 @@ export const isIP = (p: unknown): string => {
     } catch {
         throw issueError('invalid_format', `${p} must be a valid IP address.`, 'ip');
     }
-};
+}, { type: 'string' });
 
 /**
  * Checks that the parameter is a valid Semantic Versioning 2.0.0 string,
@@ -150,13 +151,13 @@ export const isIP = (p: unknown): string => {
  * typer.isSemver('1.0.0');
  * typer.isSemver('2.1.0-beta.1+build.5');
  */
-export const isSemver = (p: unknown): string => {
+export const isSemver = /*#__PURE__*/ describing((p: unknown): string => {
     const str = assertString(p);
     if (!Patterns.SEMVER.test(str)) {
         throw issueError('invalid_format', `${p} must be a valid semver string.`, 'semver');
     }
     return str;
-};
+}, { type: 'string' });
 
 /**
  * Checks that the parameter is a URL-friendly slug: lowercase alphanumeric
@@ -168,13 +169,13 @@ export const isSemver = (p: unknown): string => {
  * @example
  * typer.isSlug('hello-world');
  */
-export const isSlug = (p: unknown): string => {
+export const isSlug = /*#__PURE__*/ describing((p: unknown): string => {
     const str = assertString(p);
     if (!Patterns.SLUG.test(str)) {
         throw issueError('invalid_format', `${p} must be a valid slug.`, 'slug');
     }
     return str;
-};
+}, { type: 'string' });
 
 /**
  * Checks that the parameter is structurally a JSON Web Token: three
@@ -187,13 +188,13 @@ export const isSlug = (p: unknown): string => {
  * @returns {string} The validated token
  * @throws {TypeError} If `p` does not have the shape of a JWT
  */
-export const isJWT = (p: unknown): string => {
+export const isJWT = /*#__PURE__*/ describing((p: unknown): string => {
     const str = assertString(p);
     if (!Patterns.JWT.test(str)) {
         throw issueError('invalid_format', `${p} must be a valid JWT.`, 'jwt');
     }
     return str;
-};
+}, { type: 'string' });
 
 /**
  * Checks that the parameter is a MAC address in colon- or hyphen-separated
@@ -205,13 +206,13 @@ export const isJWT = (p: unknown): string => {
  * @example
  * typer.isMACAddress('00:1A:2B:3C:4D:5E');
  */
-export const isMACAddress = (p: unknown): string => {
+export const isMACAddress = /*#__PURE__*/ describing((p: unknown): string => {
     const str = assertString(p);
     if (!Patterns.MAC_ADDRESS.test(str)) {
         throw issueError('invalid_format', `${p} must be a valid MAC address.`, 'mac address');
     }
     return str;
-};
+}, { type: 'string' });
 
 /**
  * Checks that the parameter is a valid CSS hex color (`#RGB`, `#RGBA`,
@@ -221,13 +222,13 @@ export const isMACAddress = (p: unknown): string => {
  * @returns {string} The validated hex color
  * @throws {TypeError} If `p` is not a valid hex color
  */
-export const isHexColor = (p: unknown): string => {
+export const isHexColor = /*#__PURE__*/ describing((p: unknown): string => {
     const str = assertString(p);
     if (!Patterns.HEX_COLOR.test(str)) {
         throw issueError('invalid_format', `${p} must be a valid hex color.`, 'hex color');
     }
     return str;
-};
+}, { type: 'string' });
 
 /**
  * Checks that the parameter is a valid ISO 8601 date string and returns
@@ -238,7 +239,7 @@ export const isHexColor = (p: unknown): string => {
  * @returns {Date} The parsed date (always valid)
  * @throws {TypeError} If `p` is not a valid ISO 8601 date string
  */
-export const isISODate = (p: unknown): Date => {
+export const isISODate = /*#__PURE__*/ describing((p: unknown): Date => {
     const str = assertString(p);
     // Require at least YYYY-MM-DD; allow time and timezone parts.
     if (!Patterns.ISO_DATE.test(str)) {
@@ -249,7 +250,7 @@ export const isISODate = (p: unknown): Date => {
         throw issueError('invalid_format', `${p} must be a valid ISO 8601 date string.`, 'iso date');
     }
     return date;
-};
+}, { type: 'string', format: 'date-time' });
 
 /**
  * Checks that the parameter is a syntactically valid Base64 string.
@@ -261,7 +262,7 @@ export const isISODate = (p: unknown): Date => {
  * @returns {string} The validated Base64 string
  * @throws {TypeError} If `p` is not a valid Base64 string
  */
-export const isBase64 = (p: unknown, opts: { urlSafe?: boolean; requirePadding?: boolean } = {}): string => {
+export const isBase64 = /*#__PURE__*/ describing((p: unknown, opts: { urlSafe?: boolean; requirePadding?: boolean } = {}): string => {
     const { urlSafe = false, requirePadding = true } = opts;
     const str = assertString(p);
     const charClass = urlSafe ? '[A-Za-z0-9_-]' : '[A-Za-z0-9+/]';
@@ -272,7 +273,7 @@ export const isBase64 = (p: unknown, opts: { urlSafe?: boolean; requirePadding?:
         throw issueError('invalid_format', `${p} must be a valid Base64 string.`, 'base64');
     }
     return str;
-};
+}, { type: 'string', contentEncoding: 'base64' });
 
 /**
  * Checks if the provided parameter is a valid phone number.
@@ -284,7 +285,7 @@ export const isBase64 = (p: unknown, opts: { urlSafe?: boolean; requirePadding?:
  * const phone = typer.isPhoneNumber("+1234567890"); // phone: string
  * const phone2 = typer.isPhoneNumber("(555) 123-4567"); // phone2: string
  */
-export const isPhoneNumber = (p: unknown): string => {
+export const isPhoneNumber = /*#__PURE__*/ describing((p: unknown): string => {
     const str = assertString(p);
 
     // Remove all non-digit characters except + for counting
@@ -316,7 +317,7 @@ export const isPhoneNumber = (p: unknown): string => {
     }
 
     return str;
-};
+}, { type: 'string' });
 
 /**
  * Checks that the parameter is a string matching the given regular expression.
@@ -343,10 +344,10 @@ export const matches = (regex: RegExp, p: unknown): string => {
  * @example
  * const name = typer.isNonEmptyString("Hello"); // name: string
  */
-export const isNonEmptyString = (p: unknown): string => {
+export const isNonEmptyString = /*#__PURE__*/ describing((p: unknown): string => {
     const str = assertString(p);
     if (str.trim().length === 0) {
         throw issueError('too_small', `${p} must be a non-empty string.`, undefined, undefined, { minimum: 1 });
     }
     return str;
-};
+}, { type: 'string', minLength: 1 });

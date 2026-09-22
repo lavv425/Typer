@@ -55,6 +55,12 @@ const nullableFragment = (fragment: JSONSchemaFragment): JSONSchemaFragment => {
 };
 
 /**
+ * Every free validator by name, so the instance can recover the JSON Schema
+ * fragment its module attached. One definition, two ways of reaching it.
+ */
+const FREE_VALIDATORS: Record<string, unknown> = { ...Strings, ...Numbers, ...Sizes, ...Guards };
+
+/**
  * Strings `coerce.boolean` reads as `true`. Anything not listed here or in
  * {@link FALSY_STRINGS} is rejected rather than guessed at.
  */
@@ -63,56 +69,6 @@ const TRUTHY_STRINGS = new Set(['true', '1', 'yes', 'on']);
 /** Strings `coerce.boolean` reads as `false`. */
 const FALSY_STRINGS = new Set(['false', '0', 'no', 'off']);
 
-/**
- * JSON Schema equivalents of the built-in validators, keyed by method name.
- *
- * A validator is an opaque function, so `toJSONSchema` cannot work out that
- * `isEmail` accepts email addresses. The bound validators carry these, which
- * is the difference between emitting `{ type: 'string', format: 'email' }` and
- * emitting `{}`.
- *
- * Only validators with an honest equivalent are listed. `isPhoneNumber` and
- * `isSlug`, for instance, have no registered `format`, so they are described
- * by the pattern-free `{ type: 'string' }` their values satisfy rather than by
- * a made-up keyword.
- */
-const VALIDATOR_JSON_SCHEMA: Readonly<Record<string, JSONSchemaFragment>> = {
-    isString: { type: 'string' },
-    asString: { type: 'string' },
-    isNonEmptyString: { type: 'string', minLength: 1 },
-    isNumber: { type: 'number' },
-    asNumber: { type: 'number' },
-    isFiniteNumber: { type: 'number' },
-    isInteger: { type: 'integer' },
-    isSafeInteger: { type: 'integer' },
-    isPositiveNumber: { type: 'number', minimum: 0 },
-    isPositiveInteger: { type: 'integer', minimum: 0 },
-    isNegativeNumber: { type: 'number', exclusiveMaximum: 0 },
-    isNegativeInteger: { type: 'integer', maximum: -1 },
-    isPort: { type: 'integer', minimum: 1, maximum: 65535 },
-    isBoolean: { type: 'boolean' },
-    asBoolean: { type: 'boolean' },
-    isArray: { type: 'array' },
-    asArray: { type: 'array' },
-    isNonEmptyArray: { type: 'array', minItems: 1 },
-    isObject: { type: 'object' },
-    asObject: { type: 'object' },
-    isPlainObject: { type: 'object' },
-    isEmail: { type: 'string', format: 'email' },
-    isURL: { type: 'string', format: 'uri' },
-    isUUID: { type: 'string', format: 'uuid' },
-    isIPv4: { type: 'string', format: 'ipv4' },
-    isIPv6: { type: 'string', format: 'ipv6' },
-    isISODate: { type: 'string', format: 'date-time' },
-    isHexColor: { type: 'string' },
-    isBase64: { type: 'string', contentEncoding: 'base64' },
-    isJWT: { type: 'string' },
-    isMACAddress: { type: 'string' },
-    isSemver: { type: 'string' },
-    isSlug: { type: 'string' },
-    isPhoneNumber: { type: 'string' },
-    isIP: { type: 'string' },
-};
 
 /**
  * Class representing a type checker.
@@ -230,8 +186,12 @@ export class Typer<TRegistry extends TypeRegistry = {}> {
                 // `toJSONSchema` emit `{ type: 'string', format: 'email' }`
                 // for `{ email: typer.validators.isEmail }` instead of giving
                 // up on an opaque function.
-                const fragment = VALIDATOR_JSON_SCHEMA[name];
-                bound[name] = fragment === undefined ? validator : describing(validator, fragment);
+                // Read off the free function rather than a second table:
+                // binding produces a new function, which drops the symbol the
+                // module attached, so it has to be re-applied — but the
+                // fragment itself has exactly one definition.
+                const fragment = describedFragment(FREE_VALIDATORS[name]);
+                bound[name] = Object.keys(fragment).length === 0 ? validator : describing(validator, fragment);
             }
         }
 

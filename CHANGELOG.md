@@ -62,9 +62,9 @@ See [MIGRATION.md](./MIGRATION.md#migration-guide-v4x--v50) for the upgrade.
   parse({ email: isEmail, port: isPort }, payload);
   ```
 
-  A validator costs **~11 B on top of `core`**, and ~65 B each past the first,
-  so a realistic app lands near **3.12 KB** against the class's 9.85 KB. All 44
-  together, without the class, are 3.70 KB.
+  A validator costs **~61 B on top of `core`** — it carries the JSON Schema
+  fragment that makes it self-describing. All 44 together, without the class,
+  are 3.93 KB.
 
   43 of them moved; `isArrayOf` stays on the class because it resolves its
   element type through the instance registry. Every one is asserted against the

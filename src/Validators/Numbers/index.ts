@@ -1,3 +1,4 @@
+import { describing } from "../../Constants/Symbols";
 import { assertNumber } from "../../Core/Checkers";
 import { issueError } from "../../Utils/Issues";
 
@@ -17,13 +18,13 @@ import { issueError } from "../../Utils/Issues";
  * @example
  * const count = typer.isInteger(42); // count: number
  */
-export const isInteger = (p: unknown): number => {
+export const isInteger = /*#__PURE__*/ describing((p: unknown): number => {
     const num = assertNumber(p);
     if (!Number.isInteger(num)) {
         throw issueError('invalid_format', `${p} must be an integer.`, 'integer');
     }
     return num;
-};
+}, { type: 'integer' });
 
 /**
  * Checks if the provided parameter is a number within a specified range.
@@ -60,13 +61,13 @@ export const isInRange = (min: number, max: number, p: unknown): number => {
  * @example
  * const value = typer.isPositiveNumber(10); // value: number
  */
-export const isPositiveNumber = (p: unknown): number => {
+export const isPositiveNumber = /*#__PURE__*/ describing((p: unknown): number => {
     const num = assertNumber(p);
     if (num < 0) {
         throw issueError('too_small', `${p} must be a positive number.`, undefined, undefined, { minimum: 0 });
     }
     return num;
-};
+}, { type: 'number', minimum: 0 });
 
 /**
  * Checks if the provided parameter is a positive integer.
@@ -77,13 +78,13 @@ export const isPositiveNumber = (p: unknown): number => {
  * @example
  * const count = typer.isPositiveInteger(42); // count: number
  */
-export const isPositiveInteger = (p: unknown): number => {
+export const isPositiveInteger = /*#__PURE__*/ describing((p: unknown): number => {
     const num = isInteger(p);
     if (num < 0) {
         throw issueError('too_small', `${p} must be a positive integer.`, undefined, undefined, { minimum: 0 });
     }
     return num;
-};
+}, { type: 'integer', minimum: 0 });
 
 /**
  * Checks if the provided parameter is a negative number.
@@ -94,13 +95,13 @@ export const isPositiveInteger = (p: unknown): number => {
  * @example
  * const value = typer.isNegativeNumber(-10); // value: number
  */
-export const isNegativeNumber = (p: unknown): number => {
+export const isNegativeNumber = /*#__PURE__*/ describing((p: unknown): number => {
     const num = assertNumber(p);
     if (num >= 0) {
         throw issueError('too_big', `${p} must be a negative number.`);
     }
     return num;
-};
+}, { type: 'number', exclusiveMaximum: 0 });
 
 /**
  * Checks if the provided parameter is a negative integer.
@@ -111,13 +112,13 @@ export const isNegativeNumber = (p: unknown): number => {
  * @example
  * const count = typer.isNegativeInteger(-42); // count: number
  */
-export const isNegativeInteger = (p: unknown): number => {
+export const isNegativeInteger = /*#__PURE__*/ describing((p: unknown): number => {
     const num = isInteger(p);
     if (num >= 0) {
         throw issueError('too_big', `${p} must be a negative integer.`, undefined, undefined, { maximum: -1 });
     }
     return num;
-};
+}, { type: 'integer', maximum: -1 });
 
 /**
  * Checks that the parameter is a finite number (rejects `NaN` and `Infinity`).
@@ -128,13 +129,13 @@ export const isNegativeInteger = (p: unknown): number => {
  * @returns {number} The validated finite number
  * @throws {TypeError} If `p` is not a finite number
  */
-export const isFiniteNumber = (p: unknown): number => {
+export const isFiniteNumber = /*#__PURE__*/ describing((p: unknown): number => {
     const num = assertNumber(p);
     if (!Number.isFinite(num)) {
         throw issueError('invalid_format', `${p} must be a finite number.`, 'finite number');
     }
     return num;
-};
+}, { type: 'number' });
 
 /**
  * Checks that the parameter is a safe integer (within `Number.MIN_SAFE_INTEGER`
@@ -144,13 +145,13 @@ export const isFiniteNumber = (p: unknown): number => {
  * @returns {number} The validated safe integer
  * @throws {TypeError} If `p` is not a safe integer
  */
-export const isSafeInteger = (p: unknown): number => {
+export const isSafeInteger = /*#__PURE__*/ describing((p: unknown): number => {
     const num = assertNumber(p);
     if (!Number.isSafeInteger(num)) {
         throw issueError('invalid_format', `${p} must be a safe integer.`, 'safe integer');
     }
     return num;
-};
+}, { type: 'integer' });
 
 /**
  * Checks that the parameter is a valid TCP/UDP port number (1–65535).
@@ -163,11 +164,11 @@ export const isSafeInteger = (p: unknown): number => {
  * @example
  * typer.isPort(8080);
  */
-export const isPort = (p: unknown): number => {
+export const isPort = /*#__PURE__*/ describing((p: unknown): number => {
     const num = isInteger(p);
     const message = `${p} must be a valid port number (1-65535).`;
     const bounds = { minimum: 1, maximum: 65535 };
     if (num < 1) throw issueError('too_small', message, undefined, undefined, bounds);
     if (num > 65535) throw issueError('too_big', message, undefined, undefined, bounds);
     return num;
-};
+}, { type: 'integer', minimum: 1, maximum: 65535 });

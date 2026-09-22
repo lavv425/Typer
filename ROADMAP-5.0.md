@@ -73,11 +73,11 @@ built by `npm run build` and measured by `npm run size`:
 | --- | ---: | ---: |
 | `optional` + `arrayOf` only | **0.88 KB** | −91% |
 | `core` — `parse`, `safeParse`, `schema`, registries | **3.35 KB** | −67% |
-| `core` + `isEmail` + 3 combinators | 4.34 KB | −57% |
-| every validator (44), no class | 3.70 KB | −63% |
-| every combinator, no class | 6.25 KB | −38% |
+| `core` + `isEmail` + 3 combinators | 4.84 KB | −54% |
+| every validator (44), no class | 3.93 KB | −60% |
+| every combinator, no class | 6.24 KB | −40% |
 | `async` — `parseAsync`, `asyncRefine` | 3.65 KB | |
-| the class | 10.07 KB | — |
+| the class | 10.46 KB | — |
 | *(reference)* `zod/mini` | 4.8 KB | |
 
 **The target is met.** A realistic app — schema validation plus a few format
@@ -86,7 +86,8 @@ and the budgets in `scripts/check-bundle-size.mjs` hold every entry point
 there. `optional` + `arrayOf` at 0.88 KB is the proof that the schema
 compiler really does drop out when nothing needs it.
 
-A validator costs **~11 B on top of `core`**, and ~65 B each past the first.
+A validator costs **~61 B on top of `core`** — it carries the JSON Schema
+fragment that makes it self-describing.
 Getting there needed one non-obvious fix: `BUILTIN_CHECKERS` and
 `BUILTIN_PREDICATES` are built by a call expression, which rollup cannot
 prove side-effect-free, so importing a single validator retained all 19

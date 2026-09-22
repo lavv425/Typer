@@ -215,7 +215,10 @@ const convertObject = (schema: Record<string, unknown>, conversion: Conversion, 
  * @throws {TyperError} With `unrepresentable: 'throw'`, when a slot cannot be expressed.
  */
 export const toJSONSchema = (schema: Record<string, unknown>, options: ToJSONSchemaOptions = {}): JSONSchemaDocument => {
-    const conversion: Conversion = { strict: options.strict === true, unrepresentable: [] };
+    // Strict by default, matching validation: an emitted schema that omitted
+    // `additionalProperties: false` would describe a laxer contract than the
+    // one `parse` actually enforces.
+    const conversion: Conversion = { strict: options.strict !== false, unrepresentable: [] };
     const body = convertObject(schema, conversion, '');
 
     if (conversion.unrepresentable.length > 0 && options.unrepresentable === 'throw') {

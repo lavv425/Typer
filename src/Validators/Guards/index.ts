@@ -1,3 +1,4 @@
+import { describing } from "../../Constants/Symbols";
 import { assertArray, assertBoolean, assertNumber, assertObject, assertString } from "../../Core/Checkers";
 
 /**
@@ -12,27 +13,27 @@ import { assertArray, assertBoolean, assertNumber, assertObject, assertString } 
  * @param {unknown} value - The value to check
  * @returns {value is string} Type guard for string
  */
-export const isString = (value: unknown): value is string => {
+export const isString = /*#__PURE__*/ describing((value: unknown): value is string => {
     return typeof value === 'string';
-};
+}, { type: 'string' });
 
 /**
  * Type-safe number validation
  * @param {unknown} value - The value to check
  * @returns {value is number} Type guard for number
  */
-export const isNumber = (value: unknown): value is number => {
+export const isNumber = /*#__PURE__*/ describing((value: unknown): value is number => {
     return typeof value === 'number';
-};
+}, { type: 'number' });
 
 /**
  * Type-safe boolean validation
  * @param {unknown} value - The value to check
  * @returns {value is boolean} Type guard for boolean
  */
-export const isBoolean = (value: unknown): value is boolean => {
+export const isBoolean = /*#__PURE__*/ describing((value: unknown): value is boolean => {
     return typeof value === 'boolean';
-};
+}, { type: 'boolean' });
 
 /**
  * Type-safe array validation
@@ -40,9 +41,9 @@ export const isBoolean = (value: unknown): value is boolean => {
  * @param {unknown} value - The value to check
  * @returns {value is T[]} Type guard for array
  */
-export const isArray = <T = unknown>(value: unknown): value is T[] => {
+export const isArray = /*#__PURE__*/ describing(<T = unknown>(value: unknown): value is T[] => {
     return Array.isArray(value);
-};
+}, { type: 'array' });
 
 /**
  * Type-safe object validation
@@ -50,12 +51,12 @@ export const isArray = <T = unknown>(value: unknown): value is T[] => {
  * @param {unknown} value - The value to check
  * @returns {value is T} Type guard for object
  */
-export const isObject = <T extends Record<string, unknown> = Record<string, unknown>>(value: unknown): value is T => {
+export const isObject = /*#__PURE__*/ describing(<T extends Record<string, unknown> = Record<string, unknown>>(value: unknown): value is T => {
     // Mirrors the 'object' alias exactly, including the long-standing quirk
     // that `null` passes because `typeof null === 'object'`. Use
     // `isPlainObject` when you need `null` (and class instances) rejected.
     return typeof value === 'object' && !Array.isArray(value);
-};
+}, { type: 'object' });
 
 /**
  * Validates and returns a string
@@ -63,9 +64,9 @@ export const isObject = <T extends Record<string, unknown> = Record<string, unkn
  * @returns {string} The validated string
  * @throws {TypeError} If not a string
  */
-export const asString = (value: unknown): string => {
+export const asString = /*#__PURE__*/ describing((value: unknown): string => {
     return assertString(value);
-};
+}, { type: 'string' });
 
 /**
  * Validates and returns a number
@@ -73,9 +74,9 @@ export const asString = (value: unknown): string => {
  * @returns {number} The validated number
  * @throws {TypeError} If not a number
  */
-export const asNumber = (value: unknown): number => {
+export const asNumber = /*#__PURE__*/ describing((value: unknown): number => {
     return assertNumber(value);
-};
+}, { type: 'number' });
 
 /**
  * Validates and returns a boolean
@@ -83,9 +84,9 @@ export const asNumber = (value: unknown): number => {
  * @returns {boolean} The validated boolean
  * @throws {TypeError} If not a boolean
  */
-export const asBoolean = (value: unknown): boolean => {
+export const asBoolean = /*#__PURE__*/ describing((value: unknown): boolean => {
     return assertBoolean(value);
-};
+}, { type: 'boolean' });
 
 /**
  * Validates and returns an array
@@ -94,9 +95,9 @@ export const asBoolean = (value: unknown): boolean => {
  * @returns {T[]} The validated array
  * @throws {TypeError} If not an array
  */
-export const asArray = <T = unknown>(value: unknown): T[] => {
+export const asArray = /*#__PURE__*/ describing(<T = unknown>(value: unknown): T[] => {
     return assertArray<T>(value);
-};
+}, { type: 'array' });
 
 /**
  * Validates and returns an object
@@ -105,9 +106,9 @@ export const asArray = <T = unknown>(value: unknown): T[] => {
  * @returns {T} The validated object
  * @throws {TypeError} If not an object
  */
-export const asObject = <T extends Record<string, unknown> = Record<string, unknown>>(value: unknown): T => {
+export const asObject = /*#__PURE__*/ describing(<T extends Record<string, unknown> = Record<string, unknown>>(value: unknown): T => {
     return assertObject<T>(value);
-};
+}, { type: 'object' });
 
 /**
  * Checks that the parameter is a plain object (object literal or
@@ -118,7 +119,7 @@ export const asObject = <T extends Record<string, unknown> = Record<string, unkn
  * @returns {T} The validated plain object
  * @throws {TypeError} If `p` is not a plain object
  */
-export const isPlainObject = <T extends Record<string, unknown> = Record<string, unknown>>(p: unknown): T => {
+export const isPlainObject = /*#__PURE__*/ describing(<T extends Record<string, unknown> = Record<string, unknown>>(p: unknown): T => {
     if (p === null || typeof p !== 'object') {
         throw new TypeError(`${p} must be a plain object, is ${p === null ? 'null' : typeof p}`);
     }
@@ -127,7 +128,7 @@ export const isPlainObject = <T extends Record<string, unknown> = Record<string,
         throw new TypeError(`${p} must be a plain object (no class instances).`);
     }
     return p as T;
-};
+}, { type: 'object' });
 
 /**
  * Checks that the parameter is a Promise (or a thenable).
