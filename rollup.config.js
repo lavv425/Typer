@@ -35,6 +35,11 @@ const compile = (declaration) => typescript({
     rootDir: 'src',
 });
 
+/**
+ * 
+ * @param {Boolean} shouldCompile 
+ * @returns {Array} plugins list
+ */
 const pluginList = (shouldCompile) => [aliases(), resolve(), commonjs(), compile(shouldCompile)];
 
 export default [
